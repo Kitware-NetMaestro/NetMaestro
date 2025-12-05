@@ -11,17 +11,19 @@ license-files = ["LICENSE", "NOTICE"]
 classifiers = ["Private :: Do Not Upload"]
 dependencies = [
   # Runtime dependencies, always needed
-  "celery",
+  # "celery",
   "django[argon2]",
-  "django-allauth",
+  # "django-allauth",
   "django-auth-style",
   "django-cors-headers",
   "django-environ",
   "django-extensions",
   "django-filter",
   "django-oauth-toolkit",
-  "django-resonant-settings[allauth,celery]",
-  "django-resonant-utils[allauth,s3_storage]",
+  "django-resonant-settings",
+  # "django-resonant-settings[allauth,celery]",
+  "django-resonant-utils",
+  # "django-resonant-utils[allauth,s3_storage]",
   "django-stubs-ext",
   "djangorestframework",
   "drf-yasg",
@@ -29,10 +31,11 @@ dependencies = [
   "rich",
   "whitenoise[brotli]",
   # Production-only
-  "django-s3-file-field[s3]",
-  "django-storages[s3]",
+  # "django-s3-file-field[s3]",
+  # "django-storages[s3]",
   "gunicorn",
-  "sentry-sdk[celery,django,pure_eval]",
+  "sentry-sdk[django,pure_eval]",
+  # "sentry-sdk[celery,django,pure_eval]",
 ]
 
 [project.optional-dependencies]
@@ -41,8 +44,8 @@ development = [
   "django-browser-reload",
   "django-debug-toolbar",
   "django-minio-storage",
-  "django-resonant-utils[minio_storage]",
-  "django-s3-file-field[minio]",
+  # "django-resonant-utils[minio_storage]",
+  # "django-s3-file-field[minio]",
   "ipython",
   "watchdog",
   "werkzeug",
@@ -72,7 +75,7 @@ format = [
 ]
 type = [
   "mypy",
-  "celery-types",
+  # "celery-types",
   "django-stubs[compatible-mypy]",
   "djangorestframework-stubs",
 ]
