@@ -14,39 +14,39 @@ services:
     volumes:
       - postgres:/var/lib/postgresql
 
-  rabbitmq:
-    image: rabbitmq:management-alpine
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      start_period: 30s
-      start_interval: 2s
-    ports:
-      - 5672:5672
-      - 15672:15672
-    volumes:
-      - rabbitmq:/var/lib/rabbitmq
+  # rabbitmq:
+  #   image: rabbitmq:management-alpine
+  #   healthcheck:
+  #     test: ["CMD", "rabbitmq-diagnostics", "ping"]
+  #     start_period: 30s
+  #     start_interval: 2s
+  #   ports:
+  #     - 5672:5672
+  #     - 15672:15672
+  #   volumes:
+  #     - rabbitmq:/var/lib/rabbitmq
 
-  minio:
-    image: minio/minio:latest
-    # When run with a TTY, minio prints credentials on startup
-    tty: true
-    command: ["server", "/data", "--console-address", ":9001"]
-    environment:
-      MINIO_ROOT_USER: minioAccessKey
-      MINIO_ROOT_PASSWORD: minioSecretKey
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      # "mc ready" doesn't terminate on failure, so time it out
-      timeout: 1s
-      start_period: 30s
-      start_interval: 2s
-    ports:
-      - 9000:9000
-      - 9001:9001
-    volumes:
-      - minio:/data
+  # minio:
+  #   image: minio/minio:latest
+  #   # When run with a TTY, minio prints credentials on startup
+  #   tty: true
+  #   command: ["server", "/data", "--console-address", ":9001"]
+  #   environment:
+  #     MINIO_ROOT_USER: minioAccessKey
+  #     MINIO_ROOT_PASSWORD: minioSecretKey
+  #   healthcheck:
+  #     test: ["CMD", "mc", "ready", "local"]
+  #     # "mc ready" doesn't terminate on failure, so time it out
+  #     timeout: 1s
+  #     start_period: 30s
+  #     start_interval: 2s
+  #   ports:
+  #     - 9000:9000
+  #     - 9001:9001
+  #   volumes:
+  #     - minio:/data
 
 volumes:
   postgres:
-  minio:
-  rabbitmq:
+  # minio:
+  # rabbitmq:

@@ -3,7 +3,7 @@ from django_extensions.utils import InternalIPS
 from .base import *
 
 # Import these afterwards, to override
-from resonant_settings.development.celery import *  # isort: skip
+# from resonant_settings.development.celery import *  # isort: skip
 from resonant_settings.development.debug_toolbar import *  # isort: skip
 from resonant_settings.development.minio_storage import *  # isort: skip
 
