@@ -36,6 +36,7 @@ dependencies = [
   "gunicorn",
   "sentry-sdk[django,pure_eval]",
   # "sentry-sdk[celery,django,pure_eval]",
+  "pandas",
 ]
 
 [project.optional-dependencies]

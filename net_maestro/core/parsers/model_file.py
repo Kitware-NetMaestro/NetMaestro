@@ -1,23 +1,65 @@
 from collections import namedtuple
-import struct
+import logging
+from struct import Struct
 from typing import BinaryIO, Literal, Optional
 
 import pandas as pd
 
+# Struct configuration
+# Default endianness
+ENDIAN = '@'
+# Metadata
+# TODO: Do not hardcode META_FORMAT; schema/versioned header if possible?
+META_FORMAT = f'{ENDIAN}QLLddii'
+META_STRUCT = Struct(META_FORMAT)
+META = namedtuple(
+    'META',
+    (
+        'lp_id',
+        'kp_id',
+        'pe_id',
+        'virtual_time',
+        'real_time',
+        'sample_size',
+        'flag',
+    ),
+)
 
-# note this actually reads the analysis lps files, which i believe would include engine data as
-# well, if collected
+# SimpleP2P model payload
+SIMPLEP2P_FORMAT = f'{ENDIAN}Qlldlld'  # TODO: Do not hardcode; consider schema-driven payload
+SIMPLEP2P_STRUCT = Struct(SIMPLEP2P_FORMAT)
+SimpleP2P = namedtuple(
+    'SimpleP2P',
+    (
+        'component_id',
+        'send_count',
+        'send_bytes',
+        'send_time',
+        'receive_count',
+        'receive_bytes',
+        'receive_time',
+    ),
+)
+
+# Flag "3" is model data
+FLAG_MODEL_DATA = 3  # TODO: Do not hardcode; derive from schema/const map
+
+
+# NOTE: This actually reads the analysis "lps" files, which may include engine data as
+# well, if collected.
 class ModelFile:
+    """Parser for model analysis Logical Process (LP) binary files."""
+
     def __init__(self, filename: str) -> None:
         self.f: BinaryIO = open(filename, 'rb')
         self.content: bytes = self.f.read()
 
-        self.md_format: str = '@QLLddii'
-        self.md_sz: int = struct.calcsize(self.md_format)
+        self.metadata_struct: Struct = META_STRUCT
+        self.metadata_size: int = META_STRUCT.size
 
         # TODO: will need to figure out a way to not hardcode this
-        self.simplep2p_format: str = '@Qlldlld'
-        self.simplep2p_size: int = struct.calcsize(self.simplep2p_format)
+        self.simplep2p_struct: Struct = SIMPLEP2P_STRUCT
+        self.simplep2p_size: int = SIMPLEP2P_STRUCT.size
 
         self._use_virtual_time: bool = True
         self._time_variable: Literal['virtual_time', 'real_time'] = 'virtual_time'
@@ -28,36 +70,35 @@ class ModelFile:
 
     def read(self) -> None:
         sample_list: list[pd.DataFrame] = []
-
         byte_pos = 0
-        while True:
-            md_bytes = self.content[byte_pos : byte_pos + self.md_sz]
-            byte_pos += len(md_bytes)
-            if not md_bytes:
-                break
-            md_record = namedtuple(
-                'md_record', 'lp_id kp_id pe_id virtual_time real_time sample_size flag'
-            )
-            md = md_record._make(struct.unpack(self.md_format, md_bytes))
 
-            # flag == 3 is model data
-            if md.flag == 3 and md.sample_size == self.simplep2p_size:
-                sp_bytes = self.content[byte_pos : byte_pos + self.simplep2p_size]
-                byte_pos += len(sp_bytes)
-                sp_record = namedtuple(
-                    'sp_record',
-                    'component_id send_count send_bytes send_time '
-                    'receive_count receive_bytes receive_time',
-                )
-                sp_data = sp_record._make(struct.unpack(self.simplep2p_format, sp_bytes))
+        while byte_pos + self.metadata_size <= len(self.content):
+            metadata_tuple = self.metadata_struct.unpack_from(self.content, byte_pos)
+            byte_pos += self.metadata_size
+            metadata = META._make(metadata_tuple)
+
+            if (
+                metadata.flag == FLAG_MODEL_DATA
+                and metadata.sample_size == self.simplep2p_size
+                and (byte_pos + self.simplep2p_size) <= len(self.content)
+            ):
+                sp_tuple = self.simplep2p_struct.unpack_from(self.content, byte_pos)
+                byte_pos += self.simplep2p_size
+                sp_data = SimpleP2P._make(sp_tuple)
                 df = pd.DataFrame([sp_data])
-                df['lp_id'] = md.lp_id
-                df['virtual_time'] = md.virtual_time
-                df['real_time'] = md.real_time
+                df['lp_id'] = metadata.lp_id
+                df['virtual_time'] = metadata.virtual_time
+                df['real_time'] = metadata.real_time
                 sample_list.append(df)
             else:
-                print(f'sample of size {md.sample_size} found')
-                return
+                # Unknown payload size or flag
+                remaining = len(self.content) - byte_pos
+                logging.warning(
+                    'Stopping parse due to invalid payload size: size=%d, remaining=%d',
+                    metadata.sample_size,
+                    remaining,
+                )
+                break
 
         self.simplep2p_df = pd.concat(sample_list, ignore_index=True)
         self.min_time = float(self.simplep2p_df[self.time_variable].min())

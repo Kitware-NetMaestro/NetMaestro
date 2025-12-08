@@ -1,21 +1,53 @@
 from collections import namedtuple
-import struct
+import logging
+from struct import Struct
 from typing import BinaryIO, Literal, Optional
 
 import pandas as pd
 
+# Struct configuration
+ENDIAN = '@'
+
+# Metadata
+# TODO: Do not hardcode META_FORMAT; schema/versioned header if possible?
+META_FORMAT = f'{ENDIAN}IIfffI'
+META_STRUCT = Struct(META_FORMAT)
+META = namedtuple(
+    'META',
+    (
+        'source_lp',
+        'dest_lp',
+        'virtual_send',
+        'virtual_receive',
+        'real_times',
+        'sample_size',
+    ),
+)
+
+# SimpleP2P payload
+# TODO: Do not hardcode; schema-driven payload instead?
+SIMPLEP2P_FORMAT = f'{ENDIAN}i'
+SIMPLEP2P_STRUCT = Struct(SIMPLEP2P_FORMAT)
+SimpleP2P = namedtuple('SimpleP2P', ('event_type',))
+
 
 class EventFile:
+    """Parser for event-trace binary files.
+
+    Each record consists of a fixed-size metadata header followed by a payload.
+    The header's sample_size selects the payload layout.
+    """
+
     def __init__(self, filename: str) -> None:
         self.f: BinaryIO = open(filename, 'rb')
         self.content: bytes = self.f.read()
 
-        self.md_format: str = '@IIfffI'
-        self.md_sz: int = struct.calcsize(self.md_format)
+        self.metadata_struct: Struct = META_STRUCT
+        self.metadata_size: int = META_STRUCT.size
 
         # TODO: will need to figure out a way to not hardcode this
-        self.simplep2p_format: str = '@i'
-        self.simplep2p_size: int = struct.calcsize(self.simplep2p_format)
+        self.simplep2p_struct: Struct = SIMPLEP2P_STRUCT
+        self.simplep2p_size: int = SIMPLEP2P_STRUCT.size
 
         self._use_send_time: bool = True
         self._time_variable: Literal['virtual_send', 'virtual_receive'] = 'virtual_send'
@@ -26,34 +58,36 @@ class EventFile:
 
     def read(self) -> None:
         sample_list: list[pd.DataFrame] = []
-
         byte_pos = 0
-        while True:
-            md_bytes = self.content[byte_pos : byte_pos + self.md_sz]
-            byte_pos += len(md_bytes)
-            if not md_bytes:
-                break
-            md_record = namedtuple(
-                'md_record', 'source_lp dest_lp virtual_send virtual_receive real_times sample_size'
-            )
-            md = md_record._make(struct.unpack(self.md_format, md_bytes))
 
-            if md.sample_size == self.simplep2p_size:
-                sp_bytes = self.content[byte_pos : byte_pos + self.simplep2p_size]
-                byte_pos += len(sp_bytes)
-                sp_record = namedtuple('sp_record', 'event_type')
-                sp_data = sp_record._make(struct.unpack(self.simplep2p_format, sp_bytes))
+        while byte_pos + self.metadata_size <= len(self.content):
+            metadata_tuple = self.metadata_struct.unpack_from(self.content, byte_pos)
+            byte_pos += self.metadata_size
+            metadata = META._make(metadata_tuple)
+
+            if metadata.sample_size == self.simplep2p_size and (
+                byte_pos + self.simplep2p_size <= len(self.content)
+            ):
+                sp_tuple = self.simplep2p_struct.unpack_from(self.content, byte_pos)
+                byte_pos += self.simplep2p_size
+                sp_data = SimpleP2P._make(sp_tuple)
                 df = pd.DataFrame([sp_data])
-                df['source_lp'] = md.source_lp
-                df['dest_lp'] = md.dest_lp
-                df['virtual_send'] = md.virtual_send
-                df['virtual_receive'] = md.virtual_receive
+                df['source_lp'] = metadata.source_lp
+                df['dest_lp'] = metadata.dest_lp
+                df['virtual_send'] = metadata.virtual_send
+                df['virtual_receive'] = metadata.virtual_receive
                 sample_list.append(df)
-            elif md.sample_size == 0:
+            elif metadata.sample_size == 0:
+                # Zero-length payload; nothing to consume for this record
                 continue
             else:
-                print(f'sample of size {md.sample_size} found')
-                return
+                remaining = len(self.content) - byte_pos
+                logging.warning(
+                    'Stopping parse due to invalid payload size: size=%d, remaining=%d',
+                    metadata.sample_size,
+                    remaining,
+                )
+                break
 
         self.simplep2p_df = pd.concat(sample_list, ignore_index=True)
         self.min_time = float(self.simplep2p_df[self.time_variable].min())

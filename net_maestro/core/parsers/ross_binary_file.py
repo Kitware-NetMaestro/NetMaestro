@@ -1,26 +1,76 @@
 from collections import namedtuple
-import struct
+import logging
+from struct import Struct
 from typing import BinaryIO, Literal, Optional
 
 import pandas as pd
 
+# Struct configuration
+ENDIAN = '@'
+
+# Metadata
+# TODO: Do not hardcode META_FORMAT; schema/versioned header if possible?
+META_FORMAT = f'{ENDIAN}2i2d'
+META_STRUCT = Struct(META_FORMAT)
+META = namedtuple('META', 'flag sample_size virtual_time real_time')
+
+# Payload structs
+# TODO: Do not hardcode PE_FORMAT; schema/versioned header if possible?
+# TODO: More explicit name for "PE"
+PE_FORMAT = f'{ENDIAN}13I13f'  # TODO: Do not hardcode; consider schema-driven payload
+PE_STRUCT = Struct(PE_FORMAT)
+PE = namedtuple(
+    'PE',
+    'PE_ID events_processed events_aborted events_rolled_back total_rollbacks '
+    'secondary_rollbacks fossil_collection_attempts pq_queue_size network_sends '
+    'network_reads number_gvt pe_event_ties all_reduce efficiency network_read_time '
+    'network_other_time gvt_time fossil_collect_time event_abort_time event_process_time '
+    'pq_time rollback_time cancel_q_time avl_time buddy_time lz4_time',
+)
+
+# TODO: Do not hardcode KP_FORMAT; schema/versioned header if possible?
+# More explicit name for "KP"
+KP_FORMAT = f'{ENDIAN}9I2f'
+KP_STRUCT = Struct(KP_FORMAT)
+KP = namedtuple(
+    'KP',
+    'PE_ID KP_ID events_processed events_abort events_rolled_back total_rollbacks '
+    'secondary_rollbacks network_sends network_reads time_ahead_gvt efficiency',
+)
+
+# TODO: Do not hardcode META_FORMAT; schema/versioned header if possible?
+# More explicit name for "LP"
+LP_FORMAT = f'{ENDIAN}8If'
+LP_STRUCT = Struct(LP_FORMAT)
+LP = namedtuple(
+    'LP',
+    'PE_ID KP_ID LP_ID events_processed events_abort events_rolled_back '
+    'network_sends network_reads efficiency',
+)
+
 
 class ROSSFile:
+    """Parser for ROSS engine binary stats (PE/KP/LP records).
+
+    Each record starts with a fixed-size header (flag, sample_size, times)
+    followed by a payload whose size determines the structure (PE/KP/LP).
+    """
+
     def __init__(self, filename: str) -> None:
         self.f: BinaryIO = open(filename, 'rb')
         self.content: bytes = self.f.read()
 
-        self.engine_md_format: str = '@2i2d'
-        self.engine_md_size: int = struct.calcsize(self.engine_md_format)
+        self.metadata_struct: Struct = META_STRUCT
+        self.metadata_size: int = META_STRUCT.size
 
-        self.engine_pe_format: str = '@13I13f'
-        self.engine_pe_size: int = struct.calcsize(self.engine_pe_format)
+        self.pe_struct: Struct = PE_STRUCT
+        self.pe_size: int = PE_STRUCT.size
 
-        self.engine_kp_format: str = '@9I2f'
-        self.engine_kp_size: int = struct.calcsize(self.engine_kp_format)
+        self.kp_struct: Struct = KP_STRUCT
+        self.kp_size: int = KP_STRUCT.size
 
-        self.engine_lp_format: str = '@8If'
-        self.engine_lp_size: int = struct.calcsize(self.engine_lp_format)
+        self.lp_struct: Struct = LP_STRUCT
+        self.lp_size: int = LP_STRUCT.size
 
         self._use_virtual_time: bool = True
         self._time_variable: Literal['virtual_time', 'real_time'] = 'virtual_time'
@@ -35,63 +85,51 @@ class ROSSFile:
         pe_list: list[pd.DataFrame] = []
         kp_list: list[pd.DataFrame] = []
         lp_list: list[pd.DataFrame] = []
-
         byte_pos = 0
-        while True:
-            md_bytes = self.content[byte_pos : byte_pos + self.engine_md_size]
-            byte_pos += len(md_bytes)
-            if not md_bytes:
-                break
-            md_record = namedtuple('md_record', 'flag sample_size virtual_time real_time')
-            md = md_record._make(struct.unpack(self.engine_md_format, md_bytes))
 
-            if md.sample_size == self.engine_pe_size:
-                pe_bytes = self.content[byte_pos : byte_pos + self.engine_pe_size]
-                byte_pos += len(pe_bytes)
-                pe_record = namedtuple(
-                    'pe_record',
-                    'PE_ID events_processed events_aborted events_rolled_back '
-                    'total_rollbacks secondary_rollbacks fossil_collection_attempts '
-                    'pq_queue_size network_sends network_reads number_gvt pe_event_ties '
-                    'all_reduce efficiency network_read_time network_other_time gvt_time '
-                    'fossil_collect_time event_abort_time event_process_time pq_time '
-                    'rollback_time cancel_q_time avl_time buddy_time lz4_time',
-                )
-                pe_data = pe_record._make(struct.unpack(self.engine_pe_format, pe_bytes))
+        while byte_pos + self.metadata_size <= len(self.content):
+            metadata_tuple = self.metadata_struct.unpack_from(self.content, byte_pos)
+            byte_pos += self.metadata_size
+            metadata = META._make(metadata_tuple)
+
+            if metadata.sample_size == self.pe_size and (byte_pos + self.pe_size) <= len(
+                self.content
+            ):
+                pe_tuple = self.pe_struct.unpack_from(self.content, byte_pos)
+                byte_pos += self.pe_size
+                pe_data = PE._make(pe_tuple)
                 df = pd.DataFrame([pe_data])
-                df['virtual_time'] = md.virtual_time
-                df['real_time'] = md.real_time
+                df['virtual_time'] = metadata.virtual_time
+                df['real_time'] = metadata.real_time
                 pe_list.append(df)
-            elif md.sample_size == self.engine_kp_size:
-                kp_bytes = self.content[byte_pos : byte_pos + self.engine_kp_size]
-                byte_pos += len(kp_bytes)
-                kp_record = namedtuple(
-                    'kp_record',
-                    'PE_ID KP_ID events_processed events_abort events_rolled_back '
-                    'total_rollbacks secondary_rollbacks network_sends network_reads '
-                    'time_ahead_gvt efficiency',
-                )
-                kp_data = kp_record._make(struct.unpack(self.engine_kp_format, kp_bytes))
+            elif metadata.sample_size == self.kp_size and (byte_pos + self.kp_size) <= len(
+                self.content
+            ):
+                kp_tuple = self.kp_struct.unpack_from(self.content, byte_pos)
+                byte_pos += self.kp_size
+                kp_data = KP._make(kp_tuple)
                 df = pd.DataFrame([kp_data])
-                df['virtual_time'] = md.virtual_time
-                df['real_time'] = md.real_time
+                df['virtual_time'] = metadata.virtual_time
+                df['real_time'] = metadata.real_time
                 kp_list.append(df)
-            elif md.sample_size == self.engine_lp_size:
-                lp_bytes = self.content[byte_pos : byte_pos + self.engine_lp_size]
-                byte_pos += len(lp_bytes)
-                lp_record = namedtuple(
-                    'lp_record',
-                    'PE_ID KP_ID LP_ID events_processed events_abort events_rolled_back '
-                    'network_sends network_reads efficiency',
-                )
-                lp_data = lp_record._make(struct.unpack(self.engine_lp_format, lp_bytes))
+            elif metadata.sample_size == self.lp_size and (byte_pos + self.lp_size) <= len(
+                self.content
+            ):
+                lp_tuple = self.lp_struct.unpack_from(self.content, byte_pos)
+                byte_pos += self.lp_size
+                lp_data = LP._make(lp_tuple)
                 df = pd.DataFrame([lp_data])
-                df['virtual_time'] = md.virtual_time
-                df['real_time'] = md.real_time
+                df['virtual_time'] = metadata.virtual_time
+                df['real_time'] = metadata.real_time
                 lp_list.append(df)
             else:
-                print('ERROR: found incorrect struct size')
-                return
+                remaining = len(self.content) - byte_pos
+                logging.warning(
+                    'Stopping parse due to invalid payload size: size=%d, remaining=%d',
+                    metadata.sample_size,
+                    remaining,
+                )
+                break
 
         self.pe_df = pd.concat(pe_list, ignore_index=True) if pe_list else pd.DataFrame()
         self.kp_df = pd.concat(kp_list, ignore_index=True) if kp_list else pd.DataFrame()
