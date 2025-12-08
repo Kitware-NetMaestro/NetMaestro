@@ -1,52 +1,150 @@
-from collections import namedtuple
 import logging
+import struct
 from struct import Struct
-from typing import BinaryIO, Literal, Optional
+from typing import BinaryIO, Literal, NamedTuple, Optional
 
 import pandas as pd
 
-# Struct configuration
-ENDIAN = '@'
+from .schema import ENDIAN, validate_time_columns
 
 # Metadata
-# TODO: Do not hardcode META_FORMAT; schema/versioned header if possible?
+META_FIELDS = ('flag', 'sample_size', 'virtual_time', 'real_time')
 META_FORMAT = f'{ENDIAN}2i2d'
-META_STRUCT = Struct(META_FORMAT)
-META = namedtuple('META', 'flag sample_size virtual_time real_time')
+META_STRUCT = struct.Struct(META_FORMAT)
+
+
+class META(NamedTuple):
+    flag: int
+    sample_size: int
+    virtual_time: float
+    real_time: float
+
 
 # Payload structs
-# TODO: Do not hardcode PE_FORMAT; schema/versioned header if possible?
-# TODO: More explicit name for "PE"
-PE_FORMAT = f'{ENDIAN}13I13f'  # TODO: Do not hardcode; consider schema-driven payload
-PE_STRUCT = Struct(PE_FORMAT)
-PE = namedtuple(
-    'PE',
-    'PE_ID events_processed events_aborted events_rolled_back total_rollbacks '
-    'secondary_rollbacks fossil_collection_attempts pq_queue_size network_sends '
-    'network_reads number_gvt pe_event_ties all_reduce efficiency network_read_time '
-    'network_other_time gvt_time fossil_collect_time event_abort_time event_process_time '
-    'pq_time rollback_time cancel_q_time avl_time buddy_time lz4_time',
+PE_FORMAT = f'{ENDIAN}13I13f'
+PE_STRUCT = struct.Struct(PE_FORMAT)
+PE_FIELDS = (
+    'PE_ID',
+    'events_processed',
+    'events_aborted',
+    'events_rolled_back',
+    'total_rollbacks',
+    'secondary_rollbacks',
+    'fossil_collection_attempts',
+    'pq_queue_size',
+    'network_sends',
+    'network_reads',
+    'number_gvt',
+    'pe_event_ties',
+    'all_reduce',
+    'efficiency',
+    'network_read_time',
+    'network_other_time',
+    'gvt_time',
+    'fossil_collect_time',
+    'event_abort_time',
+    'event_process_time',
+    'pq_time',
+    'rollback_time',
+    'cancel_q_time',
+    'avl_time',
+    'buddy_time',
+    'lz4_time',
 )
 
-# TODO: Do not hardcode KP_FORMAT; schema/versioned header if possible?
-# More explicit name for "KP"
+
+class PE(NamedTuple):
+    PE_ID: int
+    events_processed: int
+    events_aborted: int
+    events_rolled_back: int
+    total_rollbacks: int
+    secondary_rollbacks: int
+    fossil_collection_attempts: int
+    pq_queue_size: int
+    network_sends: int
+    network_reads: int
+    number_gvt: int
+    pe_event_ties: int
+    all_reduce: int
+    efficiency: float
+    network_read_time: float
+    network_other_time: float
+    gvt_time: float
+    fossil_collect_time: float
+    event_abort_time: float
+    event_process_time: float
+    pq_time: float
+    rollback_time: float
+    cancel_q_time: float
+    avl_time: float
+    buddy_time: float
+    lz4_time: float
+
+
 KP_FORMAT = f'{ENDIAN}9I2f'
-KP_STRUCT = Struct(KP_FORMAT)
-KP = namedtuple(
-    'KP',
-    'PE_ID KP_ID events_processed events_abort events_rolled_back total_rollbacks '
-    'secondary_rollbacks network_sends network_reads time_ahead_gvt efficiency',
+KP_STRUCT = struct.Struct(KP_FORMAT)
+KP_FIELDS = (
+    'PE_ID',
+    'KP_ID',
+    'events_processed',
+    'events_abort',
+    'events_rolled_back',
+    'total_rollbacks',
+    'secondary_rollbacks',
+    'network_sends',
+    'network_reads',
+    'time_ahead_gvt',
+    'efficiency',
 )
 
-# TODO: Do not hardcode META_FORMAT; schema/versioned header if possible?
+
+class KP(NamedTuple):
+    PE_ID: int
+    KP_ID: int
+    events_processed: int
+    events_abort: int
+    events_rolled_back: int
+    total_rollbacks: int
+    secondary_rollbacks: int
+    network_sends: int
+    network_reads: int
+    time_ahead_gvt: float
+    efficiency: float
+
+
 # More explicit name for "LP"
 LP_FORMAT = f'{ENDIAN}8If'
-LP_STRUCT = Struct(LP_FORMAT)
-LP = namedtuple(
-    'LP',
-    'PE_ID KP_ID LP_ID events_processed events_abort events_rolled_back '
-    'network_sends network_reads efficiency',
+LP_STRUCT = struct.Struct(LP_FORMAT)
+LP_FIELDS = (
+    'PE_ID',
+    'KP_ID',
+    'LP_ID',
+    'events_processed',
+    'events_abort',
+    'events_rolled_back',
+    'network_sends',
+    'network_reads',
+    'efficiency',
 )
+
+
+class LP(NamedTuple):
+    PE_ID: int
+    KP_ID: int
+    LP_ID: int
+    events_processed: int
+    events_abort: int
+    events_rolled_back: int
+    network_sends: int
+    network_reads: int
+    efficiency: float
+
+
+# Default Values
+DEFAULT_TIME_KEY = 'virtual_time'
+ALT_TIME_KEY = 'real_time'
+TIME_COLUMNS = [DEFAULT_TIME_KEY, ALT_TIME_KEY]
 
 
 class ROSSFile:
@@ -63,11 +161,11 @@ class ROSSFile:
         self.metadata_struct: Struct = META_STRUCT
         self.metadata_size: int = META_STRUCT.size
 
-        self.pe_struct: Struct = PE_STRUCT
-        self.pe_size: int = PE_STRUCT.size
+        self._proc_elem_struct = PE_STRUCT
+        self._proc_elem_size = PE_STRUCT.size
 
-        self.kp_struct: Struct = KP_STRUCT
-        self.kp_size: int = KP_STRUCT.size
+        self._kernel_proc_struct = KP_STRUCT
+        self._kernel_proc_size = KP_STRUCT.size
 
         self.lp_struct: Struct = LP_STRUCT
         self.lp_size: int = LP_STRUCT.size
@@ -90,24 +188,24 @@ class ROSSFile:
         while byte_pos + self.metadata_size <= len(self.content):
             metadata_tuple = self.metadata_struct.unpack_from(self.content, byte_pos)
             byte_pos += self.metadata_size
-            metadata = META._make(metadata_tuple)
+            metadata = META(*metadata_tuple)
 
-            if metadata.sample_size == self.pe_size and (byte_pos + self.pe_size) <= len(
-                self.content
-            ):
-                pe_tuple = self.pe_struct.unpack_from(self.content, byte_pos)
-                byte_pos += self.pe_size
-                pe_data = PE._make(pe_tuple)
+            if metadata.sample_size == self._proc_elem_size and (
+                byte_pos + self._proc_elem_size
+            ) <= len(self.content):
+                pe_tuple = self._proc_elem_struct.unpack_from(self.content, byte_pos)
+                byte_pos += self._proc_elem_size
+                pe_data = PE(*pe_tuple)
                 df = pd.DataFrame([pe_data])
                 df['virtual_time'] = metadata.virtual_time
                 df['real_time'] = metadata.real_time
                 pe_list.append(df)
-            elif metadata.sample_size == self.kp_size and (byte_pos + self.kp_size) <= len(
-                self.content
-            ):
-                kp_tuple = self.kp_struct.unpack_from(self.content, byte_pos)
-                byte_pos += self.kp_size
-                kp_data = KP._make(kp_tuple)
+            elif metadata.sample_size == self._kernel_proc_size and (
+                byte_pos + self._kernel_proc_size
+            ) <= len(self.content):
+                kp_tuple = self._kernel_proc_struct.unpack_from(self.content, byte_pos)
+                byte_pos += self._kernel_proc_size
+                kp_data = KP(*kp_tuple)
                 df = pd.DataFrame([kp_data])
                 df['virtual_time'] = metadata.virtual_time
                 df['real_time'] = metadata.real_time
@@ -117,7 +215,7 @@ class ROSSFile:
             ):
                 lp_tuple = self.lp_struct.unpack_from(self.content, byte_pos)
                 byte_pos += self.lp_size
-                lp_data = LP._make(lp_tuple)
+                lp_data = LP(*lp_tuple)
                 df = pd.DataFrame([lp_data])
                 df['virtual_time'] = metadata.virtual_time
                 df['real_time'] = metadata.real_time
@@ -131,9 +229,15 @@ class ROSSFile:
                 )
                 break
 
-        self.pe_df = pd.concat(pe_list, ignore_index=True) if pe_list else pd.DataFrame()
-        self.kp_df = pd.concat(kp_list, ignore_index=True) if kp_list else pd.DataFrame()
-        self.lp_df = pd.concat(lp_list, ignore_index=True) if lp_list else pd.DataFrame()
+        self.pe_df = validate_time_columns(
+            pd.concat(pe_list, ignore_index=True) if pe_list else pd.DataFrame(), TIME_COLUMNS
+        )
+        self.kp_df = validate_time_columns(
+            pd.concat(kp_list, ignore_index=True) if kp_list else pd.DataFrame(), TIME_COLUMNS
+        )
+        self.lp_df = validate_time_columns(
+            pd.concat(lp_list, ignore_index=True) if lp_list else pd.DataFrame(), TIME_COLUMNS
+        )
 
         if not self.pe_engine_df.empty:
             self.min_time = float(self.pe_engine_df[self.time_variable].min())

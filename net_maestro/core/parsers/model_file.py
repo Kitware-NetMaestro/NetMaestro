@@ -1,52 +1,61 @@
-from collections import namedtuple
 import logging
+import struct
 from struct import Struct
-from typing import BinaryIO, Literal, Optional
+from typing import BinaryIO, Literal, NamedTuple, Optional
 
 import pandas as pd
 
-# Struct configuration
-# Default endianness
-ENDIAN = '@'
+from .schema import ENDIAN, validate_time_columns
+
 # Metadata
-# TODO: Do not hardcode META_FORMAT; schema/versioned header if possible?
+META_FIELDS = ('lp_id', 'kp_id', 'pe_id', 'virtual_time', 'real_time', 'sample_size', 'flag')
 META_FORMAT = f'{ENDIAN}QLLddii'
-META_STRUCT = Struct(META_FORMAT)
-META = namedtuple(
-    'META',
-    (
-        'lp_id',
-        'kp_id',
-        'pe_id',
-        'virtual_time',
-        'real_time',
-        'sample_size',
-        'flag',
-    ),
-)
+META_STRUCT = struct.Struct(META_FORMAT)
+
+
+class META(NamedTuple):
+    lp_id: int
+    kp_id: int
+    pe_id: int
+    virtual_time: float
+    real_time: float
+    sample_size: int
+    flag: int
+
 
 # SimpleP2P model payload
-SIMPLEP2P_FORMAT = f'{ENDIAN}Qlldlld'  # TODO: Do not hardcode; consider schema-driven payload
-SIMPLEP2P_STRUCT = Struct(SIMPLEP2P_FORMAT)
-SimpleP2P = namedtuple(
-    'SimpleP2P',
-    (
-        'component_id',
-        'send_count',
-        'send_bytes',
-        'send_time',
-        'receive_count',
-        'receive_bytes',
-        'receive_time',
-    ),
+SIMPLEP2P_FIELDS = (
+    'component_id',
+    'send_count',
+    'send_bytes',
+    'send_time',
+    'receive_count',
+    'receive_bytes',
+    'receive_time',
 )
+SIMPLEP2P_FORMAT = f'{ENDIAN}Qlldlld'
+SIMPLEP2P_STRUCT = struct.Struct(SIMPLEP2P_FORMAT)
 
-# Flag "3" is model data
-FLAG_MODEL_DATA = 3  # TODO: Do not hardcode; derive from schema/const map
+
+class SimpleP2P(NamedTuple):
+    component_id: int
+    send_count: int
+    send_bytes: int
+    send_time: float
+    receive_count: int
+    receive_bytes: int
+    receive_time: float
 
 
-# NOTE: This actually reads the analysis "lps" files, which may include engine data as
-# well, if collected.
+# Flag #3 is model data
+FLAG_MODEL_DATA = 3
+
+# Default Values
+DEFAULT_TIME_KEY = 'virtual_time'
+ALT_TIME_KEY = 'real_time'
+TIME_COLUMNS = [DEFAULT_TIME_KEY, ALT_TIME_KEY]
+
+
 class ModelFile:
     """Parser for model analysis Logical Process (LP) binary files."""
 
@@ -75,7 +84,7 @@ class ModelFile:
         while byte_pos + self.metadata_size <= len(self.content):
             metadata_tuple = self.metadata_struct.unpack_from(self.content, byte_pos)
             byte_pos += self.metadata_size
-            metadata = META._make(metadata_tuple)
+            metadata = META(*metadata_tuple)
 
             if (
                 metadata.flag == FLAG_MODEL_DATA
@@ -84,7 +93,7 @@ class ModelFile:
             ):
                 sp_tuple = self.simplep2p_struct.unpack_from(self.content, byte_pos)
                 byte_pos += self.simplep2p_size
-                sp_data = SimpleP2P._make(sp_tuple)
+                sp_data = SimpleP2P(*sp_tuple)
                 df = pd.DataFrame([sp_data])
                 df['lp_id'] = metadata.lp_id
                 df['virtual_time'] = metadata.virtual_time
@@ -100,7 +109,9 @@ class ModelFile:
                 )
                 break
 
-        self.simplep2p_df = pd.concat(sample_list, ignore_index=True)
+        self.simplep2p_df = validate_time_columns(
+            pd.concat(sample_list, ignore_index=True), TIME_COLUMNS
+        )
         self.min_time = float(self.simplep2p_df[self.time_variable].min())
         self.max_time = float(self.simplep2p_df[self.time_variable].max())
 
