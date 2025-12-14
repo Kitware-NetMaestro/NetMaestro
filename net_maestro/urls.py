@@ -5,6 +5,8 @@ from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions, routers
 
+from .core import views
+
 router = routers.SimpleRouter()
 # OpenAPI generation
 schema_view = get_schema_view(
@@ -14,6 +16,7 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
+    path('', views.home, name='home'),
     # path('accounts/', include('allauth.urls')),
     path('oauth/', include('oauth2_provider.urls')),
     path('admin/', admin.site.urls),
