@@ -1,9 +1,33 @@
 <div id="tester" style="width:600px;height:250px;"></div>
+
 <script>
+	let records, columns
+
+	async function getRossData() {
+		const response = await fetch('api/v1/data/ross')
+		const data = await response.json()
+		columns = data.columns
+		records = data.data
+		updatePlotData()
+	}
+	function updatePlotData(){
+		const x_values = records.map(record => record.events_processed)
+		const y_values = records.map(record => record.events_rolled_back)
+
+
+		Plotly.newPlot( TESTER, [{
+			x: x_values,
+			y: y_values,
+			mode: 'markers',
+			type: 'scatter',
+			name: 'Scatter Plot'
+		}], {
+			xaxis: { title: 'Events Processed'},
+			yaxis: { title: 'Events Rolled Back'}
+
+		})
+	}
 	TESTER = document.getElementById('tester');
-	Plotly.newPlot( TESTER, [{
-	x: [1, 2, 3, 4, 5],
-	y: [1, 2, 4, 8, 16] }], {
-	margin: { t: 0 },
-} );
+
+	document.addEventListener('DOMContentLoaded', getRossData);
 </script>
