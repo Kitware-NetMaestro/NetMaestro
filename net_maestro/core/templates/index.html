@@ -21,29 +21,8 @@
         <div class="navbar bg-neutral text-xl">
             NetMaestro
         </div>
-        <div class="menu menu-lg bg-neutral h-[calc(100vh-64px)]" x-data="{activeItem: 'results'}">
-            <ul class="grid h-1/4">
-                <li>
-                    <button @click="activeItem = 'baseModels'" :class="{ 'menu-active': activeItem === 'baseModels' }" disabled>
-                        <i class="ri-stack-line"></i>
-                    </button>
-                </li>
-                <li>
-                    <button @click="activeItem = 'components'" :class="{'menu-active': activeItem === 'components'}" disabled>
-                        <i class="ri-organization-chart"></i>
-                    </button>
-                </li>
-                <li>
-                    <button @click="activeItem = 'simulation'" :class="{'menu-active': activeItem === 'simulation'}" disabled>
-                        <i class="ri-play-large-line"></i>
-                    </button>
-                </li>
-                <li>
-                    <button @click="activeItem = 'results'" :class="{'menu-active': activeItem === 'results'}">
-                        <i class="ri-bar-chart-grouped-line"></i>
-                    </button>
-                </li>
-            </ul>
+        <div class="flex">
+            {% include './components/sidebar.html' %}
         </div>
     </body>
 </html>
