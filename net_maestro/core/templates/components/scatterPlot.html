@@ -1,7 +1,7 @@
-<div id="tester" style="width:600px;height:250px;"></div>
+<div id="scatterPlot" style="width:600px;height:250px;"></div>
 
 <script>
-	let records, columns
+	let records, columns, x_values, y_values
 
 	async function getRossData() {
 		const response = await fetch('api/v1/data/ross')
@@ -11,13 +11,18 @@
 		updatePlotData()
 	}
 	function updatePlotData(){
-		const x_values = records.map(record => record.events_processed)
-		const y_values = records.map(record => record.events_rolled_back)
+		x_values = records.map(record => record.events_processed)
+		y_values = records.map(record => record.events_rolled_back)
+		console.log(x_values)
+		Plotly.update(scatterPlot, {
+			x: [x_values],
+			y: [y_values],
+		})
 
-
-		Plotly.newPlot( TESTER, [{
-			x: x_values,
-			y: y_values,
+	}
+	Plotly.newPlot( scatterPlot, [{
+			x: [],
+			y: [],
 			mode: 'markers',
 			type: 'scatter',
 			name: 'Scatter Plot'
@@ -26,8 +31,7 @@
 			yaxis: { title: 'Events Rolled Back'}
 
 		})
-	}
-	TESTER = document.getElementById('tester');
+	scatterPlot = document.getElementById('scatterPlot');
 
 	document.addEventListener('DOMContentLoaded', getRossData);
 </script>
