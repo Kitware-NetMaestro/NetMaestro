@@ -1,112 +1,121 @@
-<div class="card bg-base-100 w-1/2">
+<div class="card bg-base-100 w-1/2" x-data="scatterPlotSetup()" x-init="initPlot()">
 	<div class="card-body">
 		<h2 class="card-title text-white">
 			Scatter Plot
 		</h2>
 		<div id="scatterPlot" style="width:800px;height:400px;"></div>
 	</div>
-	<div class="flex" >
-		<div class="flex-1 selects" hidden>
+	<div class="flex" x-show="valueList.length > 0">
+		<div class="flex-1 selects" >
 			<fieldset>
 				<legend class="fieldset-legend">
 					Choose x-axis value
 				</legend>
-				<select class="select"></select>
+				<select class="select"
+				x-model="selectedXAxis"
+				>
+					<template x-for="value in valueList" :key="value.key">
+						<option :value="value.key" x-text="value.label"></option>
+					</template>
+				</select>
 			</fieldset>
 		</div>
-		<div class="flex-1 selects" hidden>
+		<div class="flex-1 selects" >
 			<fieldset>
 				<legend class="fieldset-legend">
 					Choose y-axis value
 				</legend>
-				<select class="select"></select>
+				<select class="select"
+				x-model="selectedYAxis"
+				>
+					<template x-for="value in valueList" :key="value.key">
+						<option :value="value.key" x-text="value.label"></option>
+					</template>
+				</select>
 			</fieldset>
 		</div>
 	</div>
 </div>
 
 <script>
-	let records, columns, x_values, y_values, value_list
+	function scatterPlotSetup() {
+		return {
+			records: [],
+			columns: [],
+			valueList: [],
 
-	async function getRossData() {
-		const response = await fetch('api/v1/data/ross')
-		const data = await response.json()
-		columns = data.columns
-		records = data.data
-		updatePlotData()
-	}
-	function updatePlotData(){
-		x_values = records.map(record => record.events_processed)
-		y_values = records.map(record => record.events_rolled_back)
-		color_range = records.map(record => record.PE_ID)
-		const excluded_columns = ["PE_ID", "real_time", "virtual_time"]
-		const filtered_columns = columns.filter(column => column && !excluded_columns.includes(column))
-		value_list = filtered_columns.map((value) => ({
-			[value]: value.replace("_", " ")
-		}))
-		if (value_list.length > 0) {
-			populateSelects()
+			selectedXAxis: '',
+			selectedYAxis: '',
+
+			initPlot() {
+				const scatterPlot = document.getElementById('scatterPlot');
+				Plotly.newPlot( scatterPlot, [{
+						x: [],
+						y: [],
+						mode: 'markers',
+						type: 'scatter',
+						showlegend: true,
+
+					}], {
+						xaxis: {
+							title: {
+								text: 'Events Processed'
+							},
+							rangemode: 'tozero',
+							color: 'white',
+						},
+						yaxis: {
+							title: {
+								text: 'Events Rolled Back'
+							},
+							rangemode: 'tozero',
+							color: 'white',
+						},
+						paper_bgcolor: '1d232a',
+						plot_bgcolor: '1d232a',
+						margin: {
+							l: 50,
+							r: 50,
+							b: 50,
+							t: 50,
+							pad: 4
+						}
+
+					})
+					// TODO: When File selection is available change this to be fired then
+					this.loadRossData()
+			},
+
+			async loadRossData() {
+				const response = await fetch('api/v1/data/ross')
+				const data = await response.json()
+				this.columns = data.columns
+				this.records = data.data
+				this.updatePlotData()
+			},
+
+			updatePlotData() {
+				const xData = this.records.map(record => record.events_processed)
+				const yData = this.records.map(record => record.events_rolled_back)
+				const color_range = this.records.map(record => record.PE_ID)
+				const excluded_columns = ["PE_ID", "real_time", "virtual_time"]
+				const filtered_columns = this.columns.filter(column => column && !excluded_columns.includes(column))
+				this.valueList = filtered_columns.map((value) => ({
+					key: value,
+					label: value.replace("_", " ")
+				}))
+
+				Plotly.update(scatterPlot, {
+					x: [xData],
+					y: [yData],
+					marker:{
+						color: color_range,
+						colorscale: 'Blues'
+					}
+				})
+
+			}
 		}
-		Plotly.update(scatterPlot, {
-			x: [x_values],
-			y: [y_values],
-			marker:{
-				color: color_range,
-				colorscale: 'Blues'
-			}
-		})
-
 	}
-	function populateSelects(){
-		const select_parents = document.getElementsByClassName('selects')
-		Array.from(select_parents).forEach(parent => {
-			const select = parent.getElementsByTagName("select")[0]
-			select.innerHTML = '';
-			value_list.forEach(item => {
-				const key = Object.keys(item)[0];
-				const displayName = item[key];
-				const option = document.createElement('option');
-				option.value = key;
-				option.textContent = displayName;
-				select.appendChild(option);
-			});
-		})
-		Array.from(select_parents).forEach((e) => e.removeAttribute('hidden'))
-	}
-	Plotly.newPlot( scatterPlot, [{
-			x: [],
-			y: [],
-			mode: 'markers',
-			type: 'scatter',
-			showlegend: true,
 
-		}], {
-			xaxis: {
-				title: {
-					text: 'Events Processed'
-				},
-				rangemode: 'tozero',
-				color: 'white',
-			},
-			yaxis: {
-				title: {
-					text: 'Events Rolled Back'
-				},
-				rangemode: 'tozero',
-				color: 'white',
-			},
-			paper_bgcolor: '1d232a',
-			plot_bgcolor: '1d232a',
-			margin: {
-				l: 50,
-				r: 50,
-				b: 50,
-				t: 50,
-				pad: 4
-			}
-
-		})
-	scatterPlot = document.getElementById('scatterPlot');
-
-	document.addEventListener('DOMContentLoaded', getRossData);
 </script>
