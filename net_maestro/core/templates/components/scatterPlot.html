@@ -13,6 +13,7 @@
 				</legend>
 				<select class="select"
 				x-model="selectedXAxis"
+				@change="updatePlotData"
 				>
 					<template x-for="value in valueList" :key="value.key">
 						<option :value="value.key" x-text="value.label"></option>
@@ -27,6 +28,7 @@
 				</legend>
 				<select class="select"
 				x-model="selectedYAxis"
+				@change="updatePlotData()"
 				>
 					<template x-for="value in valueList" :key="value.key">
 						<option :value="value.key" x-text="value.label"></option>
@@ -44,8 +46,8 @@
 			columns: [],
 			valueList: [],
 
-			selectedXAxis: '',
-			selectedYAxis: '',
+			selectedXAxis: 'events_processed',
+			selectedYAxis: 'events_rolled_back',
 
 			initPlot() {
 				const scatterPlot = document.getElementById('scatterPlot');
@@ -95,14 +97,14 @@
 			},
 
 			updatePlotData() {
-				const xData = this.records.map(record => record.events_processed)
-				const yData = this.records.map(record => record.events_rolled_back)
+				const xData = this.records.map(record => record[this.selectedXAxis])
+				const yData = this.records.map(record => record[this.selectedYAxis])
 				const color_range = this.records.map(record => record.PE_ID)
 				const excluded_columns = ["PE_ID", "real_time", "virtual_time"]
 				const filtered_columns = this.columns.filter(column => column && !excluded_columns.includes(column))
 				this.valueList = filtered_columns.map((value) => ({
 					key: value,
-					label: value.replace("_", " ")
+					label: value.replaceAll("_", " ")
 				}))
 
 				Plotly.update(scatterPlot, {
@@ -112,7 +114,22 @@
 						color: color_range,
 						colorscale: 'Blues'
 					}
-				})
+				},{
+					xaxis: {
+						title: {
+							text: this.valueList.find((item) => item.key === this.selectedXAxis).label,
+						},
+						color: 'white',
+					},
+					yaxis: {
+						title: {
+							text: this.valueList.find((item) => item.key === this.selectedYAxis).label,
+						},
+						color: 'white',
+					}
+				}
+
+				)
 
 			}
 		}
