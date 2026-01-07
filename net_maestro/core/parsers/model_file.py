@@ -1,7 +1,7 @@
 import logging
 import struct
 from struct import Struct
-from typing import BinaryIO, Literal, NamedTuple, Optional
+from typing import BinaryIO, NamedTuple, Optional
 
 import pandas as pd
 
@@ -71,7 +71,7 @@ class ModelFile:
         self.simplep2p_size: int = SIMPLEP2P_STRUCT.size
 
         self._use_virtual_time: bool = True
-        self._time_variable: Literal['virtual_time', 'real_time'] = 'virtual_time'
+        self._time_variable: str = DEFAULT_TIME_KEY
 
         self._simplep2p_df: Optional[pd.DataFrame] = None
         self._min_time: Optional[float] = None
@@ -112,8 +112,9 @@ class ModelFile:
         self.simplep2p_df = validate_time_columns(
             pd.concat(sample_list, ignore_index=True), TIME_COLUMNS
         )
-        self.min_time = float(self.simplep2p_df[self.time_variable].min())
-        self.max_time = float(self.simplep2p_df[self.time_variable].max())
+        if not self.simplep2p_df.empty:
+            self.min_time = float(self.simplep2p_df[self.time_variable].min())
+            self.max_time = float(self.simplep2p_df[self.time_variable].max())
 
     def close(self) -> None:
         self.f.close()
@@ -135,11 +136,11 @@ class ModelFile:
         self._min_time = time
 
     @property
-    def time_variable(self) -> Literal['virtual_time', 'real_time']:
+    def time_variable(self) -> str:
         return self._time_variable
 
     @time_variable.setter
-    def time_variable(self, var: Literal['virtual_time', 'real_time']) -> None:
+    def time_variable(self, var: str) -> None:
         self._time_variable = var
 
     @property

@@ -7,7 +7,7 @@ import pandas as pd
 
 
 class HeaderTuple(Protocol):
-    """Typing protocol for consistent access when parsing binary headers
+    """Typing protocol for consistent access when parsing binary headers.
 
     Used only for type checking. Defines the minimal interface expected from a header: integer
     indexing. This means that accessing any tuple-like object (e.g., plain tuple, namedtuple)

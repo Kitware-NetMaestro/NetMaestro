@@ -1,7 +1,7 @@
 import logging
 import struct
 from struct import Struct
-from typing import BinaryIO, Literal, NamedTuple, Optional
+from typing import BinaryIO, NamedTuple, Optional
 
 import pandas as pd
 
@@ -171,7 +171,7 @@ class ROSSFile:
         self.lp_size: int = LP_STRUCT.size
 
         self._use_virtual_time: bool = True
-        self._time_variable: Literal['virtual_time', 'real_time'] = 'virtual_time'
+        self._time_variable: str = DEFAULT_TIME_KEY
 
         self._pe_df: Optional[pd.DataFrame] = None
         self._kp_df: Optional[pd.DataFrame] = None
@@ -239,9 +239,9 @@ class ROSSFile:
             pd.concat(lp_list, ignore_index=True) if lp_list else pd.DataFrame(), TIME_COLUMNS
         )
 
-        if not self.pe_engine_df.empty:
-            self.min_time = float(self.pe_engine_df[self.time_variable].min())
-            self.max_time = float(self.pe_engine_df[self.time_variable].max())
+        if not self.pe_df.empty:
+            self.min_time = float(self.pe_df[self.time_variable].min())
+            self.max_time = float(self.pe_df[self.time_variable].max())
 
     def close(self) -> None:
         self.f.close()
@@ -263,11 +263,11 @@ class ROSSFile:
         self._min_time = time
 
     @property
-    def time_variable(self) -> Literal['virtual_time', 'real_time']:
+    def time_variable(self) -> str:
         return self._time_variable
 
     @time_variable.setter
-    def time_variable(self, var: Literal['virtual_time', 'real_time']) -> None:
+    def time_variable(self, var: str) -> None:
         self._time_variable = var
 
     @property
@@ -314,13 +314,13 @@ class ROSSFile:
         ]
 
     def reset_time_range(self) -> None:
-        if self.pe_engine_df.empty:
+        if self.pe_df.empty:
             self._min_time = None
             self._max_time = None
             return
 
-        self.min_time = float(self.pe_engine_df[self.time_variable].min())
-        self.max_time = float(self.pe_engine_df[self.time_variable].max())
+        self.min_time = float(self.pe_df[self.time_variable].min())
+        self.max_time = float(self.pe_df[self.time_variable].max())
 
     @property
     def use_virtual_time(self) -> bool:
