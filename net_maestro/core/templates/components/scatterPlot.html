@@ -93,19 +93,24 @@
 				const data = await response.json()
 				this.columns = data.columns
 				this.records = data.data
+				this.processData()
 				this.updatePlotData()
 			},
 
-			updatePlotData() {
-				const xData = this.records.map(record => record[this.selectedXAxis])
-				const yData = this.records.map(record => record[this.selectedYAxis])
-				const color_range = this.records.map(record => record.PE_ID)
+			processData(){
 				const excluded_columns = ["PE_ID", "real_time", "virtual_time"]
 				const filtered_columns = this.columns.filter(column => column && !excluded_columns.includes(column))
 				this.valueList = filtered_columns.map((value) => ({
 					key: value,
 					label: value.replaceAll("_", " ")
 				}))
+			},
+
+			updatePlotData() {
+				const xData = this.records.map(record => record[this.selectedXAxis])
+				const yData = this.records.map(record => record[this.selectedYAxis])
+				//TODO: This could be another choice we allow the user to make.
+				const color_range = this.records.map(record => record.PE_ID)
 
 				Plotly.update(scatterPlot, {
 					x: [xData],
