@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "net-maestro"
 version = "0.0.0"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 classifiers = ["Private :: Do Not Upload"]
@@ -36,6 +36,7 @@ dependencies = [
   "gunicorn",
   "sentry-sdk[django,pure_eval]",
   # "sentry-sdk[celery,django,pure_eval]",
+  "pandas",
 ]
 
 [project.optional-dependencies]
