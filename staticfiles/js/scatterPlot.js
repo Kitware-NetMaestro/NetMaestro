@@ -8,14 +8,15 @@ function scatterPlotSetup() {
 
     function initPlot() {
         const scatterPlot = document.getElementById('scatterPlot');
-        Plotly.newPlot( scatterPlot, [{
+        const data = [{
                 x: [],
                 y: [],
                 mode: 'markers',
                 type: 'scatter',
                 showlegend: true,
 
-            }], {
+            }]
+        const layout = {
                 xaxis: {
                     title: {
                         text: 'Events Processed'
@@ -40,7 +41,9 @@ function scatterPlotSetup() {
                     pad: 4
                 }
 
-            })
+            }
+        const config = { responsive: true }
+        Plotly.newPlot( scatterPlot, data, layout, config)
             // TODO: When File selection is available change this to be fired then
             loadRossData()
     }
