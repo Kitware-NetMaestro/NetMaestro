@@ -3,5 +3,5 @@ from django.template import loader
 
 
 def home(request: HttpRequest) -> HttpResponse:
-    template = loader.get_template('index.html')
+    template = loader.get_template('net_maestro/core/index.html')
     return HttpResponse(template.render(request=request))
