@@ -1,0 +1,10 @@
+{% load static %}
+<script src="{% static 'js/timePlot.js' %}"></script>
+<div class="card bg-base-100 min-w-max" x-data="timePlotSetup()" x-init="initPlot()">
+	<div class="card-body">
+		<h2 class="card-title text-white">
+			Time Plot
+		</h2>
+		<div id="timePlot"></div>
+	</div>
+</div>

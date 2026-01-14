@@ -223,11 +223,12 @@
             <!-- Main content area with sidebar and visualization components -->
             <div class="flex flex-1">
                 <!-- Left sidebar navigation-->
-                {% include './components/sidebar.html' %}
+                {% include 'net_maestro/core/components/sidebar.html' %}
                 <!-- Main content -->
                 <div class="flex-1 bg-base-300">
-                    {% include './components/scatterPlot.html' %}
+                    {% include 'net_maestro/core/components/plots/scatterPlot.html' %}
                 </div>
+                {% include 'net_maestro/core/components/plots/timePlot.html' %}
             </div>
         </div>
     </body>
