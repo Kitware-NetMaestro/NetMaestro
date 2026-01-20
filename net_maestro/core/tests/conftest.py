@@ -12,16 +12,15 @@ from rest_framework.test import APIClient
 
 
 @pytest.fixture
-def api_client(_db) -> APIClient:
+def api_client(db) -> APIClient:
     """Provide a DRF API client with authentication configured for testing.
 
     Creates an authenticated API client suitable for testing REST endpoints.
-    Authentication behavior matches production settings:
-    - In DEBUG mode: No authentication (AllowAny permissions)
+    - In DEBUG mode: Returns unauthenticated client (AllowAny permission)
     - In production mode: Creates and authenticates a test user
 
     Args:
-        _db: Pytest fixture that ensures database is available
+        db: Pytest fixture that ensures database is available
 
     Returns:
         APIClient instance, authenticated if not in DEBUG mode
