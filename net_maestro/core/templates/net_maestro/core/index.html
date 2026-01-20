@@ -1,16 +1,42 @@
 <!DOCTYPE html>
+<!-- Main application template with DaisyUI dark theme -->
 <html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <title>{% block title %}NetMaestro{% endblock %}</title>
+    <!-- DaisyUI -->
     <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+    <!-- Tailwind -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script>
+    // Initialize Alpine.js global store
+    document.addEventListener('alpine:init', () => {
+        // loadTick: incremented when "Load Data" is clicked to trigger plot updates
+        Alpine.store('nm', { loadTick: 0 });
+    });
+
+    // Django requires CSRF tokens for state-changing requests (POST, PUT, DELETE).
+    // Extract the token from the cookie so it can be included in the header
+    // when making requests.
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) {
+            return parts.pop().split(';').shift();
+        }
+        return null;
+    }
+    </script>
+    <!-- Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-3.3.0.min.js" charset="utf-8"></script>
+    <!-- Remix Icon -->
     <link
         href="https://cdn.jsdelivr.net/npm/remixicon@4.7.0/fonts/remixicon.css"
         rel="stylesheet"
     />
+    <!-- Custom styles using DaisyUI theme variables -->
     <style>
     .menu .menu-active {
         background-color: var(--color-info);
@@ -19,13 +45,189 @@
     </style>
 </head>
     <body>
-        <div class="navbar bg-neutral text-xl">
-            NetMaestro
-        </div>
-        <div class="flex">
-            {% include './components/sidebar.html' %}
-            <div class="flex-1 bg-base-300">
-                {% include './components/scatterPlot.html' %}
+        <!-- Main application container -->
+        <div class="min-h-screen flex flex-col" x-data="{ activeItem: 'results' }">
+            <!-- Top navbar -->
+            <div class="navbar bg-neutral text-xl justify-between">
+                <div>NetMaestro</div>
+                <!-- Data file selection dropdown -->
+                <div
+                    class="dropdown dropdown-end"
+                    x-data="{
+                        open: false,           // Dropdown open/closed state
+                        refreshing: false,     // Loading state for refresh button
+                        loaded: false,         // Whether file list has been fetched
+                        files: { simulations: [], events: [], models: [] },
+                        selected: { simulations: null, events: null, models: null },
+
+                        // Fetch available files and current selections from API
+                        async refresh() {
+                            this.refreshing = true;
+                            try {
+                                const response = await fetch('/api/v1/data/files', {
+                                    credentials: 'same-origin',
+                                });
+                                const payload = await response.json();
+                                this.files = payload.files;
+                                this.selected = payload.selected;
+                                this.loaded = true;
+                            } finally {
+                                this.refreshing = false;
+                            }
+                        },
+
+                        // Update selected file for a category (persists in session)
+                        async select(category, file) {
+                            const csrf = getCookie('csrftoken');
+                            await fetch('/api/v1/data/select', {
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': csrf,
+                                },
+                                body: JSON.stringify({ category, file }),
+                            });
+                            this.selected[category] = file;
+                        },
+                    }"
+                    @click.outside="open = false"
+                >
+                    <button
+                        class="btn btn-ghost btn-lg w-15 font-thin"
+                        type="button"
+                        @click="open = !open; if (open && !loaded) { refresh(); }"
+                        aria-label="Select data files"
+                    >
+                        <i class="ri-file-line"></i>
+                    </button>
+                    <div
+                        class="dropdown-content z-[1] card card-compact w-96 bg-base-200 shadow"
+                        x-show="open"
+                        @click.stop
+                    >
+                        <div class="card-header m-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="card-title">Data Files</h3>
+                                <button
+                                    class="btn btn-ghost btn-sm"
+                                    type="button"
+                                    @click.prevent.stop="refresh()"
+                                    aria-label="Update file list"
+                                >
+                                    <i
+                                        class="ri-loop-right-line text-base"
+                                        :class="refreshing ? 'animate-spin' : ''"
+                                        aria-hidden="true"
+                                    ></i>
+                                </button>
+                            </div>
+                            <hr/>
+                        </div>
+                        <div class="card-body py-3">
+                            <div class="space-y-4">
+                                <!-- Simulations file list -->
+                                <details open>
+                                    <summary class="text-base">Simulations</summary>
+                                    <div class="mt-2 space-y-1">
+                                        <template x-for="file in files.simulations" :key="file">
+                                            <label class="flex items-center gap-3 text-sm">
+                                                <input
+                                                    class="radio radio-sm"
+                                                    type="radio"
+                                                    name="simulation_file"
+                                                    :value="file"
+                                                    :checked="file === selected.simulations"
+                                                    @change="select('simulations', file)"
+                                                />
+                                                <span class="truncate" x-text="file"></span>
+                                            </label>
+                                        </template>
+                                        <div
+                                            class="opacity-70 text-sm"
+                                            x-show="loaded && files.simulations.length === 0"
+                                        >
+                                            No files found
+                                        </div>
+                                    </div>
+                                </details>
+
+                                <!-- Events file list -->
+                                <details open>
+                                    <summary class="text-base">Events</summary>
+                                    <div class="mt-2 space-y-1">
+                                        <template x-for="file in files.events" :key="file">
+                                            <label class="flex items-center gap-3 text-sm">
+                                                <input
+                                                    class="radio radio-sm"
+                                                    type="radio"
+                                                    name="event_file"
+                                                    :value="file"
+                                                    :checked="file === selected.events"
+                                                    @change="select('events', file)"
+                                                />
+                                                <span class="truncate" x-text="file"></span>
+                                            </label>
+                                        </template>
+                                        <div
+                                            class="opacity-70 text-sm"
+                                            x-show="loaded && files.events.length === 0"
+                                        >
+                                            No files found
+                                        </div>
+                                    </div>
+                                </details>
+
+                                <!-- Models file list -->
+                                <details open>
+                                    <summary class="text-base">Models</summary>
+                                    <div class="mt-2 space-y-1">
+                                        <template x-for="file in files.models" :key="file">
+                                            <label class="flex items-center gap-3 text-sm">
+                                                <input
+                                                    class="radio radio-sm"
+                                                    type="radio"
+                                                    name="model_file"
+                                                    :value="file"
+                                                    :checked="file === selected.models"
+                                                    @change="select('models', file)"
+                                                />
+                                                <span class="truncate" x-text="file"></span>
+                                            </label>
+                                        </template>
+                                        <div
+                                            class="opacity-70 text-sm"
+                                            x-show="loaded && files.models.length === 0"
+                                        >
+                                            No files found
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <div class="mt-auto px-2 pb-2">
+                                <!-- Load Data button: increments loadTick to trigger plot updates -->
+                                <button
+                                    class="btn btn-primary w-full"
+                                    type="button"
+                                    @click="$store.nm.loadTick++; open = false"
+                                >
+                                    <span>Load Data</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Main content area with sidebar and visualization components -->
+            <div class="flex flex-1">
+                <!-- Left sidebar navigation-->
+                {% include './components/sidebar.html' %}
+                <!-- Main content -->
+                <div class="flex-1 bg-base-300">
+                    {% include './components/scatterPlot.html' %}
+                </div>
             </div>
         </div>
     </body>

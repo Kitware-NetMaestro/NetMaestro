@@ -1,23 +1,52 @@
-<div class="menu menu-lg bg-neutral h-[calc(100vh-64px)]" x-data="{activeItem: 'results'}">
+<div
+    class="menu menu-lg bg-neutral h-[calc(100vh-64px)] w-16 flex flex-col"
+>
+    <!-- Navigation menu items -->
     <ul class="grid h-1/4">
+        <!-- Base Models section (disabled - future feature) -->
         <li>
-            <button @click="activeItem = 'baseModels'" :class="{ 'menu-active': activeItem === 'baseModels' }" disabled>
-                <i class="ri-stack-line"></i>
+            <button
+                class="flex items-center justify-center"
+                @click="activeItem = 'baseModels'"
+                :class="{ 'menu-active': activeItem === 'baseModels' }"
+                disabled
+            >
+                <i class="ri-stack-line" aria-hidden="true"></i>
             </button>
         </li>
+        
+        <!-- Components section (disabled - future feature) -->
         <li>
-            <button @click="activeItem = 'components'" :class="{'menu-active': activeItem === 'components'}" disabled>
-                <i class="ri-organization-chart"></i>
+            <button
+                class="flex items-center justify-center"
+                @click="activeItem = 'components'"
+                :class="{ 'menu-active': activeItem === 'components' }"
+                disabled
+            >
+                <i class="ri-organization-chart" aria-hidden="true"></i>
             </button>
         </li>
+        
+        <!-- Simulation section (disabled - future feature) -->
         <li>
-            <button @click="activeItem = 'simulation'" :class="{'menu-active': activeItem === 'simulation'}" disabled>
-                <i class="ri-play-large-line"></i>
+            <button
+                class="flex items-center justify-center"
+                @click="activeItem = 'simulation'"
+                :class="{ 'menu-active': activeItem === 'simulation' }"
+                disabled
+            >
+                <i class="ri-play-large-line" aria-hidden="true"></i>
             </button>
         </li>
+        
+        <!-- Results (data visualization) section -->
         <li>
-            <button @click="activeItem = 'results'" :class="{'menu-active': activeItem === 'results'}">
-                <i class="ri-bar-chart-grouped-line"></i>
+            <button
+                class="flex items-center justify-center"
+                @click="activeItem = 'results'"
+                :class="{ 'menu-active': activeItem === 'results' }"
+            >
+                <i class="ri-bar-chart-grouped-line" aria-hidden="true"></i>
             </button>
         </li>
     </ul>

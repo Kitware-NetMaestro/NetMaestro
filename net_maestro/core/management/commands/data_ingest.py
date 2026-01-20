@@ -6,17 +6,19 @@ or repurposed for bulk/batch operations only.
 
 This command supports three workflows:
 1. Symlink individual files via --event-file, --simulation-file, --model-file flags
-2. Symlink all files from a structured directory (--source-root with events/, models/, simulations/ subdirs)
+2. Symlink all files from a structured directory
+   (--source-root with events/, models/, simulations/ subdirs)
 3. Combination of both approaches
 
 All files are symlinked (not copied) into NetMaestro/data/{events,models,simulations}/
 to avoid duplicating large binary files.
 """
+
 from pathlib import Path
 from typing import Sequence
 
-import djclick as click
 from django.conf import settings
+import djclick as click
 
 
 @click.command()
