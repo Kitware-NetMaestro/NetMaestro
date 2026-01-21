@@ -59,6 +59,7 @@ dev = [
   # The "dev" dependency group is installed by default,
   # so use this to install "development" extras by default too
   "net-maestro[development]",
+  "pre-commit",
   "tox",
   "tox-uv",
 ]

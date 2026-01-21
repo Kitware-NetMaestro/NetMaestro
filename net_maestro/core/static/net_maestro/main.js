@@ -11,11 +11,11 @@ document.addEventListener('alpine:init', () => {
 
 /**
  * Get a cookie value by name.
- * 
+ *
  * Django requires CSRF tokens for state-changing requests (POST, PUT, DELETE).
  * This function extracts the token from the cookie so it can be included in the
  * X-CSRFToken header when making AJAX requests.
- * 
+ *
  * @param {string} name - The name of the cookie to retrieve
  * @returns {string|null} The cookie value, or null if not found
  */
