@@ -1,19 +1,18 @@
 # Net Maestro
 
-## Develop with Docker (recommended quickstart)
-This is the simplest configuration for developers to start with.
+Net Maestro is a web-based application for analyzing and visualizing network simulation data from PDES (Parallel Discrete Event Simulation) engines.
 
-### Initial Setup
-1. Run `docker compose run --rm django ./manage.py migrate`
-2. Run `docker compose run --rm django ./manage.py createsuperuser`
-   and follow the prompts to create your own user
+## Quick Start
 
-### Run Application
-1. Run `docker compose up`
-2. Access the site, starting at <http://localhost:8000/admin/>
-3. When finished, use `Ctrl+C`
+### Running the Application
 
-### Using your own data
+1. Clone the repository: `git clone https://github.com/NetMaestro/NetMaestro.git`
+2. Navigate to the NetMaestro directory: `cd {path}/{to}/NetMaestro`
+3. Run `docker compose up -d`
+4. Access the site at <http://localhost:8000>
+5. When finished, use `docker compose down`
+
+### Using Your Own Data
 Net Maestro reads binary files from the Django project's `data/` directory:
 
 ```
@@ -92,58 +91,27 @@ docker compose -f docker-compose.yml -f docker-compose.override.yml -f docker-co
 docker compose -f docker-compose.yml -f docker-compose.override.yml -f docker-compose.data.yml up
 ```
 
-Notes:
-
+**Notes:**
 - The `:ro` mount is recommended so the app can't accidentally modify your input data.
 - If you use Option 2 or 3, you must keep the `/host_data` mount present when running the app,
   because the symlinks created in `data/` point into `/host_data`.
 
-### Maintenance
-To non-destructively update your development stack at any time:
-1. Run `docker compose down`
-2. Run `docker compose pull`
-3. Run `docker compose build --pull`
-4. Run `docker compose run --rm django ./manage.py migrate`
+## Features
 
-### Destruction
-1. Run `docker compose down -v`
+- **Data Visualization**: Interactive plots and graphs for network simulation analysis
+- **Multiple Data Formats**: Support for event, model, and simulation binary files
+- **Flexible Data Loading**: Multiple options for providing your own data files
+- **Web-Based Interface**: Access from any browser
 
-## Develop Natively (advanced)
-This configuration still uses Docker to run attached services in the background,
-but allows developers to run Python code on their native system.
+## Requirements
 
-### Initial Setup
-1. Run `docker compose -f ./docker-compose.yml up -d`
-2. [Install `uv`](https://docs.astral.sh/uv/getting-started/installation/)
-3. Run `export UV_ENV_FILE=./dev/.env.docker-compose-native`
-4. Run `./manage.py migrate`
-5. Run `./manage.py createsuperuser` and follow the prompts to create your own user
+- Docker and Docker Compose
+- Binary data files from PDES simulation engines (ROSS/CODES, etc.)
 
-### Run Application
-1. Ensure `docker compose -f ./docker-compose.yml up -d` is still active
-2. Run `export UV_ENV_FILE=./dev/.env.docker-compose-native`
-3. Run: `./manage.py runserver_plus`
-4. Run in a separate terminal: `uv run celery --app net_maestro.celery worker --loglevel INFO --without-heartbeat`
-5. When finished, run `docker compose stop`
+## Contributing
 
-## Testing
-### Initial Setup
-tox is used to manage the execution of all tests.
-[Install `uv`](https://docs.astral.sh/uv/getting-started/installation/) and run tox with
-`uv run tox ...`.
+Contributions are welcome! See [DEVELOPMENT.md](DEVELOPMENT.md) for development setup, testing, and code quality guidelines.
 
-When running the "Develop with Docker" configuration, all tox commands must be run as
-`docker compose run --rm django uv run tox`; extra arguments may also be appended to this form.
+## License
 
-### Running Tests
-Run `uv run tox` to launch the full test suite.
-
-Individual test environments may be selectively run.
-This also allows additional options to be be added.
-Useful sub-commands include:
-* `uv run tox -e lint`: Run only the style checks
-* `uv run tox -e type`: Run only the type checks
-* `uv run tox -e test`: Run only the pytest-driven tests
-
-To automatically reformat all code to comply with
-some (but not all) of the style checks, run `uv run tox -e format`.
+Apache 2.0 - See LICENSE and NOTICE files for details.
