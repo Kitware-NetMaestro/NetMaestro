@@ -1,0 +1,10 @@
+/**
+ * Custom styles for NetMaestro application.
+ * Uses DaisyUI theme variables for consistency.
+ */
+
+/* Active menu item styling */
+.menu .menu-active {
+    background-color: var(--color-info);
+    border-radius: var(--radius-field);
+}

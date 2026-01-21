@@ -9,28 +9,12 @@
     <!-- Tailwind -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     {% load static %}
-    <script src="{% static 'js/dataStore.js' %}"></script>
+    <script src="{% static 'net_maestro/dataStore.js' %}"></script>
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script>
-    // Initialize Alpine.js global store
-    document.addEventListener('alpine:init', () => {
-        // loadTick: incremented when "Load Data" is clicked to trigger plot updates
-        Alpine.store('nm', { loadTick: 0 });
-    });
-
-    // Django requires CSRF tokens for state-changing requests (POST, PUT, DELETE).
-    // Extract the token from the cookie so it can be included in the header
-    // when making requests.
-    function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) {
-            return parts.pop().split(';').shift();
-        }
-        return null;
-    }
-    </script>
+    {% load static %}
+    <script src="{% static 'net_maestro/main.js' %}"></script>
+    <script src="{% static 'net_maestro/partials/dataFileSelector.js' %}"></script>
     <!-- Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-3.3.0.min.js" charset="utf-8"></script>
     <!-- Remix Icon -->
@@ -38,13 +22,8 @@
         href="https://cdn.jsdelivr.net/npm/remixicon@4.7.0/fonts/remixicon.css"
         rel="stylesheet"
     />
-    <!-- Custom styles using DaisyUI theme variables -->
-    <style>
-    .menu .menu-active {
-        background-color: var(--color-info);
-        border-radius: var(--radius-field);
-    }
-    </style>
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="{% static 'net_maestro/customStyles.css' %}" />
 </head>
     <!-- Have data load on init. Change when workflow changes -->
     <body x-data x-init="$store.dataStore.loadRossData()">
@@ -56,44 +35,7 @@
                 <!-- Data file selection dropdown -->
                 <div
                     class="dropdown dropdown-end"
-                    x-data="{
-                        open: false,           // Dropdown open/closed state
-                        refreshing: false,     // Loading state for refresh button
-                        loaded: false,         // Whether file list has been fetched
-                        files: { simulations: [], events: [], models: [] },
-                        selected: { simulations: null, events: null, models: null },
-
-                        // Fetch available files and current selections from API
-                        async refresh() {
-                            this.refreshing = true;
-                            try {
-                                const response = await fetch('/api/v1/data/files', {
-                                    credentials: 'same-origin',
-                                });
-                                const payload = await response.json();
-                                this.files = payload.files;
-                                this.selected = payload.selected;
-                                this.loaded = true;
-                            } finally {
-                                this.refreshing = false;
-                            }
-                        },
-
-                        // Update selected file for a category (persists in session)
-                        async select(category, file) {
-                            const csrf = getCookie('csrftoken');
-                            await fetch('/api/v1/data/select', {
-                                method: 'POST',
-                                credentials: 'same-origin',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRFToken': csrf,
-                                },
-                                body: JSON.stringify({ category, file }),
-                            });
-                            this.selected[category] = file;
-                        },
-                    }"
+                    x-data="dataFileSelector"
                     @click.outside="open = false"
                 >
                     <button
@@ -226,11 +168,11 @@
             <!-- Main content area with sidebar and visualization components -->
             <div class="flex flex-1">
                 <!-- Left sidebar navigation-->
-                {% include 'net_maestro/core/components/sidebar.html' %}
+                {% include 'net_maestro/shared/sidebar.html' %}
                 <!-- Main content -->
                 <div class="flex-1 bg-base-300">
-                    {% include 'net_maestro/core/components/plots/scatterPlot.html' %}
-                    {% include 'net_maestro/core/components/plots/timePlot.html' %}
+                    {% include 'net_maestro/plots/scatterPlot.html' %}
+                    {% include 'net_maestro/plots/timePlot.html' %}
                 </div>
             </div>
         </div>

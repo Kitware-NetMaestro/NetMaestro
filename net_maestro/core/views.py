@@ -87,4 +87,4 @@ def home(request: HttpRequest) -> HttpResponse:
         'selected_event_file': selected_by_subdir['events'],
         'selected_model_file': selected_by_subdir['models'],
     }
-    return render(request, 'net_maestro/core/index.html', context)
+    return render(request, 'net_maestro/index.html', context)
