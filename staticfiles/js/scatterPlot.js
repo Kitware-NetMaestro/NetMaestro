@@ -1,4 +1,5 @@
 function scatterPlotSetup() {
+    const store = Alpine.store('dataStore')
     let records = []
     let columns = []
     let valueList = []
@@ -45,16 +46,7 @@ function scatterPlotSetup() {
         const config = { responsive: true }
         Plotly.newPlot( scatterPlot, data, layout, config)
             // TODO: When File selection is available change this to be fired then
-            loadRossData()
-    }
-
-    async function loadRossData() {
-        const response = await fetch('api/v1/data/ross')
-        const data = await response.json()
-        columns = data.columns
-        records = data.data
-        processData()
-        updatePlotData()
+            store.loadRossData()
     }
 
     function processData(){
@@ -93,16 +85,26 @@ function scatterPlotSetup() {
                 },
                 color: 'white',
             }
-        }
-
-        )
-
+        })
     }
+
+    Alpine.watch(
+        () => store.rossData,
+        (data) => {
+            if(!data){
+                return
+            }
+            columns = data.columns
+            records = data.data
+            processData()
+            updatePlotData()
+        }
+    )
+
     return {
         initPlot,
         selectedXAxis,
         selectedYAxis,
         valueList
-
     }
 }
