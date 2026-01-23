@@ -1,0 +1,32 @@
+{% load static %}
+<script src="{% static 'net_maestro/plots/heatmap.js' %}"></script>
+<div class="card bg-base-100 min-w-max" x-data="heatmapPlot">
+	<div class="card-body">
+		<h2 class="card-title text-white">
+			Event Heatmap
+		</h2>
+		<div id="heatmapPlot"></div>
+	</div>
+	<div class="flex" x-show="metricList.length > 0">
+		<div class="flex-1 selects">
+			<fieldset>
+				<legend class="fieldset-legend">
+					Choose metric
+				</legend>
+				<select class="select"
+					x-model="selectedMetric"
+					@change="updatePlotData"
+				>
+					<template x-for="metric in metricList" :key="metric.key">
+						<option
+							:value="metric.key"
+							x-text="metric.label"
+							:disabled="metric.disabled"
+							:title="metric.tooltip || ''"
+						></option>
+					</template>
+				</select>
+			</fieldset>
+		</div>
+	</div>
+</div>

@@ -6,6 +6,8 @@ document.addEventListener('alpine:init', () => {
         // Cache storage for API responses
         rossDataCache: null,
         rossDataPromise: null,
+        eventDataCache: null,
+        eventDataPromise: null,
 
         async fetchRossData() {
             // Return cached data if available
@@ -36,12 +38,40 @@ document.addEventListener('alpine:init', () => {
             return this.rossDataPromise;
         },
 
+        async fetchEventData() {
+            if (this.eventDataCache) {
+                return this.eventDataCache;
+            }
+
+            if (this.eventDataPromise) {
+                return this.eventDataPromise;
+            }
+
+            this.eventDataPromise = await fetch('/api/v1/data/event')
+            .then(async response => {
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch Event data: ${response.statusText}`);
+                }
+                const data = await response.json();
+                this.eventDataCache = data;
+                this.eventDataPromise = null;
+                return data;
+            })
+            .catch(error => {
+                this.eventDataPromise = null;
+                throw error;
+            });
+            return this.eventDataPromise;
+        },
+
         /**
          * Clear cached data. Call when new data files are selected.
          */
         clearCache() {
             this.rossDataCache = null;
             this.rossDataPromise = null;
+            this.eventDataCache = null;
+            this.eventDataPromise = null;
         }
     });
 });
