@@ -2,30 +2,35 @@
  * Alpine.js component for time plot visualization.
  * Displays ROSS simulation data over time with configurable axes.
  */
+
 document.addEventListener('alpine:init', () => {
     Alpine.data('timePlot', () => ({
-    // Component state
-    records: [],
-    columns: [],
-    xAxisValues: [
-        {
-            key: "virtual_time",
-            label: "Virtual Time"
+        records: [],
+        columns: [],
+        selectedXAxis: 'virtual_time',
+        selectedYAxis: 'events_processed',
+        minTime: null,
+        maxTime: null,
+        timePlotEl: null,
+        isPlotInitialized: false,
+        isLoaded: false,
+
+        get xAxisValues() {
+            return [
+                { key: "virtual_time", label: "Virtual Time"},
+                { key: "real_time", label: "Real Time"},
+            ]
         },
-        {
-            key: "real_time",
-            label: "Real Time"
+        get yAxisValues() {
+            const excluded_columns = ["PE_ID", "real_time", "virtual_time"]
+            const filtered_columns = this.columns.filter(column => column && !excluded_columns.includes(column))
+
+            return filtered_columns.map((value) => ({
+                key: value,
+                label: value.replaceAll("_", " ")
+            }))
         },
-    ],
-    yAxisValues: [],
-    selectedXAxis: 'virtual_time',
-    selectedYAxis: 'events_processed',
-    minTime: null,
-    maxTime: null,
-    timePlotEl: null,
-    resizeObserver: null,
-    isPlotInitialized: false,
-    isLoaded: false,
+
 
     /**
      * Initialize the component and set up watchers.
@@ -95,21 +100,9 @@ document.addEventListener('alpine:init', () => {
         const payload = await this.$store.dataStore.fetchRossData();
         this.columns = payload.columns ?? [];
         this.records = payload.data ?? [];
-        this.processData();
         this.updatePlotData();
     },
 
-    /**
-     * Process raw data to create axis value options.
-     */
-    processData() {
-        const excluded_columns = ["PE_ID", "real_time", "virtual_time"];
-        const filtered_columns = this.columns.filter(column => column && !excluded_columns.includes(column));
-        this.yAxisValues = filtered_columns.map((value) => ({
-            key: value,
-            label: value.replaceAll("_", " ")
-        }));
-    },
 
     /**
      * Update the plot with current axis selections.
