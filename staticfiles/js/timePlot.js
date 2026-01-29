@@ -1,33 +1,46 @@
-function scatterPlotSetup() {
+function timePlotSetup(){
     const store = Alpine.store('dataStore')
     let records = []
     let columns = []
-    let valueList = []
+    let xAxisValues = [
+        {
+            key: "virtual_time",
+            label: "Virtual Time"
+        },
+        {
+            key: "real_time",
+            label: "Real Time"
+        },
 
-    let selectedXAxis = 'events_processed'
-    let selectedYAxis = 'events_rolled_back'
+    ]
+    let yAxisValues = []
+
+    let selectedXAxis = 'virtual_time'
+    let selectedYAxis = 'events_processed'
+
+    let minTime = null
+    let maxTime = null
+
 
     function initPlot() {
-        const scatterPlot = document.getElementById('scatterPlot');
+        const timePlot = document.getElementById('timePlot');
         const data = [{
                 x: [],
                 y: [],
-                mode: 'markers',
-                type: 'scatter',
                 showlegend: true,
 
             }]
         const layout = {
                 xaxis: {
                     title: {
-                        text: 'Events Processed'
+                        text: 'Virtual Time'
                     },
                     rangemode: 'tozero',
                     color: 'white',
                 },
                 yaxis: {
                     title: {
-                        text: 'Events Rolled Back'
+                        text: 'Events Processed'
                     },
                     rangemode: 'tozero',
                     color: 'white',
@@ -44,50 +57,66 @@ function scatterPlotSetup() {
 
             }
         const config = { responsive: true }
-        Plotly.newPlot( scatterPlot, data, layout, config)
-            // TODO: When File selection is available change this to be fired then
-            store.loadRossData()
+        Plotly.newPlot( timePlot, data, layout, config)
+        store.loadRossData()
     }
 
     function processData(){
         const excluded_columns = ["PE_ID", "real_time", "virtual_time"]
         const filtered_columns = columns.filter(column => column && !excluded_columns.includes(column))
-        valueList = filtered_columns.map((value) => ({
+        yAxisValues = filtered_columns.map((value) => ({
             key: value,
             label: value.replaceAll("_", " ")
         }))
     }
 
+
     function updatePlotData() {
-        const xData = records.map(record => record[selectedXAxis])
-        const yData = records.map(record => record[selectedYAxis])
+        const groupedData = {}
 
-        // TODO: This could be another choice we allow the user to make.
-        const color_range = records.map(record => record.PE_ID)
-
-        Plotly.update(scatterPlot, {
-            x: [xData],
-            y: [yData],
-            marker:{
-                color: color_range,
-                colorscale: 'Blues'
+        records.forEach(record => {
+            const peId = record.PE_ID
+            if (!groupedData[peId]) {
+                groupedData[peId] = {
+                    x: [],
+                    y: [],
+                    peId: peId
+                }
             }
-        },{
+            groupedData[peId].x.push(record[selectedXAxis])
+            groupedData[peId].y.push(record[selectedYAxis])
+        })
+
+        const traces = Object.values(groupedData).map(peData => ({
+            x: peData.x,
+            y: peData.y,
+            showlegend: true
+        }))
+
+        Plotly.react(timePlot, traces, {
             xaxis: {
                 title: {
-                    text: valueList.find((item) => item.key === selectedXAxis).label,
+                    text: xAxisValues.find((item) => item.key === selectedXAxis).label,
                 },
                 color: 'white',
             },
             yaxis: {
                 title: {
-                    text: valueList.find((item) => item.key === selectedYAxis).label,
+                    text: yAxisValues.find((item) => item.key === selectedYAxis).label,
                 },
                 color: 'white',
+            },
+            paper_bgcolor: '1d232a',
+                plot_bgcolor: '1d232a',
+                margin: {
+                    l: 50,
+                    r: 50,
+                    b: 50,
+                    t: 50,
+                    pad: 4
             }
         })
     }
-
     Alpine.watch(
         () => store.rossData,
         (data) => {
@@ -100,11 +129,11 @@ function scatterPlotSetup() {
             updatePlotData()
         }
     )
-
     return {
         initPlot,
         selectedXAxis,
         selectedYAxis,
-        valueList
+        xAxisValues,
+        yAxisValues
     }
 }

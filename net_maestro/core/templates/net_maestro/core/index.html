@@ -8,6 +8,8 @@
     <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
     <!-- Tailwind -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    {% load static %}
+    <script src="{% static 'js/dataStore.js' %}"></script>
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script>
@@ -44,7 +46,8 @@
     }
     </style>
 </head>
-    <body>
+    <!-- Have data load on init. Change when workflow changes -->
+    <body x-data x-init="$store.dataStore.loadRossData()">
         <!-- Main application container -->
         <div class="min-h-screen flex flex-col" x-data="{ activeItem: 'results' }">
             <!-- Top navbar -->
@@ -223,10 +226,11 @@
             <!-- Main content area with sidebar and visualization components -->
             <div class="flex flex-1">
                 <!-- Left sidebar navigation-->
-                {% include './components/sidebar.html' %}
+                {% include 'net_maestro/core/components/sidebar.html' %}
                 <!-- Main content -->
                 <div class="flex-1 bg-base-300">
-                    {% include './components/scatterPlot.html' %}
+                    {% include 'net_maestro/core/components/plots/scatterPlot.html' %}
+                    {% include 'net_maestro/core/components/plots/timePlot.html' %}
                 </div>
             </div>
         </div>

@@ -1,0 +1,42 @@
+{% load static %}
+<script src="{% static 'js/timePlot.js' %}"></script>
+<div class="card bg-base-100 min-w-max my-4" x-data="timePlotSetup()" x-init="initPlot()">
+	<div class="card-body">
+		<h2 class="card-title text-white">
+			Time Plot
+		</h2>
+		<div id="timePlot"></div>
+	</div>
+	<div class="flex" x-show="valueList.length > 0">
+		<div class="flex-1 selects" >
+			<fieldset>
+				<legend class="fieldset-legend">
+					Choose x-axis value
+				</legend>
+				<select class="select"
+				x-model="selectedXAxis"
+				@change="updatePlotData"
+				>
+					<template x-for="value in valueList" :key="value.key">
+						<option :value="value.key" x-text="value.label"></option>
+					</template>
+				</select>
+			</fieldset>
+		</div>
+		<div class="flex-1 selects" >
+			<fieldset>
+				<legend class="fieldset-legend">
+					Choose y-axis value
+				</legend>
+				<select class="select"
+				x-model="selectedYAxis"
+				@change="updatePlotData()"
+				>
+					<template x-for="value in valueList" :key="value.key">
+						<option :value="value.key" x-text="value.label"></option>
+					</template>
+				</select>
+			</fieldset>
+		</div>
+	</div>
+</div>
