@@ -16,9 +16,7 @@ document.addEventListener('alpine:init', () => {
         async refresh() {
             this.refreshing = true;
             try {
-                const response = await fetch('/api/v1/data/files', {
-                    credentials: 'same-origin',
-                });
+                const response = await fetch('/api/v1/data/files');
                 const payload = await response.json();
                 this.files = payload.files;
                 this.selected = payload.selected;
@@ -35,14 +33,9 @@ document.addEventListener('alpine:init', () => {
          * @param {string} file - The filename to select
          */
         async select(category, file) {
-            const csrf = getCookie('csrftoken');
             await fetch('/api/v1/data/select', {
                 method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrf,
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ category, file }),
             });
             this.selected[category] = file;

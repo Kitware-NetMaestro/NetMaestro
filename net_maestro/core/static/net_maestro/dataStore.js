@@ -19,9 +19,7 @@ document.addEventListener('alpine:init', () => {
             }
 
             // Make new request
-            this.rossDataPromise = fetch('/api/v1/data/ross', {
-                credentials: 'same-origin',
-            })
+            this.rossDataPromise = fetch('/api/v1/data/ross')
             .then(async response => {
                 if (!response.ok) {
                     throw new Error(`Failed to fetch ROSS data: ${response.statusText}`);

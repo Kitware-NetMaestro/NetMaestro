@@ -15,11 +15,8 @@ from __future__ import annotations
 
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
-from django.views.decorators.csrf import ensure_csrf_cookie
 
 
-@ensure_csrf_cookie
 def home(request: HttpRequest) -> HttpResponse:
     """Render the main application page with data file selection."""
-    context = {}
-    return render(request, 'net_maestro/index.html', context)
+    return render(request, 'net_maestro/index.html')
