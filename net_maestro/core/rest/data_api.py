@@ -56,9 +56,6 @@ _SESSION_KEYS: dict[str, str] = {
 def _list_files(*, subdir: str) -> list[str]:
     """List all files in the specified data subdirectory.
 
-    Args:
-        subdir: Subdirectory name (events, models, or simulations)
-
     Returns:
         Sorted list of filenames (not full paths)
     """
@@ -78,11 +75,6 @@ def _get_selected_file(*, request: Request, subdir: str, available: list[str]) -
     4. None if no files available
 
     Updates session with the selected file.
-
-    Args:
-        request: HTTP request with session
-        subdir: Category subdirectory name
-        available: List of available filenames
 
     Returns:
         Selected filename or None if no files available
@@ -119,12 +111,6 @@ def _resolve_selected_path(
     Checks query params first, then falls back to session. Validates that the
     resolved path is a direct child of DATA_DIR/subdir to prevent path traversal.
 
-    Args:
-        request: HTTP request with query params and session
-        subdir: Category subdirectory name
-        session_key: Session key for this category
-        query_param: Query parameter name to check (e.g., 'file')
-
     Returns:
         Tuple of (resolved_path, requested_name, error_message)
         - resolved_path: Absolute Path if valid, None otherwise
@@ -154,9 +140,6 @@ def _resolve_selected_path(
 
 def _df_records(df: pd.DataFrame) -> List[Dict[str, Any]]:
     """Convert a pandas DataFrame to a list of record dictionaries.
-
-    Args:
-        df: DataFrame to convert
 
     Returns:
         List of dictionaries, one per row, with column names as keys

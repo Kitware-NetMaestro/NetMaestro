@@ -19,9 +19,6 @@ def api_client(db) -> APIClient:
     - In DEBUG mode: Returns unauthenticated client (AllowAny permission)
     - In production mode: Creates and authenticates a test user
 
-    Args:
-        db: Pytest fixture that ensures database is available
-
     Returns:
         APIClient instance, authenticated if not in DEBUG mode
 

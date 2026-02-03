@@ -25,10 +25,6 @@ def test_data_endpoints_smoke(api_client: APIClient, category: str) -> None:
 
     This test is parametrized to run once for each category (event, model, ross).
 
-    Args:
-        api_client: Authenticated API client fixture from conftest.py
-        category: Data category to test ('event', 'model', or 'ross')
-
     Raises:
         AssertionError: If endpoint returns non-200 status, invalid JSON,
             or missing expected structure
