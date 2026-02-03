@@ -102,7 +102,7 @@ document.addEventListener('alpine:init', () => {
      * Update the plot with current axis selections.
      */
     updatePlotData() {
-        if (!this.scatterPlotEl || this.records.length === 0 || this.valueList.length === 0) {
+        if (!this.scatterPlotEl || this.records.length === 0) {
             return;
         }
 
