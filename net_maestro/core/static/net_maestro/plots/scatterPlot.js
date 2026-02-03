@@ -69,36 +69,12 @@ document.addEventListener('alpine:init', () => {
         const config = { responsive: true };
         Plotly.newPlot(this.scatterPlotEl, data, layout, config);
 
-        this.setupResizeObserver();
     },
 
     async load() {
         this.initPlot();
         await this.loadRossData();
         this.isLoaded = true;
-        this.resizePlot();
-    },
-
-    setupResizeObserver() {
-        if (!this.scatterPlotEl) {
-            return;
-        }
-        if (this.resizeObserver) {
-            this.resizeObserver.disconnect();
-        }
-        this.resizeObserver = new ResizeObserver(() => {
-            this.resizePlot();
-        });
-        this.resizeObserver.observe(this.scatterPlotEl);
-    },
-
-    resizePlot() {
-        if (!this.scatterPlotEl) {
-            return;
-        }
-        requestAnimationFrame(() => {
-            Plotly.Plots.resize(this.scatterPlotEl);
-        });
     },
 
     async loadRossData() {
