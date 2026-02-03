@@ -44,4 +44,4 @@ document.addEventListener('alpine:init', () => {
             this.rossDataPromise = null;
         }
     });
-})
+});
