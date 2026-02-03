@@ -25,8 +25,7 @@
     <!-- Custom styles -->
     <link rel="stylesheet" href="{% static 'net_maestro/customStyles.css' %}" />
 </head>
-    <!-- Have data load on init. Change when workflow changes -->
-    <body x-data x-init="$store.dataStore.loadRossData()">
+    <body x-data>
         <!-- Main application container -->
         <div class="min-h-screen flex flex-col" x-data="{ activeItem: 'results' }">
             <!-- Top navbar -->
@@ -152,11 +151,11 @@
                         </div>
                         <div class="card-footer">
                             <div class="mt-auto px-2 pb-2">
-                                <!-- Load Data button: increments loadTick to trigger plot updates -->
+                                <!-- Load Data button: clears cache and increments loadTick to trigger plot updates -->
                                 <button
                                     class="btn btn-primary w-full"
                                     type="button"
-                                    @click="$store.nm.loadTick++; open = false"
+                                    @click="$store.dataStore.clearCache(); $store.dataStore.loadTick++; open = false"
                                 >
                                     <span>Load Data</span>
                                 </button>

@@ -10,22 +10,17 @@ document.addEventListener('alpine:init', () => {
     valueList: [],
     selectedXAxis: 'events_processed',
     selectedYAxis: 'events_rolled_back',
+    scatterPlotEl: null,
+    resizeObserver: null,
+    isPlotInitialized: false,
+    isLoaded: false,
 
     /**
      * Initialize the component and set up watchers.
-     * Called automatically by Alpine.js when component mounts.
      */
     init() {
-        const store = Alpine.store('dataStore');
-        this.initPlot();
-
-        // Watch for data changes - automatically cleaned up on component destroy
-        this.$watch(() => store.rossData, (data) => {
-            if (!data) return;
-            this.columns = data.columns;
-            this.records = data.data;
-            this.processData();
-            this.updatePlotData();
+        this.$watch('$store.dataStore.loadTick', () => {
+            this.load();
         });
     },
 
@@ -33,7 +28,12 @@ document.addEventListener('alpine:init', () => {
      * Initialize the Plotly scatter plot.
      */
     initPlot() {
-        const scatterPlot = document.getElementById('scatterPlot');
+        if (this.isPlotInitialized) {
+            return;
+        }
+        this.isPlotInitialized = true;
+        this.scatterPlotEl = document.getElementById('scatterPlot');
+
         const data = [{
             x: [],
             y: [],
@@ -67,11 +67,47 @@ document.addEventListener('alpine:init', () => {
             }
         };
         const config = { responsive: true };
-        Plotly.newPlot(scatterPlot, data, layout, config);
+        Plotly.newPlot(this.scatterPlotEl, data, layout, config);
 
-        // Load initial data
-        const store = Alpine.store('dataStore');
-        store.loadRossData();
+        this.setupResizeObserver();
+    },
+
+    async load() {
+        this.initPlot();
+        await this.loadRossData();
+        this.isLoaded = true;
+        this.resizePlot();
+    },
+
+    setupResizeObserver() {
+        if (!this.scatterPlotEl) {
+            return;
+        }
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+        }
+        this.resizeObserver = new ResizeObserver(() => {
+            this.resizePlot();
+        });
+        this.resizeObserver.observe(this.scatterPlotEl);
+    },
+
+    resizePlot() {
+        if (!this.scatterPlotEl) {
+            return;
+        }
+        requestAnimationFrame(() => {
+            Plotly.Plots.resize(this.scatterPlotEl);
+        });
+    },
+
+    async loadRossData() {
+        this.isLoaded = false;
+        const payload = await this.$store.dataStore.fetchRossData();
+        this.columns = payload.columns ?? [];
+        this.records = payload.data ?? [];
+        this.processData();
+        this.updatePlotData();
     },
 
     /**
@@ -90,14 +126,17 @@ document.addEventListener('alpine:init', () => {
      * Update the plot with current axis selections.
      */
     updatePlotData() {
+        if (!this.scatterPlotEl || this.records.length === 0) {
+            return;
+        }
+
         const xData = this.records.map(record => record[this.selectedXAxis]);
         const yData = this.records.map(record => record[this.selectedYAxis]);
 
         // TODO: This could be another choice we allow the user to make.
         const color_range = this.records.map(record => record.PE_ID);
 
-        const scatterPlot = document.getElementById('scatterPlot');
-        Plotly.update(scatterPlot, {
+        Plotly.update(this.scatterPlotEl, {
             x: [xData],
             y: [yData],
             marker: {

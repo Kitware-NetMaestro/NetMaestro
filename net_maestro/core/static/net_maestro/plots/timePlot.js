@@ -22,22 +22,18 @@ document.addEventListener('alpine:init', () => {
     selectedYAxis: 'events_processed',
     minTime: null,
     maxTime: null,
+    timePlotEl: null,
+    resizeObserver: null,
+    isPlotInitialized: false,
+    isLoaded: false,
 
     /**
      * Initialize the component and set up watchers.
      * Called automatically by Alpine.js when component mounts.
      */
     init() {
-        const store = Alpine.store('dataStore');
-        this.initPlot();
-
-        // Watch for data changes - automatically cleaned up on component destroy
-        this.$watch(() => store.rossData, (data) => {
-            if (!data) return;
-            this.columns = data.columns;
-            this.records = data.data;
-            this.processData();
-            this.updatePlotData();
+        this.$watch('$store.dataStore.loadTick', () => {
+            this.load();
         });
     },
 
@@ -45,7 +41,15 @@ document.addEventListener('alpine:init', () => {
      * Initialize the Plotly time plot.
      */
     initPlot() {
-        const timePlot = document.getElementById('timePlot');
+        if (this.isPlotInitialized) {
+            return;
+        }
+        this.isPlotInitialized = true;
+        this.timePlotEl = document.getElementById('timePlot');
+        if (!this.timePlotEl) {
+            return;
+        }
+
         const data = [{
             x: [],
             y: [],
@@ -77,11 +81,47 @@ document.addEventListener('alpine:init', () => {
             }
         };
         const config = { responsive: true };
-        Plotly.newPlot(timePlot, data, layout, config);
+        Plotly.newPlot(this.timePlotEl, data, layout, config);
 
-        // Load initial data
-        const store = Alpine.store('dataStore');
-        store.loadRossData();
+        this.setupResizeObserver();
+    },
+
+    async load() {
+        this.initPlot();
+        await this.loadRossData();
+        this.isLoaded = true;
+        this.resizePlot();
+    },
+
+    setupResizeObserver() {
+        if (!this.timePlotEl) {
+            return;
+        }
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+        }
+        this.resizeObserver = new ResizeObserver(() => {
+            this.resizePlot();
+        });
+        this.resizeObserver.observe(this.timePlotEl);
+    },
+
+    resizePlot() {
+        if (!this.timePlotEl) {
+            return;
+        }
+        requestAnimationFrame(() => {
+            Plotly.Plots.resize(this.timePlotEl);
+        });
+    },
+
+    async loadRossData() {
+        this.isLoaded = false;
+        const payload = await this.$store.dataStore.fetchRossData();
+        this.columns = payload.columns ?? [];
+        this.records = payload.data ?? [];
+        this.processData();
+        this.updatePlotData();
     },
 
     /**
@@ -101,6 +141,10 @@ document.addEventListener('alpine:init', () => {
      * Groups data by PE_ID to create separate traces.
      */
     updatePlotData() {
+        if (!this.timePlotEl || this.records.length === 0) {
+            return;
+        }
+
         const groupedData = {};
 
         this.records.forEach(record => {
@@ -122,8 +166,7 @@ document.addEventListener('alpine:init', () => {
             showlegend: true
         }));
 
-        const timePlot = document.getElementById('timePlot');
-        Plotly.react(timePlot, traces, {
+        Plotly.react(this.timePlotEl, traces, {
             xaxis: {
                 title: {
                     text: this.xAxisValues.find((item) => item.key === this.selectedXAxis).label,
