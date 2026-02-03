@@ -67,12 +67,6 @@ def ingest(
     Creates symlinks from source files to NetMaestro/data/{events,models,simulations}/
     subdirectories. Files must remain accessible at their source locations at runtime.
 
-    Args:
-        event_files: Event trace binary files to ingest
-        simulation_files: ROSS simulation binary files to ingest
-        model_files: Model analysis binary files to ingest
-        source_root: Optional root directory containing structured subdirectories
-
     Raises:
         click.ClickException: If a destination file already exists and is not an
             identical symlink to the source
@@ -81,12 +75,7 @@ def ingest(
     data_dir = base_dir / 'data'
 
     def ingest_files(*, files: Sequence[Path], subdir: str) -> None:
-        """Create symlinks for a sequence of files in the specified data subdirectory.
-
-        Args:
-            files: Sequence of source file paths to symlink
-            subdir: Target subdirectory name (events, models, or simulations)
-        """
+        """Create symlinks for a sequence of files in the specified data subdirectory."""
         if not files:
             return
 

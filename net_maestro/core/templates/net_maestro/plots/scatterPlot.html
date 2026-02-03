@@ -1,13 +1,13 @@
 {% load static %}
-<script src="{% static 'js/timePlot.js' %}"></script>
-<div class="card bg-base-100 min-w-max my-4" x-data="timePlotSetup()" x-init="initPlot()">
+<script src="{% static 'net_maestro/plots/scatterPlot.js' %}"></script>
+<div class="card bg-base-100 min-w-max" x-data="scatterPlot">
 	<div class="card-body">
 		<h2 class="card-title text-white">
-			Time Plot
+			Scatter Plot
 		</h2>
-		<div id="timePlot"></div>
+		<div id="scatterPlot"></div>
 	</div>
-	<div class="flex" x-show="valueList.length > 0">
+	<div class="flex" x-show="valueList && valueList.length > 0" x-cloak>
 		<div class="flex-1 selects" >
 			<fieldset>
 				<legend class="fieldset-legend">

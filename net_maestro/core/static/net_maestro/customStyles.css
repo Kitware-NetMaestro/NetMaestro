@@ -1,0 +1,15 @@
+/**
+ * Custom styles for NetMaestro application.
+ * Uses DaisyUI theme variables for consistency.
+ */
+
+/* Prevent flash of unstyled content with Alpine.js */
+[x-cloak] {
+    display: none !important;
+}
+
+/* Active menu item styling */
+.menu .menu-active {
+    background-color: var(--color-info);
+    border-radius: var(--radius-field);
+}
