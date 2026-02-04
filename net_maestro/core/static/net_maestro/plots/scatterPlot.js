@@ -7,13 +7,20 @@ document.addEventListener('alpine:init', () => {
     // Component state
     records: [],
     columns: [],
-    valueList: [],
     selectedXAxis: 'events_processed',
     selectedYAxis: 'events_rolled_back',
     scatterPlotEl: null,
-    resizeObserver: null,
     isPlotInitialized: false,
     isLoaded: false,
+
+    get valueList() {
+        const excluded_columns = ["PE_ID", "real_time", "virtual_time"]
+        const filtered_columns = this.columns.filter(column => column && !excluded_columns.includes(column))
+        return filtered_columns.map((value) => ({
+            key: value,
+            label: value.replaceAll("_", " ")
+        }))
+    },
 
     /**
      * Initialize the component and set up watchers.
@@ -82,21 +89,9 @@ document.addEventListener('alpine:init', () => {
         const payload = await this.$store.dataStore.fetchRossData();
         this.columns = payload.columns ?? [];
         this.records = payload.data ?? [];
-        this.processData();
         this.updatePlotData();
     },
 
-    /**
-     * Process raw data to create axis value options.
-     */
-    processData() {
-        const excluded_columns = ["PE_ID", "real_time", "virtual_time"];
-        const filtered_columns = this.columns.filter(column => column && !excluded_columns.includes(column));
-        this.valueList = filtered_columns.map((value) => ({
-            key: value,
-            label: value.replaceAll("_", " ")
-        }));
-    },
 
     /**
      * Update the plot with current axis selections.
