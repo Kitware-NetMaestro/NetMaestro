@@ -63,12 +63,12 @@ document.addEventListener('alpine:init', () => {
         };
         const config = { responsive: true };
         Plotly.newPlot(this.heatmapPlotEl, data, layout, config);
-        this.isPlotInitialized = true;
     },
 
     async load() {
         this.initPlot();
         await this.loadEventData();
+        this.isPlotInitialized = true;
     },
 
     async loadEventData() {
