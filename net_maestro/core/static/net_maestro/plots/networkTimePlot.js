@@ -42,7 +42,6 @@ document.addEventListener('alpine:init', () => {
             if (this.isPlotInitialized) {
                 return;
             }
-            this.isPlotInitialized = true;
             this.networkTimePlotEl = document.getElementById('networkTimePlot');
             if (!this.networkTimePlotEl) {
                 return;
@@ -80,6 +79,7 @@ document.addEventListener('alpine:init', () => {
             };
             const config = { responsive: true };
             Plotly.newPlot(this.networkTimePlotEl, data, layout, config);
+            this.isPlotInitialized = true;
         },
 
          async load() {
@@ -91,7 +91,6 @@ document.addEventListener('alpine:init', () => {
             const payload = await this.$store.dataStore.fetchModelData();
             this.columns = payload.columns ?? [];
             this.records = payload.data ?? [];
-            console.log(this.yAxisValues)
             this.updatePlotData();
         },
 
