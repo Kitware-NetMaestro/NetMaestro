@@ -8,6 +8,8 @@ document.addEventListener('alpine:init', () => {
         rossDataPromise: null,
         eventDataCache: null,
         eventDataPromise: null,
+        modelDataCache: null,
+        modelDataPromise: null,
 
         async fetchRossData() {
             // Return cached data if available
@@ -64,6 +66,33 @@ document.addEventListener('alpine:init', () => {
             return this.eventDataPromise;
         },
 
+        async fetchModelData() {
+            if (this.modelDataCache) {
+                return this.modelDataCache;
+            }
+
+            if (this.modelDataPromise) {
+                return this.modelDataPromise;
+            }
+
+            this.modelDataPromise = await fetch('/api/v1/data/model')
+            .then(async response => {
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch Model data: ${response.statusText}`);
+                }
+                const data = await response.json();
+                this.modelDataCache = data;
+                this.modelDataPromise = null;
+                return data;
+            })
+            .catch(error => {
+                this.modelDataPromise = null;
+                throw error;
+            });
+            return this.modelDataPromise;
+        },
+
+
         /**
          * Clear cached data. Call when new data files are selected.
          */
@@ -72,6 +101,8 @@ document.addEventListener('alpine:init', () => {
             this.rossDataPromise = null;
             this.eventDataCache = null;
             this.eventDataPromise = null;
+            this.modelDataCache = null;
+            this.modelDataPromise = null;
         }
     });
 });
