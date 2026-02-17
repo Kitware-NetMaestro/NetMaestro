@@ -45,6 +45,7 @@ document.addEventListener('alpine:init', () => {
         },
       ];
       const layout = {
+        // biome-ignore-start lint/style/useNamingConvention: library interface names
         paper_bgcolor: '1d232a',
         plot_bgcolor: '1d232a',
         font: {
@@ -57,6 +58,7 @@ document.addEventListener('alpine:init', () => {
           r: 50,
           pad: 4,
         },
+        // biome-ignore-end lint/style/useNamingConvention: library interface names
       };
       const config = { responsive: true };
       Plotly.newPlot(this.parallelPlotEl, data, layout, config);
@@ -97,6 +99,7 @@ document.addEventListener('alpine:init', () => {
       };
 
       const layout = {
+        // biome-ignore-start lint/style/useNamingConvention: library interface names
         paper_bgcolor: '1d232a',
         plot_bgcolor: '1d232a',
         font: {
@@ -109,6 +112,7 @@ document.addEventListener('alpine:init', () => {
           r: 50,
           pad: 4,
         },
+        // biome-ignore-end lint/style/useNamingConvention: library interface names
       };
 
       Plotly.react(this.parallelPlotEl, [trace], layout);

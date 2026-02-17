@@ -5,6 +5,7 @@
 
 /* Prevent flash of unstyled content with Alpine.js */
 [x-cloak] {
+  /* biome-ignore lint/complexity/noImportantStyles: ensure this is honored */
   display: none !important;
 }
 

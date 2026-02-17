@@ -57,6 +57,7 @@ document.addEventListener('alpine:init', () => {
         },
       ];
       const layout = {
+        // biome-ignore-start lint/style/useNamingConvention: library interface names
         xaxis: {
           title: {
             text: 'Virtual Time',
@@ -80,6 +81,7 @@ document.addEventListener('alpine:init', () => {
           t: 50,
           pad: 4,
         },
+        // biome-ignore-end lint/style/useNamingConvention: library interface names
       };
       const config = { responsive: true };
       Plotly.newPlot(this.networkTimePlotEl, data, layout, config);
@@ -130,6 +132,7 @@ document.addEventListener('alpine:init', () => {
       }));
 
       Plotly.react(this.networkTimePlotEl, traces, {
+        // biome-ignore-start lint/style/useNamingConvention: library interface names
         xaxis: {
           title: {
             text: this.xAxisValues.find((item) => item.key === this.selectedXAxis).label,
@@ -151,6 +154,7 @@ document.addEventListener('alpine:init', () => {
           t: 50,
           pad: 4,
         },
+        // biome-ignore-end lint/style/useNamingConvention: library interface names
       });
     },
   }));

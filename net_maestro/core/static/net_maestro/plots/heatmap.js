@@ -46,6 +46,7 @@ document.addEventListener('alpine:init', () => {
         },
       ];
       const layout = {
+        // biome-ignore-start lint/style/useNamingConvention: library interface names
         paper_bgcolor: '1d232a',
         plot_bgcolor: '1d232a',
         font: {
@@ -64,6 +65,7 @@ document.addEventListener('alpine:init', () => {
         yaxis: {
           title: 'Sending LP ID',
         },
+        // biome-ignore-end lint/style/useNamingConvention: library interface names
       };
       const config = { responsive: true };
       Plotly.newPlot(this.heatmapPlotEl, data, layout, config);
@@ -135,6 +137,7 @@ document.addEventListener('alpine:init', () => {
           },
         ],
         {
+          // biome-ignore-start lint/style/useNamingConvention: library interface names
           paper_bgcolor: '1d232a',
           plot_bgcolor: '1d232a',
           font: {
@@ -156,6 +159,7 @@ document.addEventListener('alpine:init', () => {
           coloraxis: {
             colorbar: { title: title },
           },
+          // biome-ignore-end lint/style/useNamingConvention: library interface names
         },
       );
     },

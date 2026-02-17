@@ -53,6 +53,7 @@ document.addEventListener('alpine:init', () => {
         },
       ];
       const layout = {
+        // biome-ignore-start lint/style/useNamingConvention: library interface names
         xaxis: {
           title: {
             text: 'Events Processed',
@@ -76,6 +77,7 @@ document.addEventListener('alpine:init', () => {
           t: 50,
           pad: 4,
         },
+        // biome-ignore-end lint/style/useNamingConvention: library interface names
       };
       const config = { responsive: true };
       Plotly.newPlot(this.scatterPlotEl, data, layout, config);
