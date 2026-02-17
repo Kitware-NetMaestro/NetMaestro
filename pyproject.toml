@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "net-maestro"
 version = "0.0.0"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 classifiers = ["Private :: Do Not Upload"]
@@ -26,15 +26,15 @@ dependencies = [
   "django-stubs-ext",
   "djangorestframework",
   "drf-yasg",
+  "pandas",
   "psycopg[binary]",
   "rich",
   "whitenoise[brotli]",
   # Production-only
   "django-s3-file-field[s3]",
   "django-storages[s3]",
-  "gunicorn",
   "sentry-sdk[celery,django,pure_eval]",
-  "pandas",
+  "gunicorn",
 ]
 
 [project.optional-dependencies]
@@ -91,8 +91,8 @@ test = [
 ]
 
 [tool.hatch.build]
-packages = [
-  "net-maestro",
+only-include = [
+  "net_maestro",
 ]
 
 [tool.black]
@@ -140,5 +140,5 @@ addopts = [
 filterwarnings = [
   "error",
   # pytest often causes unclosed socket warnings
-  "ignore:unclosed <socket\\.socket:ResourceWarning",
+  'ignore:unclosed <socket\.socket:ResourceWarning',
 ]

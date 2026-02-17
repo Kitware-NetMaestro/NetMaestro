@@ -22,6 +22,8 @@ BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 
 ROOT_URLCONF = 'net_maestro.urls'
 
+WSGI_APPLICATION = 'net_maestro.wsgi.application'
+
 INSTALLED_APPS = [
     # Install local apps first, to ensure any overridden resources are found first
     'net_maestro.core.apps.CoreConfig',
@@ -78,7 +80,7 @@ DATABASES = {
     'default': {
         **env.db_url('DJANGO_DATABASE_URL', engine='django.db.backends.postgresql'),
         'CONN_MAX_AGE': timedelta(minutes=10).total_seconds(),
-    }
+    },
 }
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
