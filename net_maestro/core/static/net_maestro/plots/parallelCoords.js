@@ -7,7 +7,7 @@ document.addEventListener('alpine:init', () => {
     parallelPlotEl: null,
     isPlotInitialized: false,
     records: [],
-    plot_dimensions: [
+    plotDimensions: [
       { key: 'PE_ID', label: 'PE ID' },
       { key: 'events_processed', label: 'Events Processed' },
       { key: 'events_rolled_back', label: 'Events Rolled Back' },
@@ -92,7 +92,7 @@ document.addEventListener('alpine:init', () => {
           colorscale: 'Viridis',
           showscale: true,
         },
-        dimensions: this.plot_dimensions.map((dimension) => ({
+        dimensions: this.plotDimensions.map((dimension) => ({
           label: dimension.label,
           values: this.records.map((record) => record[dimension.key]),
         })),
