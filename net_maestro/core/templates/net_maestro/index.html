@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <!-- Main application template with DaisyUI dark theme -->
 <html lang="en" data-theme="dark">
-<head>
+  <head>
     <meta charset="UTF-8">
     <title>{% block title %}NetMaestro{% endblock %}</title>
     <!-- DaisyUI -->
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css">
     <!-- Tailwind -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     {% load static %}
@@ -17,180 +17,177 @@
     <!-- Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-3.3.0.min.js" charset="utf-8"></script>
     <!-- Remix Icon -->
-    <link
-        href="https://cdn.jsdelivr.net/npm/remixicon@4.7.0/fonts/remixicon.css"
-        rel="stylesheet"
-    />
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.7.0/fonts/remixicon.css" rel="stylesheet">
     <!-- Custom styles -->
-    <link rel="stylesheet" href="{% static 'net_maestro/customStyles.css' %}" />
-</head>
-    <body x-data>
-        <!-- Main application container -->
-        <div class="min-h-screen flex flex-col" x-data="{ activeItem: 'results' }">
-            <!-- Top navbar -->
-            <div class="navbar bg-neutral text-xl justify-between">
-                <div>NetMaestro</div>
-                <!-- Data file selection dropdown -->
-                <div
-                    class="dropdown dropdown-end"
-                    x-data="dataFileSelector"
-                    @click.outside="open = false"
+    <link rel="stylesheet" href="{% static 'net_maestro/customStyles.css' %}">
+  </head>
+  <body x-data>
+    <!-- Main application container -->
+    <div class="min-h-screen flex flex-col" x-data="{ activeItem: 'results' }">
+      <!-- Top navbar -->
+      <div class="navbar bg-neutral text-xl justify-between">
+        <div>NetMaestro</div>
+        <!-- Data file selection dropdown -->
+        <div
+          class="dropdown dropdown-end"
+          x-data="dataFileSelector"
+          @click.outside="open = false"
+        >
+          <button
+            class="btn btn-ghost btn-lg w-15 font-thin"
+            type="button"
+            @click="open = !open; if (open && !loaded) { refresh(); }"
+            aria-label="Select data files"
+          >
+            <i class="ri-file-line"></i>
+          </button>
+          <div
+            class="dropdown-content z-[1] card card-compact w-96 bg-base-200 shadow"
+            x-show="open"
+            @click.stop
+          >
+            <div class="card-header m-3">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="card-title">Data Files</h3>
+                <button
+                  class="btn btn-ghost btn-sm"
+                  type="button"
+                  @click.prevent.stop="refresh()"
+                  aria-label="Update file list"
                 >
-                    <button
-                        class="btn btn-ghost btn-lg w-15 font-thin"
-                        type="button"
-                        @click="open = !open; if (open && !loaded) { refresh(); }"
-                        aria-label="Select data files"
-                    >
-                        <i class="ri-file-line"></i>
-                    </button>
+                  <i
+                    class="ri-loop-right-line text-base"
+                    :class="refreshing ? 'animate-spin' : ''"
+                    aria-hidden="true"
+                  ></i>
+                </button>
+              </div>
+              <hr>
+            </div>
+            <div class="card-body py-3">
+              <div class="space-y-4">
+                <!-- Simulations file list -->
+                <details open>
+                  <summary class="text-base">Simulations</summary>
+                  <div class="mt-2 space-y-1">
+                    <template x-for="file in files.simulations" :key="file">
+                      <label class="flex items-center gap-3 text-sm">
+                        <input
+                          class="radio radio-sm"
+                          type="radio"
+                          name="simulation_file"
+                          :value="file"
+                          :checked="file === selected.simulations"
+                          @change="select('simulations', file)"
+                        >
+                        <span class="truncate" x-text="file"></span>
+                      </label>
+                    </template>
                     <div
-                        class="dropdown-content z-[1] card card-compact w-96 bg-base-200 shadow"
-                        x-show="open"
-                        @click.stop
+                      class="opacity-70 text-sm"
+                      x-show="loaded && files.simulations.length === 0"
                     >
-                        <div class="card-header m-3">
-                            <div class="flex items-center justify-between mb-2">
-                                <h3 class="card-title">Data Files</h3>
-                                <button
-                                    class="btn btn-ghost btn-sm"
-                                    type="button"
-                                    @click.prevent.stop="refresh()"
-                                    aria-label="Update file list"
-                                >
-                                    <i
-                                        class="ri-loop-right-line text-base"
-                                        :class="refreshing ? 'animate-spin' : ''"
-                                        aria-hidden="true"
-                                    ></i>
-                                </button>
-                            </div>
-                            <hr/>
-                        </div>
-                        <div class="card-body py-3">
-                            <div class="space-y-4">
-                                <!-- Simulations file list -->
-                                <details open>
-                                    <summary class="text-base">Simulations</summary>
-                                    <div class="mt-2 space-y-1">
-                                        <template x-for="file in files.simulations" :key="file">
-                                            <label class="flex items-center gap-3 text-sm">
-                                                <input
-                                                    class="radio radio-sm"
-                                                    type="radio"
-                                                    name="simulation_file"
-                                                    :value="file"
-                                                    :checked="file === selected.simulations"
-                                                    @change="select('simulations', file)"
-                                                />
-                                                <span class="truncate" x-text="file"></span>
-                                            </label>
-                                        </template>
-                                        <div
-                                            class="opacity-70 text-sm"
-                                            x-show="loaded && files.simulations.length === 0"
-                                        >
-                                            No files found
-                                        </div>
-                                    </div>
-                                </details>
-
-                                <!-- Events file list -->
-                                <details open>
-                                    <summary class="text-base">Events</summary>
-                                    <div class="mt-2 space-y-1">
-                                        <template x-for="file in files.events" :key="file">
-                                            <label class="flex items-center gap-3 text-sm">
-                                                <input
-                                                    class="radio radio-sm"
-                                                    type="radio"
-                                                    name="event_file"
-                                                    :value="file"
-                                                    :checked="file === selected.events"
-                                                    @change="select('events', file)"
-                                                />
-                                                <span class="truncate" x-text="file"></span>
-                                            </label>
-                                        </template>
-                                        <div
-                                            class="opacity-70 text-sm"
-                                            x-show="loaded && files.events.length === 0"
-                                        >
-                                            No files found
-                                        </div>
-                                    </div>
-                                </details>
-
-                                <!-- Models file list -->
-                                <details open>
-                                    <summary class="text-base">Models</summary>
-                                    <div class="mt-2 space-y-1">
-                                        <template x-for="file in files.models" :key="file">
-                                            <label class="flex items-center gap-3 text-sm">
-                                                <input
-                                                    class="radio radio-sm"
-                                                    type="radio"
-                                                    name="model_file"
-                                                    :value="file"
-                                                    :checked="file === selected.models"
-                                                    @change="select('models', file)"
-                                                />
-                                                <span class="truncate" x-text="file"></span>
-                                            </label>
-                                        </template>
-                                        <div
-                                            class="opacity-70 text-sm"
-                                            x-show="loaded && files.models.length === 0"
-                                        >
-                                            No files found
-                                        </div>
-                                    </div>
-                                </details>
-                            </div>
-                        </div>
-                        <div class="card-footer">
-                            <div class="mt-auto px-2 pb-2">
-                                <!-- Load Data button: clears cache and increments loadTick to trigger plot updates -->
-                                <button
-                                    class="btn btn-primary w-full"
-                                    type="button"
-                                    @click="$store.dataStore.clearCache(); $store.dataStore.loadTick++; open = false"
-                                >
-                                    <span>Load Data</span>
-                                </button>
-                            </div>
-                        </div>
+                      No files found
                     </div>
-                </div>
-            </div>
-            <!-- Main content area with sidebar and visualization components -->
-            <div class="flex flex-1">
-                <!-- Left sidebar navigation-->
-                {% include 'net_maestro/shared/sidebar.html' %}
-                <!-- Main content -->
-                <div class="flex-1 bg-base-300 p-4">
-                    <div class="grid grid-cols-2 gap-4 h-full">
-                        <div class="bg-base-100 rounded-lg">
-                            {% include 'net_maestro/plots/scatterPlot.html' %}
-                        </div>
-                        <div class="bg-base-100 rounded-lg">
-                            {% include 'net_maestro/plots/timePlot.html' %}
-                        </div>
+                  </div>
+                </details>
 
-                        <div class="bg-base-100 rounded-lg">
-                            {% include 'net_maestro/plots/parallelCoords.html' %}
-                        </div>
-                        <div class="bg-base-100 rounded-lg">
-                            {% include 'net_maestro/plots/heatmap.html' %}
-                        </div>
-
-                        <div class="bg-base-100 rounded-lg">
-                            {% include 'net_maestro/plots/networkTimePlot.html' %}
-                        </div>
-                        <div></div>
+                <!-- Events file list -->
+                <details open>
+                  <summary class="text-base">Events</summary>
+                  <div class="mt-2 space-y-1">
+                    <template x-for="file in files.events" :key="file">
+                      <label class="flex items-center gap-3 text-sm">
+                        <input
+                          class="radio radio-sm"
+                          type="radio"
+                          name="event_file"
+                          :value="file"
+                          :checked="file === selected.events"
+                          @change="select('events', file)"
+                        >
+                        <span class="truncate" x-text="file"></span>
+                      </label>
+                    </template>
+                    <div
+                      class="opacity-70 text-sm"
+                      x-show="loaded && files.events.length === 0"
+                    >
+                      No files found
                     </div>
-                </div>
+                  </div>
+                </details>
+
+                <!-- Models file list -->
+                <details open>
+                  <summary class="text-base">Models</summary>
+                  <div class="mt-2 space-y-1">
+                    <template x-for="file in files.models" :key="file">
+                      <label class="flex items-center gap-3 text-sm">
+                        <input
+                          class="radio radio-sm"
+                          type="radio"
+                          name="model_file"
+                          :value="file"
+                          :checked="file === selected.models"
+                          @change="select('models', file)"
+                        >
+                        <span class="truncate" x-text="file"></span>
+                      </label>
+                    </template>
+                    <div
+                      class="opacity-70 text-sm"
+                      x-show="loaded && files.models.length === 0"
+                    >
+                      No files found
+                    </div>
+                  </div>
+                </details>
+              </div>
             </div>
+            <div class="card-footer">
+              <div class="mt-auto px-2 pb-2">
+                <!-- Load Data button: clears cache and increments loadTick to trigger plot updates -->
+                <button
+                  class="btn btn-primary w-full"
+                  type="button"
+                  @click="$store.dataStore.clearCache(); $store.dataStore.loadTick++; open = false"
+                >
+                  <span>Load Data</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-    </body>
+      </div>
+      <!-- Main content area with sidebar and visualization components -->
+      <div class="flex flex-1">
+        <!-- Left sidebar navigation-->
+        {% include 'net_maestro/shared/sidebar.html' %}
+        <!-- Main content -->
+        <div class="flex-1 bg-base-300 p-4">
+          <div class="grid grid-cols-2 gap-4 h-full">
+            <div class="bg-base-100 rounded-lg">
+              {% include 'net_maestro/plots/scatterPlot.html' %}
+            </div>
+            <div class="bg-base-100 rounded-lg">
+              {% include 'net_maestro/plots/timePlot.html' %}
+            </div>
+
+            <div class="bg-base-100 rounded-lg">
+              {% include 'net_maestro/plots/parallelCoords.html' %}
+            </div>
+            <div class="bg-base-100 rounded-lg">
+              {% include 'net_maestro/plots/heatmap.html' %}
+            </div>
+
+            <div class="bg-base-100 rounded-lg">
+              {% include 'net_maestro/plots/networkTimePlot.html' %}
+            </div>
+            <div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
 </html>
