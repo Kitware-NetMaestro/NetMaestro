@@ -1,0 +1,12 @@
+{
+  "name": "net-maestro",
+  "private": true,
+  "scripts": {
+    "lint": "biome check --error-on-warnings",
+    "format": "biome check --fix --error-on-warnings"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.2",
+    "@resonant/biome-config": "^0.3.0"
+  }
+}

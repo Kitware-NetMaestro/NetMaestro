@@ -5,11 +5,12 @@
 
 /* Prevent flash of unstyled content with Alpine.js */
 [x-cloak] {
-    display: none !important;
+  /* biome-ignore lint/complexity/noImportantStyles: ensure this is honored */
+  display: none !important;
 }
 
 /* Active menu item styling */
 .menu .menu-active {
-    background-color: var(--color-info);
-    border-radius: var(--radius-field);
+  background-color: var(--color-info);
+  border-radius: var(--radius-field);
 }

@@ -54,3 +54,22 @@ jobs:
           DJANGO_DATABASE_URL: postgres://postgres:postgres@localhost:5432/django
           DJANGO_CELERY_BROKER_URL: amqp://localhost:5672/
           DJANGO_MINIO_STORAGE_URL: http://minioAccessKey:minioSecretKey@localhost:9000/django-storage
+  test-js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: current
+      - name: Install JavaScript dependencies
+        run: |
+          npm ci
+      - name: Report Biome output to GitHub
+        # Required due to https://github.com/biomejs/biome/issues/9109
+        run: |
+          npx biome ci --reporter=github
+        continue-on-error: true
+      - name: Run JavaScript linting
+        run: |
+          npm run lint
