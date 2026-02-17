@@ -82,29 +82,16 @@ document.addEventListener('alpine:init', () => {
             return null;
         }
 
-        const sourceLps = new Set();
-        const destLps = new Set();
+        const sortedSources = _(this.records).map('source_lp').reject(_.isUndefined).uniq().sortBy().value();
+        const sortedDests = _(this.records).map('dest_lp').reject(_.isUndefined).uniq().sortBy().value();
+        const counts = _.countBy(this.records, (record) => `${record.source_lp}_${record.dest_lp}`);
 
-        this.records.forEach(record => {
-            if (record.source_lp !== undefined) sourceLps.add(record.source_lp);
-            if (record.dest_lp !== undefined) destLps.add(record.dest_lp);
-        });
-
-        const sortedSources = Array.from(sourceLps).sort((a, b) => a - b);
-        const sortedDests = Array.from(destLps).sort((a, b) => a - b);
-
-        const counts = {};
-        this.records.forEach(record => {
-            const key = `${record.source_lp}_${record.dest_lp}`;
-            counts[key] = (counts[key] || 0) + 1;
-        });
-
-        const z = sortedSources.map(source =>
-            sortedDests.map(dest => counts[`${source}_${dest}`] || 0)
+        const z = sortedSources.map((source) =>
+            sortedDests.map((dest) => counts[`${source}_${dest}`] ?? 0),
         );
 
         return {
-            z: z,
+            z,
             x: sortedDests,
             y: sortedSources
         };
