@@ -36,8 +36,10 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path('', views.home, name='home'),
+    path('accounts/', include('allauth.urls')),
     path('oauth/', include('oauth2_provider.urls')),
     path('admin/', admin.site.urls),
+    path('api/v1/s3-upload/', include('s3_file_field.urls')),
     path('api/v1/', include(router.urls)),
     # Data endpoints
     path('api/v1/data/event', EventDataView.as_view(), name='api-data-event'),

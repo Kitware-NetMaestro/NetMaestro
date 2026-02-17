@@ -1,8 +1,7 @@
 import logging
 
 import sentry_sdk
-
-# import sentry_sdk.integrations.celery
+import sentry_sdk.integrations.celery
 import sentry_sdk.integrations.django
 import sentry_sdk.integrations.logging
 import sentry_sdk.integrations.pure_eval
@@ -12,8 +11,7 @@ from .base import *
 # Import these afterwards, to override
 from resonant_settings.production.email import *  # isort: skip
 from resonant_settings.production.https import *  # isort: skip
-
-# from resonant_settings.production.s3_storage import *  # isort: skip
+from resonant_settings.production.s3_storage import *  # isort: skip
 
 WSGI_APPLICATION = 'net_maestro.wsgi.application'
 
@@ -39,7 +37,7 @@ sentry_sdk.init(
             event_level=logging.WARNING,
         ),
         sentry_sdk.integrations.django.DjangoIntegration(),
-        # sentry_sdk.integrations.celery.CeleryIntegration(),
+        sentry_sdk.integrations.celery.CeleryIntegration(),
         sentry_sdk.integrations.pure_eval.PureEvalIntegration(),
     ],
     # "project_root" defaults to the CWD, but for safety, don't assume that will be set correctly
