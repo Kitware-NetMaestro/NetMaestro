@@ -111,7 +111,7 @@ document.addEventListener('alpine:init', () => {
 
       const groupedData = {};
 
-      this.records.forEach((record) => {
+      for (const record of this.records) {
         const lpId = record.lp_id;
         if (!groupedData[lpId]) {
           groupedData[lpId] = {
@@ -123,7 +123,7 @@ document.addEventListener('alpine:init', () => {
 
         groupedData[lpId].x.push(record[this.selectedXAxis]);
         groupedData[lpId].y.push(record[this.selectedYAxis]);
-      });
+      }
 
       const traces = Object.values(groupedData).map((lpData) => ({
         x: lpData.x,
