@@ -14,6 +14,8 @@ import pytest
 if TYPE_CHECKING:
     from rest_framework.test import APIClient
 
+from net_maestro.core.tests.factories import UserFactory
+
 
 @pytest.mark.parametrize("category", ["event", "model", "ross"])
 @pytest.mark.django_db
@@ -32,15 +34,13 @@ def test_data_endpoints_smoke(api_client: APIClient, category: str) -> None:
         AssertionError: If endpoint returns non-200 status, invalid JSON,
             or missing expected structure
     """
-    url = f"/api/v1/data/{category}"
+    url = f'/api/v1/data/{category}'
+    user = UserFactory.create()
+    api_client.force_authenticate(user=user)
+
     resp = api_client.get(url)
 
-    assert resp.status_code == 200, f"{url} -> {resp.status_code}"
-
-    try:
-        payload = json.loads(resp.content.decode("utf-8"))
-    except json.JSONDecodeError as e:
-        pytest.fail(f"{url} -> 200 but invalid JSON: {e}")
-
-    assert isinstance(payload.get("columns"), list), 'missing/invalid "columns" list'
-    assert isinstance(payload.get("data"), list), 'missing/invalid "data" list'
+    assert resp.status_code == 200, f'{url} -> {resp.status_code}'
+    payload = json.loads(resp.content.decode('utf-8'))
+    assert isinstance(payload.get('columns'), list), 'missing/invalid "columns" list'
+    assert isinstance(payload.get('data'), list), 'missing/invalid "data" list'

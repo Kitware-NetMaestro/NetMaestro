@@ -4,14 +4,6 @@ Provides endpoints for:
 - Listing available data files in each category (simulations, events, models)
 - Selecting which file to use for each category (stored in session)
 - Parsing and returning binary data as JSON for visualization
-
-Permissions:
-- DEBUG mode: AllowAny (open access for development)
-- Production: IsAuthenticated (requires login)
-
-Note: We use AllowAny in DEBUG mode to simplify local development and testing,
-avoiding the need to authenticate for every API request during development.
-In production, IsAuthenticated ensures only logged-in users can access data endpoints.
 """
 
 from __future__ import annotations
@@ -20,7 +12,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
-from rest_framework.permissions import AllowAny, IsAuthenticated
+import pandas as pd
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -34,11 +27,6 @@ if TYPE_CHECKING:
 
 BASE_DIR = Path(settings.BASE_DIR)
 DATA_DIR = BASE_DIR / "data"
-
-# Permission classes: open in DEBUG mode, authenticated in production
-DATA_API_PERMISSION_CLASSES = (
-    (AllowAny,) if bool(getattr(settings, "DEBUG", False)) else (IsAuthenticated,)
-)
 
 # Default filenames to select if present (sample data)
 _DEFAULT_FILES: dict[str, str] = {
@@ -161,8 +149,6 @@ class EventDataView(APIView):
     Do not build external integrations against this endpoint.
     """
 
-    permission_classes = DATA_API_PERMISSION_CLASSES
-
     def get(self, request: Request) -> Response:
         """Parse and return event trace data from the selected binary file.
 
@@ -212,8 +198,6 @@ class ModelDataView(APIView):
     WARNING: Internal API - subject to change without notice.
     Do not build external integrations against this endpoint.
     """
-
-    permission_classes = DATA_API_PERMISSION_CLASSES
 
     def get(self, request: Request) -> Response:
         """Parse and return model data from the selected binary file.
@@ -266,8 +250,6 @@ class RossDataView(APIView):
     Do not build external integrations against this endpoint.
     """
 
-    permission_classes = DATA_API_PERMISSION_CLASSES
-
     def get(self, request: Request) -> Response:
         """Parse and return ROSS simulation data from the selected binary file.
 
@@ -318,8 +300,6 @@ class DataFilesView(APIView):
     WARNING: Internal API - subject to change without notice.
     Do not build external integrations against this endpoint.
     """
-
-    permission_classes = DATA_API_PERMISSION_CLASSES
 
     def get(self, request: Request) -> Response:
         """List available files and current selections for all categories.
@@ -377,8 +357,6 @@ class SelectDataFileView(APIView):
     WARNING: Internal API - subject to change without notice.
     Do not build external integrations against this endpoint.
     """
-
-    permission_classes = DATA_API_PERMISSION_CLASSES
 
     def post(self, request: Request) -> Response:
         """Update the selected file for a category in the session.
