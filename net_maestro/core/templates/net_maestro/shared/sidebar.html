@@ -1,53 +1,51 @@
-<div
-    class="menu menu-lg bg-neutral min-h-[calc(100vh-64px)] w-16 flex flex-col"
->
-    <!-- Navigation menu items -->
-    <ul class="grid h-screen gap-6 content-baseline">
-        <!-- Base Models section (disabled - future feature) -->
-        <li>
-            <button
-                class="flex items-center justify-center"
-                @click="activeItem = 'baseModels'"
-                :class="{ 'menu-active': activeItem === 'baseModels' }"
-                disabled
-            >
-                <i class="ri-stack-line" aria-hidden="true"></i>
-            </button>
-        </li>
+<div class="menu menu-lg bg-neutral min-h-[calc(100vh-64px)] w-16 flex flex-col">
+  <!-- Navigation menu items -->
+  <ul class="grid h-screen gap-6 content-baseline">
+    <!-- Base Models section (disabled - future feature) -->
+    <li>
+      <button
+        class="flex items-center justify-center"
+        @click="activeItem = 'baseModels'"
+        :class="{ 'menu-active': activeItem === 'baseModels' }"
+        disabled
+      >
+        <i class="ri-stack-line" aria-hidden="true"></i>
+      </button>
+    </li>
 
-        <!-- Components section (disabled - future feature) -->
-        <li>
-            <button
-                class="flex items-center justify-center"
-                @click="activeItem = 'components'"
-                :class="{ 'menu-active': activeItem === 'components' }"
-                disabled
-            >
-                <i class="ri-organization-chart" aria-hidden="true"></i>
-            </button>
-        </li>
+    <!-- Components section (disabled - future feature) -->
+    <li>
+      <button
+        class="flex items-center justify-center"
+        @click="activeItem = 'components'"
+        :class="{ 'menu-active': activeItem === 'components' }"
+        disabled
+      >
+        <i class="ri-organization-chart" aria-hidden="true"></i>
+      </button>
+    </li>
 
-        <!-- Simulation section (disabled - future feature) -->
-        <li>
-            <button
-                class="flex items-center justify-center"
-                @click="activeItem = 'simulation'"
-                :class="{ 'menu-active': activeItem === 'simulation' }"
-                disabled
-            >
-                <i class="ri-play-large-line" aria-hidden="true"></i>
-            </button>
-        </li>
+    <!-- Simulation section (disabled - future feature) -->
+    <li>
+      <button
+        class="flex items-center justify-center"
+        @click="activeItem = 'simulation'"
+        :class="{ 'menu-active': activeItem === 'simulation' }"
+        disabled
+      >
+        <i class="ri-play-large-line" aria-hidden="true"></i>
+      </button>
+    </li>
 
-        <!-- Results (data visualization) section -->
-        <li>
-            <button
-                class="flex items-center justify-center"
-                @click="activeItem = 'results'"
-                :class="{ 'menu-active': activeItem === 'results' }"
-            >
-                <i class="ri-bar-chart-grouped-line" aria-hidden="true"></i>
-            </button>
-        </li>
-    </ul>
+    <!-- Results (data visualization) section -->
+    <li>
+      <button
+        class="flex items-center justify-center"
+        @click="activeItem = 'results'"
+        :class="{ 'menu-active': activeItem === 'results' }"
+      >
+        <i class="ri-bar-chart-grouped-line" aria-hidden="true"></i>
+      </button>
+    </li>
+  </ul>
 </div>
