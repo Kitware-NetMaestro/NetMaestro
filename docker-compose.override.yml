@@ -20,38 +20,38 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      # rabbitmq:
-      #   condition: service_healthy
-      # minio:
-      #   condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
 
-  # celery:
-  #   build:
-  #     context: .
-  #     dockerfile: ./dev/django.Dockerfile
-  #   command: [
-  #     "uv", "run",
-  #     "celery",
-  #     "--app", "net_maestro.celery",
-  #     "worker",
-  #     "--loglevel", "INFO",
-  #     "--without-heartbeat"
-  #   ]
-  #   # Docker Compose does not set the TTY width, which causes Celery errors
-  #   tty: false
-  #   environment:
-  #     UV_ENV_FILE: ./dev/.env.docker-compose
-  #   working_dir: /opt/django-project
-  #   volumes:
-  #     - .:/opt/django-project
-  #     - uv_cache:/var/cache/uv
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     rabbitmq:
-  #       condition: service_healthy
-  #     minio:
-  #       condition: service_healthy
+  celery:
+    build:
+      context: .
+      dockerfile: ./dev/django.Dockerfile
+    command: [
+      "uv", "run",
+      "celery",
+      "--app", "net_maestro.celery",
+      "worker",
+      "--loglevel", "INFO",
+      "--without-heartbeat"
+    ]
+    # Docker Compose does not set the TTY width, which causes Celery errors
+    tty: false
+    environment:
+      UV_ENV_FILE: ./dev/.env.docker-compose
+    working_dir: /opt/django-project
+    volumes:
+      - .:/opt/django-project
+      - uv_cache:/var/cache/uv
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
 
 volumes:
   uv_cache:

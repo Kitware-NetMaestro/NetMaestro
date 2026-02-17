@@ -6,9 +6,8 @@ from typing import Any
 
 import django_stubs_ext
 from environ import Env
-
-# from resonant_settings.allauth import *
-# from resonant_settings.celery import *
+from resonant_settings.allauth import *
+from resonant_settings.celery import *
 from resonant_settings.django import *
 from resonant_settings.django_extensions import *
 from resonant_settings.logging import *
@@ -23,16 +22,18 @@ BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 
 ROOT_URLCONF = 'net_maestro.urls'
 
+WSGI_APPLICATION = 'net_maestro.wsgi.application'
+
 INSTALLED_APPS = [
     # Install local apps first, to ensure any overridden resources are found first
     'net_maestro.core.apps.CoreConfig',
     # Apps with overrides
     'auth_style',
-    # 'resonant_settings.allauth_support',
+    'resonant_settings.allauth_support',
     # Everything else
-    # 'allauth',
-    # 'allauth.account',
-    # 'allauth.socialaccount',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
     'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -50,7 +51,7 @@ INSTALLED_APPS = [
     'resonant_utils',
     'rest_framework',
     'rest_framework.authtoken',
-    # 's3_file_field',
+    's3_file_field',
 ]
 
 MIDDLEWARE = [
@@ -69,7 +70,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.contrib.sites.middleware.CurrentSiteMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # 'allauth.account.middleware.AccountMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
 ]
 
 # Internal datetimes are timezone-aware, so this only affects rendering and form input
@@ -79,7 +80,7 @@ DATABASES = {
     'default': {
         **env.db_url('DJANGO_DATABASE_URL', engine='django.db.backends.postgresql'),
         'CONN_MAX_AGE': timedelta(minutes=10).total_seconds(),
-    }
+    },
 }
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -108,6 +109,3 @@ CORS_ALLOWED_ORIGINS: list[str] = env.list('DJANGO_CORS_ALLOWED_ORIGINS', cast=s
 CORS_ALLOWED_ORIGIN_REGEXES: list[str] = env.list(
     'DJANGO_CORS_ALLOWED_ORIGIN_REGEXES', cast=str, default=[]
 )
-
-# Remove this when using allauth. Set as a constant in django_resonant_settings[allauth]
-SITE_ID = 1

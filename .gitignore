@@ -1,3 +1,5 @@
+# NetMaestro
+data/*
 
 # Additional Celery Beat files
 celerybeat-schedule.*
@@ -210,6 +212,3 @@ override.tf.json
 terraform.rc
 
 # End of https://www.toptal.com/developers/gitignore/api/django,terraform
-
-# NetMaestro
-data/*
