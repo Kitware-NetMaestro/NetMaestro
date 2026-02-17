@@ -1,0 +1,13 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.2/schema.json",
+  "extends": ["@resonant/biome-config"],
+  "html": {
+    "formatter": {
+      // Biome doesn't support Django HTML
+      "enabled": false
+    }
+  },
+  "javascript": {
+    "globals": ["_", "Alpine", "Plotly"]
+  }
+}
