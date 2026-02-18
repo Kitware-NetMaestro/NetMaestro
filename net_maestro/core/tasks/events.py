@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
-def run_event_task(event_file_pk: int) -> dict:
+def run_event_task(event_file_pk: int) -> None:
     """Parse event file and ingest records into the database."""
     event_file_model = EventFile.objects.get(pk=event_file_pk)
 
