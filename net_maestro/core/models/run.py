@@ -1,0 +1,10 @@
+from django.db import models
+
+from net_maestro.core.constants import RunStatus
+
+
+class Run(models.Model):
+    created = models.DateTimeField(auto_now_add=True)
+    name = models.CharField(max_length=200)
+    description = models.TextField()
+    status = models.CharField(max_length=20, choices=RunStatus, default=RunStatus.PENDING)
