@@ -9,6 +9,8 @@ import pandas as pd
 
 from .schema import ENDIAN, validate_time_columns
 
+logger = logging.getLogger(__name__)
+
 # Metadata
 META_FIELDS = ('lp_id', 'kp_id', 'pe_id', 'virtual_time', 'real_time', 'sample_size', 'flag')
 META_FORMAT = f'{ENDIAN}QLLddii'
@@ -104,7 +106,7 @@ class ModelFile:
             else:
                 # Unknown payload size or flag
                 remaining = len(self.content) - byte_pos
-                logging.warning(
+                logger.warning(
                     'Stopping parse due to invalid payload size: size=%d, remaining=%d',
                     metadata.sample_size,
                     remaining,

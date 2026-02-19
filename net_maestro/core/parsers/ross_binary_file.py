@@ -9,6 +9,8 @@ import pandas as pd
 
 from .schema import ENDIAN, validate_time_columns
 
+logger = logging.getLogger(__name__)
+
 # Metadata
 META_FIELDS = ('flag', 'sample_size', 'virtual_time', 'real_time')
 META_FORMAT = f'{ENDIAN}2i2d'
@@ -224,7 +226,7 @@ class ROSSFile:
                 lp_list.append(df)
             else:
                 remaining = len(self.content) - byte_pos
-                logging.warning(
+                logger.warning(
                     'Stopping parse due to invalid payload size: size=%d, remaining=%d',
                     metadata.sample_size,
                     remaining,
