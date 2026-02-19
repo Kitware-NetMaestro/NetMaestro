@@ -39,7 +39,7 @@ def test_data_endpoints_smoke(api_client: APIClient, category: str) -> None:
 
     try:
         payload = json.loads(resp.content.decode('utf-8'))
-    except Exception as e:  # noqa: BLE001
+    except json.JSONDecodeError as e:
         pytest.fail(f'{url} -> 200 but invalid JSON: {e}')
 
     assert isinstance(payload.get('columns'), list), 'missing/invalid "columns" list'
