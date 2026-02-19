@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
 import struct
 from struct import Struct
-from typing import BinaryIO, NamedTuple, Optional
+from typing import BinaryIO, NamedTuple
 
 import pandas as pd
 
@@ -73,9 +75,9 @@ class ModelFile:
         self._use_virtual_time: bool = True
         self._time_variable: str = DEFAULT_TIME_KEY
 
-        self._simplep2p_df: Optional[pd.DataFrame] = None
-        self._min_time: Optional[float] = None
-        self._max_time: Optional[float] = None
+        self._simplep2p_df: pd.DataFrame | None = None
+        self._min_time: float | None = None
+        self._max_time: float | None = None
 
     def read(self) -> None:
         sample_list: list[pd.DataFrame] = []

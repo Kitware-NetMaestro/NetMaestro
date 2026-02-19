@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 import struct
-from typing import Any, Callable, Optional, Protocol
+from typing import Any, Protocol
 
 import pandas as pd
 
@@ -19,7 +20,7 @@ class HeaderTuple(Protocol):
         pass
 
 
-ParseResult = tuple[int, Optional[pd.DataFrame], Optional[str], Optional[list[str]]]
+ParseResult = tuple[int, pd.DataFrame | None, str | None, list[str] | None]
 PayloadHandler = Callable[[bytes, int, HeaderTuple], ParseResult]
 
 

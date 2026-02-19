@@ -5,6 +5,8 @@ Fixtures are automatically discovered by pytest and can be used by any test
 function that declares them as parameters.
 """
 
+from __future__ import annotations
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 import pytest

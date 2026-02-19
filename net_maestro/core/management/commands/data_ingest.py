@@ -14,8 +14,10 @@ All files are symlinked (not copied) into NetMaestro/data/{events,models,simulat
 to avoid duplicating large binary files.
 """
 
+from __future__ import annotations
+
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from django.conf import settings
 import djclick as click

@@ -17,7 +17,7 @@ In production, IsAuthenticated ensures only logged-in users can access data endp
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from django.conf import settings
 import pandas as pd
@@ -138,7 +138,7 @@ def _resolve_selected_path(
     return candidate, requested_name, None
 
 
-def _df_records(df: pd.DataFrame) -> List[Dict[str, Any]]:
+def _df_records(df: pd.DataFrame) -> list[dict[str, Any]]:
     """Convert a pandas DataFrame to a list of record dictionaries.
 
     Returns:

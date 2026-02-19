@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from contextlib import suppress
 import struct
-from typing import Callable, Iterable
 
 import numpy as np
 import pandas as pd
