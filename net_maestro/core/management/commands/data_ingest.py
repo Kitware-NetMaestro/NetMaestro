@@ -28,37 +28,37 @@ if TYPE_CHECKING:
 
 @click.command()
 @click.option(
-    '-e',
-    '--event-file',
-    'event_files',
+    "-e",
+    "--event-file",
+    "event_files",
     multiple=True,
     type=click.Path(exists=True, dir_okay=False, path_type=Path, resolve_path=True),
-    help='Event file(s) to ingest. Can be provided multiple times.',
+    help="Event file(s) to ingest. Can be provided multiple times.",
 )
 @click.option(
-    '-s',
-    '--simulation-file',
-    'simulation_files',
+    "-s",
+    "--simulation-file",
+    "simulation_files",
     multiple=True,
     type=click.Path(exists=True, dir_okay=False, path_type=Path, resolve_path=True),
-    help='Simulation file(s) to ingest. Can be provided multiple times.',
+    help="Simulation file(s) to ingest. Can be provided multiple times.",
 )
 @click.option(
-    '-m',
-    '--model-file',
-    'model_files',
+    "-m",
+    "--model-file",
+    "model_files",
     multiple=True,
     type=click.Path(exists=True, dir_okay=False, path_type=Path, resolve_path=True),
-    help='Model file(s) to ingest. Can be provided multiple times.',
+    help="Model file(s) to ingest. Can be provided multiple times.",
 )
 @click.option(
-    '-r',
-    '--source-root',
+    "-r",
+    "--source-root",
     default=None,
     type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path, resolve_path=True),
     help=(
-        'Root directory containing events/, models/, and/or simulations/ subdirectories. '
-        'All files directly under those subdirectories will be ingested.'
+        "Root directory containing events/, models/, and/or simulations/ subdirectories. "
+        "All files directly under those subdirectories will be ingested."
     ),
 )
 def ingest(
@@ -77,7 +77,7 @@ def ingest(
             identical symlink to the source
     """
     base_dir = Path(settings.BASE_DIR)
-    data_dir = base_dir / 'data'
+    data_dir = base_dir / "data"
 
     def ingest_files(*, files: Sequence[Path], subdir: str) -> None:
         """Create symlinks for a sequence of files in the specified data subdirectory."""
@@ -99,19 +99,19 @@ def ingest(
                         continue
                 except FileNotFoundError:
                     pass
-                raise click.ClickException(f'File already exists: {destination}')  # noqa: EM102
+                raise click.ClickException(f"File already exists: {destination}")
 
             # Create symlink
             destination.symlink_to(source)
 
     # Ingest explicitly specified files
-    ingest_files(files=event_files, subdir='events')
-    ingest_files(files=simulation_files, subdir='simulations')
-    ingest_files(files=model_files, subdir='models')
+    ingest_files(files=event_files, subdir="events")
+    ingest_files(files=simulation_files, subdir="simulations")
+    ingest_files(files=model_files, subdir="models")
 
     # Ingest all files from structured source root if provided
     if source_root is not None:
-        for subdir in ('events', 'models', 'simulations'):
+        for subdir in ("events", "models", "simulations"):
             root_subdir = source_root / subdir
             if not root_subdir.exists() or not root_subdir.is_dir():
                 continue

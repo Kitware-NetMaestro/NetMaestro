@@ -15,8 +15,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Metadata
-META_FIELDS = ('lp_id', 'kp_id', 'pe_id', 'virtual_time', 'real_time', 'sample_size', 'flag')
-META_FORMAT = f'{ENDIAN}QLLddii'
+META_FIELDS = ("lp_id", "kp_id", "pe_id", "virtual_time", "real_time", "sample_size", "flag")
+META_FORMAT = f"{ENDIAN}QLLddii"
 META_STRUCT = struct.Struct(META_FORMAT)
 
 
@@ -32,15 +32,15 @@ class META(NamedTuple):
 
 # SimpleP2P model payload
 SIMPLEP2P_FIELDS = (
-    'component_id',
-    'send_count',
-    'send_bytes',
-    'send_time',
-    'receive_count',
-    'receive_bytes',
-    'receive_time',
+    "component_id",
+    "send_count",
+    "send_bytes",
+    "send_time",
+    "receive_count",
+    "receive_bytes",
+    "receive_time",
 )
-SIMPLEP2P_FORMAT = f'{ENDIAN}Qlldlld'
+SIMPLEP2P_FORMAT = f"{ENDIAN}Qlldlld"
 SIMPLEP2P_STRUCT = struct.Struct(SIMPLEP2P_FORMAT)
 
 
@@ -58,8 +58,8 @@ class SimpleP2P(NamedTuple):
 FLAG_MODEL_DATA = 3
 
 # Default Values
-DEFAULT_TIME_KEY = 'virtual_time'
-ALT_TIME_KEY = 'real_time'
+DEFAULT_TIME_KEY = "virtual_time"
+ALT_TIME_KEY = "real_time"
 TIME_COLUMNS = [DEFAULT_TIME_KEY, ALT_TIME_KEY]
 
 
@@ -67,7 +67,7 @@ class ModelFile:
     """Parser for model analysis Logical Process (LP) binary files."""
 
     def __init__(self, filename: Path) -> None:
-        self.f: BinaryIO = filename.open('rb')
+        self.f: BinaryIO = filename.open("rb")
         self.content: bytes = self.f.read()
 
         self.metadata_struct: Struct = META_STRUCT
@@ -102,15 +102,15 @@ class ModelFile:
                 byte_pos += self.simplep2p_size
                 sp_data = SimpleP2P(*sp_tuple)
                 df = pd.DataFrame([sp_data])
-                df['lp_id'] = metadata.lp_id
-                df['virtual_time'] = metadata.virtual_time
-                df['real_time'] = metadata.real_time
+                df["lp_id"] = metadata.lp_id
+                df["virtual_time"] = metadata.virtual_time
+                df["real_time"] = metadata.real_time
                 sample_list.append(df)
             else:
                 # Unknown payload size or flag
                 remaining = len(self.content) - byte_pos
                 logger.warning(
-                    'Stopping parse due to invalid payload size: size=%d, remaining=%d',
+                    "Stopping parse due to invalid payload size: size=%d, remaining=%d",
                     metadata.sample_size,
                     remaining,
                 )
@@ -187,5 +187,5 @@ class ModelFile:
     @use_virtual_time.setter
     def use_virtual_time(self, flag: bool) -> None:
         self._use_virtual_time = flag
-        self.time_variable = 'virtual_time' if flag else 'real_time'
+        self.time_variable = "virtual_time" if flag else "real_time"
         self.reset_time_range()

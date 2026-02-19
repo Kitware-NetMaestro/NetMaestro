@@ -23,4 +23,4 @@ if TYPE_CHECKING:
 
 def home(request: HttpRequest) -> HttpResponse:
     """Render the main application page with data file selection."""
-    return render(request, 'net_maestro/index.html')
+    return render(request, "net_maestro/index.html")

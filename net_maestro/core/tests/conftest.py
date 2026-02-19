@@ -33,10 +33,10 @@ def api_client(db) -> APIClient:
 
     # The data API is public in dev. In tests we keep behavior aligned with production
     # by default, so authenticate.
-    if not getattr(settings, 'DEBUG', False):
+    if not getattr(settings, "DEBUG", False):
         user_model = get_user_model()
         # Create test user for authenticated requests
-        user = user_model.objects.create_user(username='test-user', password='test-password')
+        user = user_model.objects.create_user(username="test-user", password="test-password")
         client.force_authenticate(user=user)
 
     return client

@@ -41,7 +41,7 @@ class BaseBinaryReader:
         sample_size_index: int,
         payloads: dict[int, PayloadHandler],
     ) -> None:
-        self.f = filename.open('rb')
+        self.f = filename.open("rb")
         self.content: bytes = self.f.read()
         self.header_struct = header_struct
         self.sample_size_index = sample_size_index

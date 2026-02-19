@@ -11,9 +11,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
 # Default endianness
-ENDIAN: str = '@'
-LITTLE_ENDIAN = '<'
-BIG_ENDIAN = '>'
+ENDIAN: str = "@"
+LITTLE_ENDIAN = "<"
+BIG_ENDIAN = ">"
 
 
 def infer_endian(
@@ -66,7 +66,7 @@ def validate_time_columns(df: pd.DataFrame, columns: Iterable[str]) -> pd.DataFr
     for col in columns:
         if col in df.columns:
             # Convert column to numeric; non-numeric becomes "NaN"
-            vals = pd.to_numeric(df[col], errors='coerce')
+            vals = pd.to_numeric(df[col], errors="coerce")
             # Only finite values are "True"
             mask &= pd.Series(np.isfinite(vals), index=df.index)
     return df.loc[mask]

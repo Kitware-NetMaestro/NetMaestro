@@ -16,15 +16,15 @@ logger = logging.getLogger(__name__)
 
 # Metadata
 META_FIELDS = (
-    'source_lp',
-    'dest_lp',
-    'virtual_send',
-    'virtual_receive',
-    'real_times',
-    'sample_size',
+    "source_lp",
+    "dest_lp",
+    "virtual_send",
+    "virtual_receive",
+    "real_times",
+    "sample_size",
 )
-SAMPLE_SIZE_INDEX = META_FIELDS.index('sample_size')
-META_FORMAT = f'{ENDIAN}IIfffI'
+SAMPLE_SIZE_INDEX = META_FIELDS.index("sample_size")
+META_FORMAT = f"{ENDIAN}IIfffI"
 META_STRUCT = struct.Struct(META_FORMAT)
 
 
@@ -38,8 +38,8 @@ class META(NamedTuple):
 
 
 # SimpleP2P payload
-SIMPLEP2P_FIELDS = ('event_type',)
-SIMPLEP2P_FORMAT = f'{ENDIAN}i'
+SIMPLEP2P_FIELDS = ("event_type",)
+SIMPLEP2P_FORMAT = f"{ENDIAN}i"
 SIMPLEP2P_STRUCT = struct.Struct(SIMPLEP2P_FORMAT)
 
 
@@ -48,15 +48,15 @@ class SimpleP2P(NamedTuple):
 
 
 def _meta_format(endian: str) -> str:
-    return f'{endian}IIfffI'
+    return f"{endian}IIfffI"
 
 
 def _sp2p_format(endian: str) -> str:
-    return f'{endian}i'
+    return f"{endian}i"
 
 
-DEFAULT_TIME_KEY = 'virtual_send'
-ALT_TIME_KEY = 'virtual_receive'
+DEFAULT_TIME_KEY = "virtual_send"
+ALT_TIME_KEY = "virtual_receive"
 TIME_COLUMNS = [DEFAULT_TIME_KEY, ALT_TIME_KEY]
 
 
@@ -68,11 +68,11 @@ class EventFile:
     """
 
     def __init__(self, filename: Path) -> None:
-        self.f: BinaryIO = filename.open('rb')
+        self.f: BinaryIO = filename.open("rb")
         self.content: bytes = self.f.read()
 
         # Detect endianness from first header
-        known_payload_sizes = {struct.calcsize(_sp2p_format(e)) for e in ('<', '>')}
+        known_payload_sizes = {struct.calcsize(_sp2p_format(e)) for e in ("<", ">")}
         detected_endian = infer_endian(
             _meta_format, SAMPLE_SIZE_INDEX, self.content, known_payload_sizes
         )
@@ -107,10 +107,10 @@ class EventFile:
                 byte_pos += self.simplep2p_size
                 sp_data = SimpleP2P(*sp_tuple)
                 df = pd.DataFrame([sp_data])
-                df['source_lp'] = metadata.source_lp
-                df['dest_lp'] = metadata.dest_lp
-                df['virtual_send'] = metadata.virtual_send
-                df['virtual_receive'] = metadata.virtual_receive
+                df["source_lp"] = metadata.source_lp
+                df["dest_lp"] = metadata.dest_lp
+                df["virtual_send"] = metadata.virtual_send
+                df["virtual_receive"] = metadata.virtual_receive
                 sample_list.append(df)
             elif metadata.sample_size == 0:
                 # Zero-length payload
@@ -118,7 +118,7 @@ class EventFile:
             else:
                 remaining = len(self.content) - byte_pos
                 logger.warning(
-                    'Stopping parse due to invalid payload size: size=%d, remaining=%d',
+                    "Stopping parse due to invalid payload size: size=%d, remaining=%d",
                     metadata.sample_size,
                     remaining,
                 )
@@ -195,5 +195,5 @@ class EventFile:
     @use_send_time.setter
     def use_send_time(self, flag: bool) -> None:
         self._use_send_time = flag
-        self.time_variable = 'virtual_send' if flag else 'virtual_receive'
+        self.time_variable = "virtual_send" if flag else "virtual_receive"
         self.reset_time_range()
