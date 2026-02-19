@@ -54,9 +54,7 @@ def validate_sample_size(sample_size: int, remaining: int, known: set[int]) -> b
         return False
     if sample_size not in known:
         return False
-    if sample_size > remaining:
-        return False
-    return True
+    return sample_size <= remaining
 
 
 def validate_time_columns(df: pd.DataFrame, columns: Iterable[str]) -> pd.DataFrame:
@@ -64,7 +62,7 @@ def validate_time_columns(df: pd.DataFrame, columns: Iterable[str]) -> pd.DataFr
     if df.empty:
         return df
 
-    mask = pd.Series(True, index=df.index)
+    mask = pd.Series(data=True, index=df.index)
     for col in columns:
         if col in df.columns:
             # Convert column to numeric; non-numeric becomes "NaN"
