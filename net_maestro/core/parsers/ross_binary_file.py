@@ -3,11 +3,14 @@ from __future__ import annotations
 import logging
 import struct
 from struct import Struct
-from typing import BinaryIO, NamedTuple
+from typing import TYPE_CHECKING, BinaryIO, NamedTuple
 
 import pandas as pd
 
 from .schema import ENDIAN, validate_time_columns
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -158,8 +161,8 @@ class ROSSFile:
     followed by a payload whose size determines the structure (PE/KP/LP).
     """
 
-    def __init__(self, filename: str) -> None:
-        self.f: BinaryIO = open(filename, 'rb')
+    def __init__(self, filename: Path) -> None:
+        self.f: BinaryIO = filename.open('rb')
         self.content: bytes = self.f.read()
 
         self.metadata_struct: Struct = META_STRUCT

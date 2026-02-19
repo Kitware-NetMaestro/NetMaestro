@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 import pandas as pd
 
 if TYPE_CHECKING:
+    from pathlib import Path
     import struct
 
 
@@ -35,12 +36,12 @@ class BaseBinaryReader:
 
     def __init__(
         self,
-        filename: str,
+        filename: Path,
         header_struct: struct.Struct,
         sample_size_index: int,
         payloads: dict[int, PayloadHandler],
     ) -> None:
-        self.f = open(filename, 'rb')
+        self.f = filename.open('rb')
         self.content: bytes = self.f.read()
         self.header_struct = header_struct
         self.sample_size_index = sample_size_index

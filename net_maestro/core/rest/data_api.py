@@ -190,7 +190,7 @@ class EventDataView(APIView):
             return Response({'detail': detail}, status=404)
 
         # Parse binary file and return network DataFrame as JSON
-        event_file = EventFile(str(path))
+        event_file = EventFile(path)
         try:
             event_file.read()
             df = event_file.network_df
@@ -246,7 +246,7 @@ class ModelDataView(APIView):
             return Response({'detail': detail}, status=404)
 
         # Parse binary file and return network DataFrame as JSON
-        model_file = ModelFile(str(path))
+        model_file = ModelFile(path)
         try:
             model_file.read()
             df = model_file.network_df
@@ -302,7 +302,7 @@ class RossDataView(APIView):
             return Response({'detail': detail}, status=404)
 
         # Parse binary file and return PE engine DataFrame as JSON
-        ross_file = ROSSFile(str(path))
+        ross_file = ROSSFile(path)
         try:
             ross_file.read()
             df = ross_file.pe_engine_df
