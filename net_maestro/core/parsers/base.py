@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-import struct
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 import pandas as pd
+
+if TYPE_CHECKING:
+    import struct
 
 
 class HeaderTuple(Protocol):

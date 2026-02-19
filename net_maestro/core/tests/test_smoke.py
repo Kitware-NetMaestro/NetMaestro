@@ -7,9 +7,12 @@ If files are missing, endpoints will return 404 (which will fail these tests).
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 import pytest
-from rest_framework.test import APIClient
+
+if TYPE_CHECKING:
+    from rest_framework.test import APIClient
 
 
 @pytest.mark.parametrize('category', ['event', 'model', 'ross'])

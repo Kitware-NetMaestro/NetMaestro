@@ -17,18 +17,20 @@ In production, IsAuthenticated ensures only logged-in users can access data endp
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
-import pandas as pd
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from net_maestro.core.parsers.event_trace_file import EventFile
 from net_maestro.core.parsers.model_file import ModelFile
 from net_maestro.core.parsers.ross_binary_file import ROSSFile
+
+if TYPE_CHECKING:
+    import pandas as pd
+    from rest_framework.request import Request
 
 BASE_DIR = Path(settings.BASE_DIR)
 DATA_DIR = BASE_DIR / 'data'

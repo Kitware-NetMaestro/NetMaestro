@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
 from contextlib import suppress
 import struct
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 # Default endianness
 ENDIAN: str = '@'

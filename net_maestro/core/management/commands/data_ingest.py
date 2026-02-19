@@ -16,11 +16,14 @@ to avoid duplicating large binary files.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 import djclick as click
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 @click.command()
