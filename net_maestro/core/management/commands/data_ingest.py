@@ -99,7 +99,7 @@ def ingest(
                         continue
                 except FileNotFoundError:
                     pass
-                raise click.ClickException(f'File already exists: {destination}')
+                raise click.ClickException(f'File already exists: {destination}')  # noqa: EM102
 
             # Create symlink
             destination.symlink_to(source)
