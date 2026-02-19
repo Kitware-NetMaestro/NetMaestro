@@ -17,12 +17,21 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
 
+def _event_data(request: HttpRequest) -> HttpResponse:
+    """Return event data as JSON."""
+    # TODO: Implement event data retrieval
+    #
+    return HttpResponse('Event data')
+
+
 def home(request: HttpRequest) -> HttpResponse:
     """Render the main application page with data file selection."""
     return render(request, 'net_maestro/index.html')
 
 
-def event_data(request: HttpRequest) -> HttpResponse:
-    """Return event data as JSON."""
-    # TODO: Implement event data retrieval
-    return HttpResponse('Event data')
+def analysis_page(request: HttpRequest) -> HttpResponse:
+    """Render the analysis page."""
+    # Get a list of all available runs
+    # runs =
+    # Get event data from _event_data
+    return render(request, 'net_maestro/analysis.html')

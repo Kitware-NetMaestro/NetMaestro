@@ -12,6 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     {% load static %}
     <script src="{% static 'net_maestro/dataStore.js' %}"></script>
+    <script src="{% static 'net_maestro/uiStateStore.js' %}"></script>
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     {% load static %}
@@ -167,28 +168,7 @@
         <!-- Left sidebar navigation-->
         {% include 'net_maestro/shared/sidebar.html' %}
         <!-- Main content -->
-        <div class="flex-1 bg-base-300 p-4">
-          <div class="grid grid-cols-2 gap-4 h-full">
-            <div class="bg-base-100 rounded-lg">
-              {% include 'net_maestro/plots/scatterPlot.html' %}
-            </div>
-            <div class="bg-base-100 rounded-lg">
-              {% include 'net_maestro/plots/timePlot.html' %}
-            </div>
-
-            <div class="bg-base-100 rounded-lg">
-              {% include 'net_maestro/plots/parallelCoords.html' %}
-            </div>
-            <div class="bg-base-100 rounded-lg">
-              {% include 'net_maestro/plots/heatmap.html' %}
-            </div>
-
-            <div class="bg-base-100 rounded-lg">
-              {% include 'net_maestro/plots/networkTimePlot.html' %}
-            </div>
-            <div></div>
-          </div>
-        </div>
+        {% block content %}{% endblock %}
       </div>
     </div>
   </body>

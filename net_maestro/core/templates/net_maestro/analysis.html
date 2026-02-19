@@ -1,0 +1,40 @@
+{% extends 'net_maestro/index.html' %}
+
+{% block content %}
+<div class="flex flex-row w-full">
+  <!-- Run Selection-->
+  <div class="bg-base-200 p-4 w-50">
+    <!-- TODO: For each run, show card as button to select it. -->
+    <!-- This will then load the associated data and populate the plots. -->
+  </div>
+  <!-- Analysis Tabs -->
+  <div class="flex-1 bg-base-300 p-4">
+    <div role="tablist" class="tabs tabs-border">
+      <a role="tab" class="tab" :class="{ 'tab-active': $store.state.activeAnalysisTab === 'events' }" @click="$store.state.activeAnalysisTab = 'events'">Events</a>
+      <a role="tab" class="tab" :class="{ 'tab-active': $store.state.activeAnalysisTab === 'simulation' }" @click="$store.state.activeAnalysisTab = 'simulation'">Simulation</a>
+    </div>
+    <!-- Events Plots -->
+    <div class="grid grid-cols-2 gap-4 h-full" x-show="$store.state.activeAnalysisTab === 'events'">
+      <div class="bg-base-100 rounded-lg">
+      {% include 'net_maestro/plots/heatmap.html' %}
+      </div>
+      <div class="bg-base-100 rounded-lg">
+      {% include 'net_maestro/plots/networkTimePlot.html' %}
+      </div>
+      <div></div>
+    </div>
+    <!-- Simulation Plots -->
+    <div class="grid grid-cols-2 gap-4 h-full" x-show="$store.state.activeAnalysisTab === 'simulation'">
+      <div class="bg-base-100 rounded-lg">
+      {% include 'net_maestro/plots/scatterPlot.html' %}
+      </div>
+      <div class="bg-base-100 rounded-lg">
+      {% include 'net_maestro/plots/timePlot.html' %}
+      </div>
+      <div class="bg-base-100 rounded-lg">
+      {% include 'net_maestro/plots/parallelCoords.html' %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

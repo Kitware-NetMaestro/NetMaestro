@@ -35,7 +35,7 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
-    path('', views.home, name='home'),
+    path('', views.analysis_page, name='analysis'),
     path('accounts/', include('allauth.urls')),
     path('oauth/', include('oauth2_provider.urls')),
     path('admin/', admin.site.urls),
