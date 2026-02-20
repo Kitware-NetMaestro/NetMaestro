@@ -24,7 +24,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from net_maestro.core.parsers.event_trace_file import EventFile
+from net_maestro.core.parsers.event_trace_file import EventFileParser
 from net_maestro.core.parsers.model_file import ModelFile
 from net_maestro.core.parsers.ross_binary_file import ROSSFile
 
@@ -155,7 +155,7 @@ class EventDataView(APIView):
     GET /api/v1/data/event?file=<filename>
 
     Returns event trace data as JSON with columns and records.
-    Uses EventFile parser to read binary format.
+    Uses EventFileParser to read binary format.
 
     WARNING: Internal API - subject to change without notice.
     Do not build external integrations against this endpoint.
@@ -190,19 +190,15 @@ class EventDataView(APIView):
             return Response({"detail": detail}, status=404)
 
         # Parse binary file and return network DataFrame as JSON
-        event_file = EventFile(path)
-        try:
-            event_file.read()
-            df = event_file.network_df
-            return Response(
-                {
-                    "file": path.name,
-                    "columns": list(df.columns),
-                    "data": _df_records(df),
-                }
-            )
-        finally:
-            event_file.close()
+        parser = EventFileParser(path)
+        df = parser.network_df
+        return Response(
+            {
+                "file": path.name,
+                "columns": list(df.columns),
+                "data": _df_records(df),
+            }
+        )
 
 
 class ModelDataView(APIView):
@@ -246,7 +242,7 @@ class ModelDataView(APIView):
             return Response({"detail": detail}, status=404)
 
         # Parse binary file and return network DataFrame as JSON
-        model_file = ModelFile(path)
+        model_file = ModelFile(str(path))
         try:
             model_file.read()
             df = model_file.network_df
@@ -302,7 +298,7 @@ class RossDataView(APIView):
             return Response({"detail": detail}, status=404)
 
         # Parse binary file and return PE engine DataFrame as JSON
-        ross_file = ROSSFile(path)
+        ross_file = ROSSFile(str(path))
         try:
             ross_file.read()
             df = ross_file.pe_engine_df

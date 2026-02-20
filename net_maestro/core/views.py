@@ -13,14 +13,16 @@ page reloads.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
-
-if TYPE_CHECKING:
-    from django.http import HttpRequest, HttpResponse
 
 
 def home(request: HttpRequest) -> HttpResponse:
     """Render the main application page with data file selection."""
     return render(request, "net_maestro/index.html")
+
+
+def event_data(request: HttpRequest) -> HttpResponse:
+    """Return event data as JSON."""
+    # TODO: Implement event data retrieval
+    return HttpResponse("Event data")

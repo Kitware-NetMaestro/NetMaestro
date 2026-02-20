@@ -7,10 +7,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from django.core.files import File
 import djclick as click
 
 from net_maestro.core.constants import RunStatus
-from net_maestro.core.models import Run
+from net_maestro.core.models import EventFile, Run
+from net_maestro.core.tasks.events import run_event_task
 
 
 @click.command()
@@ -50,19 +52,38 @@ from net_maestro.core.models import Run
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     help="Model file(s) to ingest. Can be provided multiple times.",
 )
-def data_ingest(
+@click.option("--immediate", is_flag=True, help="Run the task immediately.")
+def data_ingest(  # noqa: PLR0913
+    *,
     name: str,
-    description: str,
-    event_file: Path | None = None,
-    simulation_file: Path | None = None,
-    model_file: Path | None = None,
+    description: str | None,
+    event_file: Path | None,
+    simulation_file: Path | None,
+    model_file: Path | None,
+    immediate: bool,
 ) -> None:
     """Create a new Run object in the database."""
-    if not event_file or not simulation_file or not model_file:
-        status = RunStatus.PENDING
+    status = (
+        RunStatus.PENDING
+        if not (event_file and simulation_file and model_file)
+        else RunStatus.COMPLETED
+    )
 
-    Run.objects.create(
+    new_run = Run.objects.create(
         name=name,
         description=description,
         status=status,
     )
+
+    if event_file:
+        with event_file.open("rb") as file_handle:
+            event_file_obj = EventFile.objects.create(
+                run=new_run,
+                file=File(file_handle),
+            )
+
+        task = run_event_task.s(event_file_pk=event_file_obj.pk)
+        if immediate:
+            task.apply()
+        else:
+            task.delay()
