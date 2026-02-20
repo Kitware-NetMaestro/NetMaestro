@@ -1,7 +1,9 @@
+from io import BufferedReader
 import logging
+from pathlib import Path
 import struct
 from struct import Struct
-from typing import BinaryIO, NamedTuple, Optional
+from typing import Iterator, NamedTuple, TypedDict
 
 import pandas as pd
 
@@ -40,6 +42,15 @@ class SimpleP2P(NamedTuple):
     event_type: int
 
 
+class EventRecordDict(TypedDict):
+    source_lp: int
+    dest_lp: int
+    virtual_send: float
+    virtual_receive: float
+    event_type: int
+    time_step: int
+
+
 def _meta_format(endian: str) -> str:
     return f'{endian}IIfffI'
 
@@ -53,16 +64,20 @@ ALT_TIME_KEY = 'virtual_receive'
 TIME_COLUMNS = [DEFAULT_TIME_KEY, ALT_TIME_KEY]
 
 
-class EventFile:
+class EventFileParser:
     """Parser for event-trace binary files.
 
     Each record consists of a fixed-size metadata header followed by a payload.
     The header's sample_size selects the payload layout.
     """
 
-    def __init__(self, filename: str) -> None:
-        self.f: BinaryIO = open(filename, 'rb')
-        self.content: bytes = self.f.read()
+    def __init__(self, source: Path | bytes) -> None:
+        self.f: BufferedReader | None = None
+        if isinstance(source, Path):
+            with open(source, 'rb') as f:
+                self.content = f.read()
+        else:
+            self.content = source
 
         # Detect endianness from first header
         known_payload_sizes = {struct.calcsize(_sp2p_format(e)) for e in ('<', '>')}
@@ -80,13 +95,14 @@ class EventFile:
         self._use_send_time: bool = True
         self._time_variable: str = DEFAULT_TIME_KEY
 
-        self._simplep2p_df: Optional[pd.DataFrame] = None
-        self._min_time: Optional[float] = None
-        self._max_time: Optional[float] = None
+        self._simplep2p_df: pd.DataFrame | None = None
+        self._min_time: float | None = None
+        self._max_time: float | None = None
 
-    def read(self) -> None:
-        sample_list: list[pd.DataFrame] = []
+    def parse_event_records(self) -> Iterator[EventRecordDict]:
+        """Yield individual event records as typed dicts."""
         byte_pos = 0
+        time_step = 0
 
         while byte_pos + self.metadata_size <= len(self.content):
             metadata_tuple = self.metadata_struct.unpack_from(self.content, byte_pos)
@@ -99,14 +115,18 @@ class EventFile:
                 sp_tuple = self.simplep2p_struct.unpack_from(self.content, byte_pos)
                 byte_pos += self.simplep2p_size
                 sp_data = SimpleP2P(*sp_tuple)
-                df = pd.DataFrame([sp_data])
-                df['source_lp'] = metadata.source_lp
-                df['dest_lp'] = metadata.dest_lp
-                df['virtual_send'] = metadata.virtual_send
-                df['virtual_receive'] = metadata.virtual_receive
-                sample_list.append(df)
+
+                yield {
+                    'source_lp': metadata.source_lp,
+                    'dest_lp': metadata.dest_lp,
+                    'virtual_send': metadata.virtual_send,
+                    'virtual_receive': metadata.virtual_receive,
+                    'event_type': sp_data.event_type,
+                    'time_step': time_step,
+                }
+                time_step += 1
             elif metadata.sample_size == 0:
-                # Zero-length payload
+                # Zero-length payload, skip
                 continue
             else:
                 remaining = len(self.content) - byte_pos
@@ -117,15 +137,21 @@ class EventFile:
                 )
                 break
 
-        self.simplep2p_df = validate_time_columns(
-            pd.concat(sample_list, ignore_index=True), TIME_COLUMNS
-        )
-        if not self.simplep2p_df.empty:
-            self.min_time = float(self.simplep2p_df[self.time_variable].min())
-            self.max_time = float(self.simplep2p_df[self.time_variable].max())
+    def read(self) -> None:
+        """Parse the entire file and build a DataFrame.
 
-    def close(self) -> None:
-        self.f.close()
+        Uses parse_event_records() generator to build the DataFrame for
+        visualization and analysis purposes.
+        """
+        records = list(self.parse_event_records())
+
+        if records:
+            self.simplep2p_df = validate_time_columns(pd.DataFrame(records), TIME_COLUMNS)
+            if not self.simplep2p_df.empty:
+                self.min_time = float(self.simplep2p_df[self.time_variable].min())
+                self.max_time = float(self.simplep2p_df[self.time_variable].max())
+        else:
+            self.simplep2p_df = pd.DataFrame()
 
     @property
     def max_time(self) -> float | None:

@@ -20,3 +20,9 @@ from django.shortcuts import render
 def home(request: HttpRequest) -> HttpResponse:
     """Render the main application page with data file selection."""
     return render(request, 'net_maestro/index.html')
+
+
+def event_data(request: HttpRequest) -> HttpResponse:
+    """Return event data as JSON."""
+    # TODO: Implement event data retrieval
+    return HttpResponse('Event data')
