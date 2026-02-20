@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import struct
 from struct import Struct
-from typing import TYPE_CHECKING, BinaryIO, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import pandas as pd
 
@@ -67,8 +67,8 @@ class ModelFile:
     """Parser for model analysis Logical Process (LP) binary files."""
 
     def __init__(self, filename: Path) -> None:
-        self.f: BinaryIO = filename.open("rb")
-        self.content: bytes = self.f.read()
+        with filename.open("rb") as f:
+            self.content: bytes = f.read()
 
         self.metadata_struct: Struct = META_STRUCT
         self.metadata_size: int = META_STRUCT.size
@@ -122,9 +122,6 @@ class ModelFile:
         if not self.simplep2p_df.empty:
             self.min_time = float(self.simplep2p_df[self.time_variable].min())
             self.max_time = float(self.simplep2p_df[self.time_variable].max())
-
-    def close(self) -> None:
-        self.f.close()
 
     @property
     def max_time(self) -> float | None:

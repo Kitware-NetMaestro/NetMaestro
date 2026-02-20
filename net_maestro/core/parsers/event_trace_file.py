@@ -12,7 +12,6 @@ from .schema import ENDIAN, infer_endian, validate_time_columns
 
 if TYPE_CHECKING:
     from collections.abc import Generator
-    from io import BufferedReader
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +78,6 @@ class EventFileParser:
     """
 
     def __init__(self, source: Path | bytes) -> None:
-        self.f: BufferedReader | None = None
         if isinstance(source, Path):
             with source.open("rb") as f:
                 self.content = f.read()

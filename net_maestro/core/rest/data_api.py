@@ -242,19 +242,16 @@ class ModelDataView(APIView):
             return Response({"detail": detail}, status=404)
 
         # Parse binary file and return network DataFrame as JSON
-        model_file = ModelFile(str(path))
-        try:
-            model_file.read()
-            df = model_file.network_df
-            return Response(
-                {
-                    "file": path.name,
-                    "columns": list(df.columns),
-                    "data": _df_records(df),
-                }
-            )
-        finally:
-            model_file.close()
+        model_file = ModelFile(path)
+        model_file.read()
+        df = model_file.network_df
+        return Response(
+            {
+                "file": path.name,
+                "columns": list(df.columns),
+                "data": _df_records(df),
+            }
+        )
 
 
 class RossDataView(APIView):
@@ -298,19 +295,16 @@ class RossDataView(APIView):
             return Response({"detail": detail}, status=404)
 
         # Parse binary file and return PE engine DataFrame as JSON
-        ross_file = ROSSFile(str(path))
-        try:
-            ross_file.read()
-            df = ross_file.pe_engine_df
-            return Response(
-                {
-                    "file": path.name,
-                    "columns": list(df.columns),
-                    "data": _df_records(df),
-                }
-            )
-        finally:
-            ross_file.close()
+        ross_file = ROSSFile(path)
+        ross_file.read()
+        df = ross_file.pe_engine_df
+        return Response(
+            {
+                "file": path.name,
+                "columns": list(df.columns),
+                "data": _df_records(df),
+            }
+        )
 
 
 class DataFilesView(APIView):
