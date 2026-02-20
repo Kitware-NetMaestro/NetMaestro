@@ -71,7 +71,7 @@ def data_ingest(  # noqa: PLR0913
 
     new_run = Run.objects.create(
         name=name,
-        description=description,
+        description=description or "",
         status=status,
     )
 
