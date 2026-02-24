@@ -34,13 +34,13 @@ def test_data_endpoints_smoke(api_client: APIClient, category: str) -> None:
         AssertionError: If endpoint returns non-200 status, invalid JSON,
             or missing expected structure
     """
-    url = f'/api/v1/data/{category}'
+    url = f"/api/v1/data/{category}"
     user = UserFactory.create()
     api_client.force_authenticate(user=user)
 
     resp = api_client.get(url)
 
-    assert resp.status_code == 200, f'{url} -> {resp.status_code}'
-    payload = json.loads(resp.content.decode('utf-8'))
-    assert isinstance(payload.get('columns'), list), 'missing/invalid "columns" list'
-    assert isinstance(payload.get('data'), list), 'missing/invalid "data" list'
+    assert resp.status_code == 200, f"{url} -> {resp.status_code}"
+    payload = json.loads(resp.content.decode("utf-8"))
+    assert isinstance(payload.get("columns"), list), 'missing/invalid "columns" list'
+    assert isinstance(payload.get("data"), list), 'missing/invalid "data" list'

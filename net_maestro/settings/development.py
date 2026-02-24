@@ -58,4 +58,4 @@ SHELL_PLUS_IMPORTS = [
     "from net_maestro.core import tasks",
 ]
 
-REST_FRAMEWORK['DEFAULT_PERMISSION_CLASSES'] = ['rest_framework.permissions.AllowAny']
+REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = ["rest_framework.permissions.AllowAny"]

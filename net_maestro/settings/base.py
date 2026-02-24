@@ -111,4 +111,4 @@ CORS_ALLOWED_ORIGIN_REGEXES: list[str] = env.list(
     "DJANGO_CORS_ALLOWED_ORIGIN_REGEXES", cast=str, default=[]
 )
 
-REST_FRAMEWORK['DEFAULT_PERMISSION_CLASSES'] = ['rest_framework.permissions.IsAuthenticated']
+REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = ["rest_framework.permissions.IsAuthenticated"]
