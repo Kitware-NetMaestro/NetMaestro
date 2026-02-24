@@ -3,6 +3,8 @@
 Create a new Run object in the database.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 from django.core.files import File
@@ -15,49 +17,50 @@ from net_maestro.core.tasks.events import run_event_task
 
 @click.command()
 @click.option(
-    '-n',
-    '--name',
-    'name',
+    "-n",
+    "--name",
+    "name",
     type=str,
-    help='Name of the run.',
+    help="Name of the run.",
     required=True,
 )
 @click.option(
-    '-d',
-    '--description',
-    'description',
+    "-d",
+    "--description",
+    "description",
     type=str,
-    help='Description of the run.',
+    help="Description of the run.",
 )
 @click.option(
-    '-e',
-    '--event-file',
-    'event_file',
+    "-e",
+    "--event-file",
+    "event_file",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help='Event file(s) to ingest. Can be provided multiple times.',
+    help="Event file(s) to ingest. Can be provided multiple times.",
 )
 @click.option(
-    '-s',
-    '--simulation-file',
-    'simulation_file',
+    "-s",
+    "--simulation-file",
+    "simulation_file",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help='Simulation file(s) to ingest. Can be provided multiple times.',
+    help="Simulation file(s) to ingest. Can be provided multiple times.",
 )
 @click.option(
-    '-m',
-    '--model-file',
-    'model_file',
+    "-m",
+    "--model-file",
+    "model_file",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help='Model file(s) to ingest. Can be provided multiple times.',
+    help="Model file(s) to ingest. Can be provided multiple times.",
 )
-@click.option('--immediate', is_flag=True, help='Run the task immediately.')
-def data_ingest(
+@click.option("--immediate", is_flag=True, help="Run the task immediately.")
+def data_ingest(  # noqa: PLR0913
+    *,
     name: str,
-    description: str,
-    event_file: Path | None = None,
-    simulation_file: Path | None = None,
-    model_file: Path | None = None,
-    immediate: bool = False,
+    description: str | None,
+    event_file: Path | None,
+    simulation_file: Path | None,
+    model_file: Path | None,
+    immediate: bool,
 ) -> None:
     """Create a new Run object in the database."""
     status = (
@@ -68,12 +71,12 @@ def data_ingest(
 
     new_run = Run.objects.create(
         name=name,
-        description=description,
+        description=description or "",
         status=status,
     )
 
     if event_file:
-        with event_file.open('rb') as file_handle:
+        with event_file.open("rb") as file_handle:
             event_file_obj = EventFile.objects.create(
                 run=new_run,
                 file=File(file_handle),

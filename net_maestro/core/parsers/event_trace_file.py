@@ -1,25 +1,31 @@
-from io import BufferedReader
+from __future__ import annotations
+
 import logging
 from pathlib import Path
 import struct
 from struct import Struct
-from typing import Iterator, NamedTuple, TypedDict
+from typing import TYPE_CHECKING, NamedTuple, TypedDict
 
 import pandas as pd
 
 from .schema import ENDIAN, infer_endian, validate_time_columns
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+logger = logging.getLogger(__name__)
+
 # Metadata
 META_FIELDS = (
-    'source_lp',
-    'dest_lp',
-    'virtual_send',
-    'virtual_receive',
-    'real_times',
-    'sample_size',
+    "source_lp",
+    "dest_lp",
+    "virtual_send",
+    "virtual_receive",
+    "real_times",
+    "sample_size",
 )
-SAMPLE_SIZE_INDEX = META_FIELDS.index('sample_size')
-META_FORMAT = f'{ENDIAN}IIfffI'
+SAMPLE_SIZE_INDEX = META_FIELDS.index("sample_size")
+META_FORMAT = f"{ENDIAN}IIfffI"
 META_STRUCT = struct.Struct(META_FORMAT)
 
 
@@ -33,8 +39,8 @@ class META(NamedTuple):
 
 
 # SimpleP2P payload
-SIMPLEP2P_FIELDS = ('event_type',)
-SIMPLEP2P_FORMAT = f'{ENDIAN}i'
+SIMPLEP2P_FIELDS = ("event_type",)
+SIMPLEP2P_FORMAT = f"{ENDIAN}i"
 SIMPLEP2P_STRUCT = struct.Struct(SIMPLEP2P_FORMAT)
 
 
@@ -52,15 +58,15 @@ class EventRecordDict(TypedDict):
 
 
 def _meta_format(endian: str) -> str:
-    return f'{endian}IIfffI'
+    return f"{endian}IIfffI"
 
 
 def _sp2p_format(endian: str) -> str:
-    return f'{endian}i'
+    return f"{endian}i"
 
 
-DEFAULT_TIME_KEY = 'virtual_send'
-ALT_TIME_KEY = 'virtual_receive'
+DEFAULT_TIME_KEY = "virtual_send"
+ALT_TIME_KEY = "virtual_receive"
 TIME_COLUMNS = [DEFAULT_TIME_KEY, ALT_TIME_KEY]
 
 
@@ -72,15 +78,14 @@ class EventFileParser:
     """
 
     def __init__(self, source: Path | bytes) -> None:
-        self.f: BufferedReader | None = None
         if isinstance(source, Path):
-            with open(source, 'rb') as f:
+            with source.open("rb") as f:
                 self.content = f.read()
         else:
             self.content = source
 
         # Detect endianness from first header
-        known_payload_sizes = {struct.calcsize(_sp2p_format(e)) for e in ('<', '>')}
+        known_payload_sizes = {struct.calcsize(_sp2p_format(e)) for e in ("<", ">")}
         detected_endian = infer_endian(
             _meta_format, SAMPLE_SIZE_INDEX, self.content, known_payload_sizes
         )
@@ -99,7 +104,7 @@ class EventFileParser:
         self._min_time: float | None = None
         self._max_time: float | None = None
 
-    def parse_event_records(self) -> Iterator[EventRecordDict]:
+    def parse_event_records(self) -> Generator[EventRecordDict]:
         """Yield individual event records as typed dicts."""
         byte_pos = 0
         time_step = 0
@@ -117,12 +122,12 @@ class EventFileParser:
                 sp_data = SimpleP2P(*sp_tuple)
 
                 yield {
-                    'source_lp': metadata.source_lp,
-                    'dest_lp': metadata.dest_lp,
-                    'virtual_send': metadata.virtual_send,
-                    'virtual_receive': metadata.virtual_receive,
-                    'event_type': sp_data.event_type,
-                    'time_step': time_step,
+                    "source_lp": metadata.source_lp,
+                    "dest_lp": metadata.dest_lp,
+                    "virtual_send": metadata.virtual_send,
+                    "virtual_receive": metadata.virtual_receive,
+                    "event_type": sp_data.event_type,
+                    "time_step": time_step,
                 }
                 time_step += 1
             elif metadata.sample_size == 0:
@@ -130,8 +135,8 @@ class EventFileParser:
                 continue
             else:
                 remaining = len(self.content) - byte_pos
-                logging.warning(
-                    'Stopping parse due to invalid payload size: size=%d, remaining=%d',
+                logger.warning(
+                    "Stopping parse due to invalid payload size: size=%d, remaining=%d",
                     metadata.sample_size,
                     remaining,
                 )
@@ -214,5 +219,5 @@ class EventFileParser:
     @use_send_time.setter
     def use_send_time(self, flag: bool) -> None:
         self._use_send_time = flag
-        self.time_variable = 'virtual_send' if flag else 'virtual_receive'
+        self.time_variable = "virtual_send" if flag else "virtual_receive"
         self.reset_time_range()

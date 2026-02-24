@@ -2,15 +2,18 @@ from __future__ import annotations
 
 from contextlib import suppress
 import struct
-from typing import Callable, Iterable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+
 # Default endianness
-ENDIAN: str = '@'
-LITTLE_ENDIAN = '<'
-BIG_ENDIAN = '>'
+ENDIAN: str = "@"
+LITTLE_ENDIAN = "<"
+BIG_ENDIAN = ">"
 
 
 def infer_endian(
@@ -51,9 +54,7 @@ def validate_sample_size(sample_size: int, remaining: int, known: set[int]) -> b
         return False
     if sample_size not in known:
         return False
-    if sample_size > remaining:
-        return False
-    return True
+    return sample_size <= remaining
 
 
 def validate_time_columns(df: pd.DataFrame, columns: Iterable[str]) -> pd.DataFrame:
@@ -61,11 +62,11 @@ def validate_time_columns(df: pd.DataFrame, columns: Iterable[str]) -> pd.DataFr
     if df.empty:
         return df
 
-    mask = pd.Series(True, index=df.index)
+    mask = pd.Series(data=True, index=df.index)
     for col in columns:
         if col in df.columns:
             # Convert column to numeric; non-numeric becomes "NaN"
-            vals = pd.to_numeric(df[col], errors='coerce')
+            vals = pd.to_numeric(df[col], errors="coerce")
             # Only finite values are "True"
             mask &= pd.Series(np.isfinite(vals), index=df.index)
     return df.loc[mask]

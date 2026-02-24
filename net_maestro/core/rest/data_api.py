@@ -17,12 +17,10 @@ In production, IsAuthenticated ensures only logged-in users can access data endp
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
-import pandas as pd
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -30,26 +28,30 @@ from net_maestro.core.parsers.event_trace_file import EventFileParser
 from net_maestro.core.parsers.model_file import ModelFile
 from net_maestro.core.parsers.ross_binary_file import ROSSFile
 
+if TYPE_CHECKING:
+    import pandas as pd
+    from rest_framework.request import Request
+
 BASE_DIR = Path(settings.BASE_DIR)
-DATA_DIR = BASE_DIR / 'data'
+DATA_DIR = BASE_DIR / "data"
 
 # Permission classes: open in DEBUG mode, authenticated in production
 DATA_API_PERMISSION_CLASSES = (
-    (AllowAny,) if bool(getattr(settings, 'DEBUG', False)) else (IsAuthenticated,)
+    (AllowAny,) if bool(getattr(settings, "DEBUG", False)) else (IsAuthenticated,)
 )
 
 # Default filenames to select if present (sample data)
 _DEFAULT_FILES: dict[str, str] = {
-    'models': 'esnet-model-inst-analysis-lps.bin',
-    'events': 'esnet-model-inst-evtrace.bin',
-    'simulations': 'ross-stats-gvt.bin',
+    "models": "esnet-model-inst-analysis-lps.bin",
+    "events": "esnet-model-inst-evtrace.bin",
+    "simulations": "ross-stats-gvt.bin",
 }
 
 # Session keys for storing currently selected file per category
 _SESSION_KEYS: dict[str, str] = {
-    'models': 'current_model_file',
-    'events': 'current_event_file',
-    'simulations': 'current_simulation_file',
+    "models": "current_model_file",
+    "events": "current_event_file",
+    "simulations": "current_simulation_file",
 }
 
 
@@ -129,22 +131,22 @@ def _resolve_selected_path(
     # Validate file exists
     candidate = DATA_DIR / subdir / requested_name
     if not candidate.exists() or not candidate.is_file():
-        return None, requested_name, f'Missing file: {requested_name}'
+        return None, requested_name, f"Missing file: {requested_name}"
 
     # Security check: prevent arbitrary path traversal
     if candidate.parent.resolve() != (DATA_DIR / subdir).resolve():
-        return None, requested_name, 'Invalid file selection'
+        return None, requested_name, "Invalid file selection"
 
     return candidate, requested_name, None
 
 
-def _df_records(df: pd.DataFrame) -> List[Dict[str, Any]]:
+def _df_records(df: pd.DataFrame) -> list[dict[str, Any]]:
     """Convert a pandas DataFrame to a list of record dictionaries.
 
     Returns:
         List of dictionaries, one per row, with column names as keys
     """
-    return df.to_dict(orient='records')
+    return df.to_dict(orient="records")
 
 
 class EventDataView(APIView):
@@ -171,30 +173,30 @@ class EventDataView(APIView):
             JSON with 'file', 'columns', and 'data' keys, or 404 if file not found
         """
         # Ensure a file is selected (with fallback to defaults/first available)
-        available = _list_files(subdir='events')
-        _get_selected_file(request=request, subdir='events', available=available)
+        available = _list_files(subdir="events")
+        _get_selected_file(request=request, subdir="events", available=available)
 
         # Now resolve the path (either from query param or the selected file)
         path, requested_name, error = _resolve_selected_path(
             request=request,
-            subdir='events',
-            session_key='current_event_file',
-            query_param='file',
+            subdir="events",
+            session_key="current_event_file",
+            query_param="file",
         )
         if path is None:
-            detail = error or 'No file selected'
+            detail = error or "No file selected"
             if requested_name:
-                detail = f'{detail} ({requested_name})'
-            return Response({'detail': detail}, status=404)
+                detail = f"{detail} ({requested_name})"
+            return Response({"detail": detail}, status=404)
 
         # Parse binary file and return network DataFrame as JSON
         parser = EventFileParser(path)
         df = parser.network_df
         return Response(
             {
-                'file': path.name,
-                'columns': list(df.columns),
-                'data': _df_records(df),
+                "file": path.name,
+                "columns": list(df.columns),
+                "data": _df_records(df),
             }
         )
 
@@ -223,36 +225,33 @@ class ModelDataView(APIView):
             JSON with 'file', 'columns', and 'data' keys, or 404 if file not found
         """
         # Ensure a file is selected (with fallback to defaults/first available)
-        available = _list_files(subdir='models')
-        _get_selected_file(request=request, subdir='models', available=available)
+        available = _list_files(subdir="models")
+        _get_selected_file(request=request, subdir="models", available=available)
 
         # Now resolve the path (either from query param or the selected file)
         path, requested_name, error = _resolve_selected_path(
             request=request,
-            subdir='models',
-            session_key='current_model_file',
-            query_param='file',
+            subdir="models",
+            session_key="current_model_file",
+            query_param="file",
         )
         if path is None:
-            detail = error or 'No file selected'
+            detail = error or "No file selected"
             if requested_name:
-                detail = f'{detail} ({requested_name})'
-            return Response({'detail': detail}, status=404)
+                detail = f"{detail} ({requested_name})"
+            return Response({"detail": detail}, status=404)
 
         # Parse binary file and return network DataFrame as JSON
-        model_file = ModelFile(str(path))
-        try:
-            model_file.read()
-            df = model_file.network_df
-            return Response(
-                {
-                    'file': path.name,
-                    'columns': list(df.columns),
-                    'data': _df_records(df),
-                }
-            )
-        finally:
-            model_file.close()
+        model_file = ModelFile(path)
+        model_file.read()
+        df = model_file.network_df
+        return Response(
+            {
+                "file": path.name,
+                "columns": list(df.columns),
+                "data": _df_records(df),
+            }
+        )
 
 
 class RossDataView(APIView):
@@ -279,36 +278,33 @@ class RossDataView(APIView):
             JSON with 'file', 'columns', and 'data' keys, or 404 if file not found
         """
         # Ensure a file is selected (with fallback to defaults/first available)
-        available = _list_files(subdir='simulations')
-        _get_selected_file(request=request, subdir='simulations', available=available)
+        available = _list_files(subdir="simulations")
+        _get_selected_file(request=request, subdir="simulations", available=available)
 
         # Now resolve the path (either from query param or the selected file)
         path, requested_name, error = _resolve_selected_path(
             request=request,
-            subdir='simulations',
-            session_key='current_simulation_file',
-            query_param='file',
+            subdir="simulations",
+            session_key="current_simulation_file",
+            query_param="file",
         )
         if path is None:
-            detail = error or 'No file selected'
+            detail = error or "No file selected"
             if requested_name:
-                detail = f'{detail} ({requested_name})'
-            return Response({'detail': detail}, status=404)
+                detail = f"{detail} ({requested_name})"
+            return Response({"detail": detail}, status=404)
 
         # Parse binary file and return PE engine DataFrame as JSON
-        ross_file = ROSSFile(str(path))
-        try:
-            ross_file.read()
-            df = ross_file.pe_engine_df
-            return Response(
-                {
-                    'file': path.name,
-                    'columns': list(df.columns),
-                    'data': _df_records(df),
-                }
-            )
-        finally:
-            ross_file.close()
+        ross_file = ROSSFile(path)
+        ross_file.read()
+        df = ross_file.pe_engine_df
+        return Response(
+            {
+                "file": path.name,
+                "columns": list(df.columns),
+                "data": _df_records(df),
+            }
+        )
 
 
 class DataFilesView(APIView):
@@ -333,38 +329,38 @@ class DataFilesView(APIView):
             (currently selected file per category)
         """
         # List available files in each category
-        simulations = _list_files(subdir='simulations')
-        events = _list_files(subdir='events')
-        models = _list_files(subdir='models')
+        simulations = _list_files(subdir="simulations")
+        events = _list_files(subdir="events")
+        models = _list_files(subdir="models")
 
         # Determine selected file for each category (updates session if needed)
         selected_simulation = _get_selected_file(
             request=request,
-            subdir='simulations',
+            subdir="simulations",
             available=simulations,
         )
         selected_event = _get_selected_file(
             request=request,
-            subdir='events',
+            subdir="events",
             available=events,
         )
         selected_model = _get_selected_file(
             request=request,
-            subdir='models',
+            subdir="models",
             available=models,
         )
 
         return Response(
             {
-                'files': {
-                    'simulations': simulations,
-                    'events': events,
-                    'models': models,
+                "files": {
+                    "simulations": simulations,
+                    "events": events,
+                    "models": models,
                 },
-                'selected': {
-                    'simulations': selected_simulation,
-                    'events': selected_event,
-                    'models': selected_model,
+                "selected": {
+                    "simulations": selected_simulation,
+                    "events": selected_event,
+                    "models": selected_model,
                 },
             }
         )
@@ -394,22 +390,22 @@ class SelectDataFileView(APIView):
         Returns:
             JSON with updated selection, or 400 if invalid category/file
         """
-        category = request.data.get('category')
-        file_name = request.data.get('file')
+        category = request.data.get("category")
+        file_name = request.data.get("file")
 
         # Validate category
         if category not in _SESSION_KEYS:
-            return Response({'detail': 'Invalid category'}, status=400)
+            return Response({"detail": "Invalid category"}, status=400)
 
         # Validate file name
         if not isinstance(file_name, str) or not file_name:
-            return Response({'detail': 'Invalid file'}, status=400)
+            return Response({"detail": "Invalid file"}, status=400)
 
         # Verify file exists in the category directory
         available = _list_files(subdir=str(category))
         if file_name not in available:
-            return Response({'detail': 'Invalid file'}, status=400)
+            return Response({"detail": "Invalid file"}, status=400)
 
         # Update session with selected file
         request.session[_SESSION_KEYS[str(category)]] = file_name
-        return Response({'selected': {str(category): file_name}})
+        return Response({"selected": {str(category): file_name}})

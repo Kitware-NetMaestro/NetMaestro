@@ -7,12 +7,15 @@ If files are missing, endpoints will return 404 (which will fail these tests).
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 import pytest
-from rest_framework.test import APIClient
+
+if TYPE_CHECKING:
+    from rest_framework.test import APIClient
 
 
-@pytest.mark.parametrize('category', ['event', 'model', 'ross'])
+@pytest.mark.parametrize("category", ["event", "model", "ross"])
 @pytest.mark.django_db
 def test_data_endpoints_smoke(api_client: APIClient, category: str) -> None:
     """Smoke test for data API endpoints (event, model, ross).
@@ -29,15 +32,15 @@ def test_data_endpoints_smoke(api_client: APIClient, category: str) -> None:
         AssertionError: If endpoint returns non-200 status, invalid JSON,
             or missing expected structure
     """
-    url = f'/api/v1/data/{category}'
+    url = f"/api/v1/data/{category}"
     resp = api_client.get(url)
 
-    assert resp.status_code == 200, f'{url} -> {resp.status_code}'
+    assert resp.status_code == 200, f"{url} -> {resp.status_code}"
 
     try:
-        payload = json.loads(resp.content.decode('utf-8'))
-    except Exception as e:  # noqa: BLE001
-        pytest.fail(f'{url} -> 200 but invalid JSON: {e}')
+        payload = json.loads(resp.content.decode("utf-8"))
+    except json.JSONDecodeError as e:
+        pytest.fail(f"{url} -> 200 but invalid JSON: {e}")
 
-    assert isinstance(payload.get('columns'), list), 'missing/invalid "columns" list'
-    assert isinstance(payload.get('data'), list), 'missing/invalid "data" list'
+    assert isinstance(payload.get("columns"), list), 'missing/invalid "columns" list'
+    assert isinstance(payload.get("data"), list), 'missing/invalid "data" list'

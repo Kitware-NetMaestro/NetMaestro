@@ -1,15 +1,22 @@
+from __future__ import annotations
+
 import logging
 import struct
 from struct import Struct
-from typing import BinaryIO, NamedTuple, Optional
+from typing import TYPE_CHECKING, NamedTuple
 
 import pandas as pd
 
 from .schema import ENDIAN, validate_time_columns
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
 # Metadata
-META_FIELDS = ('flag', 'sample_size', 'virtual_time', 'real_time')
-META_FORMAT = f'{ENDIAN}2i2d'
+META_FIELDS = ("flag", "sample_size", "virtual_time", "real_time")
+META_FORMAT = f"{ENDIAN}2i2d"
 META_STRUCT = struct.Struct(META_FORMAT)
 
 
@@ -21,35 +28,35 @@ class META(NamedTuple):
 
 
 # Payload structs
-PE_FORMAT = f'{ENDIAN}13I13f'
+PE_FORMAT = f"{ENDIAN}13I13f"
 PE_STRUCT = struct.Struct(PE_FORMAT)
 PE_FIELDS = (
-    'PE_ID',
-    'events_processed',
-    'events_aborted',
-    'events_rolled_back',
-    'total_rollbacks',
-    'secondary_rollbacks',
-    'fossil_collection_attempts',
-    'pq_queue_size',
-    'network_sends',
-    'network_reads',
-    'number_gvt',
-    'pe_event_ties',
-    'all_reduce',
-    'efficiency',
-    'network_read_time',
-    'network_other_time',
-    'gvt_time',
-    'fossil_collect_time',
-    'event_abort_time',
-    'event_process_time',
-    'pq_time',
-    'rollback_time',
-    'cancel_q_time',
-    'avl_time',
-    'buddy_time',
-    'lz4_time',
+    "PE_ID",
+    "events_processed",
+    "events_aborted",
+    "events_rolled_back",
+    "total_rollbacks",
+    "secondary_rollbacks",
+    "fossil_collection_attempts",
+    "pq_queue_size",
+    "network_sends",
+    "network_reads",
+    "number_gvt",
+    "pe_event_ties",
+    "all_reduce",
+    "efficiency",
+    "network_read_time",
+    "network_other_time",
+    "gvt_time",
+    "fossil_collect_time",
+    "event_abort_time",
+    "event_process_time",
+    "pq_time",
+    "rollback_time",
+    "cancel_q_time",
+    "avl_time",
+    "buddy_time",
+    "lz4_time",
 )
 
 
@@ -82,20 +89,20 @@ class PE(NamedTuple):
     lz4_time: float
 
 
-KP_FORMAT = f'{ENDIAN}9I2f'
+KP_FORMAT = f"{ENDIAN}9I2f"
 KP_STRUCT = struct.Struct(KP_FORMAT)
 KP_FIELDS = (
-    'PE_ID',
-    'KP_ID',
-    'events_processed',
-    'events_abort',
-    'events_rolled_back',
-    'total_rollbacks',
-    'secondary_rollbacks',
-    'network_sends',
-    'network_reads',
-    'time_ahead_gvt',
-    'efficiency',
+    "PE_ID",
+    "KP_ID",
+    "events_processed",
+    "events_abort",
+    "events_rolled_back",
+    "total_rollbacks",
+    "secondary_rollbacks",
+    "network_sends",
+    "network_reads",
+    "time_ahead_gvt",
+    "efficiency",
 )
 
 
@@ -114,18 +121,18 @@ class KP(NamedTuple):
 
 
 # More explicit name for "LP"
-LP_FORMAT = f'{ENDIAN}8If'
+LP_FORMAT = f"{ENDIAN}8If"
 LP_STRUCT = struct.Struct(LP_FORMAT)
 LP_FIELDS = (
-    'PE_ID',
-    'KP_ID',
-    'LP_ID',
-    'events_processed',
-    'events_abort',
-    'events_rolled_back',
-    'network_sends',
-    'network_reads',
-    'efficiency',
+    "PE_ID",
+    "KP_ID",
+    "LP_ID",
+    "events_processed",
+    "events_abort",
+    "events_rolled_back",
+    "network_sends",
+    "network_reads",
+    "efficiency",
 )
 
 
@@ -142,8 +149,8 @@ class LP(NamedTuple):
 
 
 # Default Values
-DEFAULT_TIME_KEY = 'virtual_time'
-ALT_TIME_KEY = 'real_time'
+DEFAULT_TIME_KEY = "virtual_time"
+ALT_TIME_KEY = "real_time"
 TIME_COLUMNS = [DEFAULT_TIME_KEY, ALT_TIME_KEY]
 
 
@@ -154,9 +161,9 @@ class ROSSFile:
     followed by a payload whose size determines the structure (PE/KP/LP).
     """
 
-    def __init__(self, filename: str) -> None:
-        self.f: BinaryIO = open(filename, 'rb')
-        self.content: bytes = self.f.read()
+    def __init__(self, filename: Path) -> None:
+        with filename.open("rb") as f:
+            self.content: bytes = f.read()
 
         self.metadata_struct: Struct = META_STRUCT
         self.metadata_size: int = META_STRUCT.size
@@ -173,11 +180,11 @@ class ROSSFile:
         self._use_virtual_time: bool = True
         self._time_variable: str = DEFAULT_TIME_KEY
 
-        self._pe_df: Optional[pd.DataFrame] = None
-        self._kp_df: Optional[pd.DataFrame] = None
-        self._lp_df: Optional[pd.DataFrame] = None
-        self._min_time: Optional[float] = None
-        self._max_time: Optional[float] = None
+        self._pe_df: pd.DataFrame | None = None
+        self._kp_df: pd.DataFrame | None = None
+        self._lp_df: pd.DataFrame | None = None
+        self._min_time: float | None = None
+        self._max_time: float | None = None
 
     def read(self) -> None:
         pe_list: list[pd.DataFrame] = []
@@ -197,8 +204,8 @@ class ROSSFile:
                 byte_pos += self._proc_elem_size
                 pe_data = PE(*pe_tuple)
                 df = pd.DataFrame([pe_data])
-                df['virtual_time'] = metadata.virtual_time
-                df['real_time'] = metadata.real_time
+                df["virtual_time"] = metadata.virtual_time
+                df["real_time"] = metadata.real_time
                 pe_list.append(df)
             elif metadata.sample_size == self._kernel_proc_size and (
                 byte_pos + self._kernel_proc_size
@@ -207,8 +214,8 @@ class ROSSFile:
                 byte_pos += self._kernel_proc_size
                 kp_data = KP(*kp_tuple)
                 df = pd.DataFrame([kp_data])
-                df['virtual_time'] = metadata.virtual_time
-                df['real_time'] = metadata.real_time
+                df["virtual_time"] = metadata.virtual_time
+                df["real_time"] = metadata.real_time
                 kp_list.append(df)
             elif metadata.sample_size == self.lp_size and (byte_pos + self.lp_size) <= len(
                 self.content
@@ -217,13 +224,13 @@ class ROSSFile:
                 byte_pos += self.lp_size
                 lp_data = LP(*lp_tuple)
                 df = pd.DataFrame([lp_data])
-                df['virtual_time'] = metadata.virtual_time
-                df['real_time'] = metadata.real_time
+                df["virtual_time"] = metadata.virtual_time
+                df["real_time"] = metadata.real_time
                 lp_list.append(df)
             else:
                 remaining = len(self.content) - byte_pos
-                logging.warning(
-                    'Stopping parse due to invalid payload size: size=%d, remaining=%d',
+                logger.warning(
+                    "Stopping parse due to invalid payload size: size=%d, remaining=%d",
                     metadata.sample_size,
                     remaining,
                 )
@@ -242,9 +249,6 @@ class ROSSFile:
         if not self.pe_df.empty:
             self.min_time = float(self.pe_df[self.time_variable].min())
             self.max_time = float(self.pe_df[self.time_variable].max())
-
-    def close(self) -> None:
-        self.f.close()
 
     @property
     def max_time(self) -> float | None:
@@ -329,5 +333,5 @@ class ROSSFile:
     @use_virtual_time.setter
     def use_virtual_time(self, flag: bool) -> None:
         self._use_virtual_time = flag
-        self.time_variable = 'virtual_time' if flag else 'real_time'
+        self.time_variable = "virtual_time" if flag else "real_time"
         self.reset_time_range()

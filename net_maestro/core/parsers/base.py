@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-import struct
-from typing import Any, Callable, Optional, Protocol
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Protocol
 
 import pandas as pd
+
+if TYPE_CHECKING:
+    from pathlib import Path
+    import struct
 
 
 class HeaderTuple(Protocol):
@@ -19,7 +23,7 @@ class HeaderTuple(Protocol):
         pass
 
 
-ParseResult = tuple[int, Optional[pd.DataFrame], Optional[str], Optional[list[str]]]
+ParseResult = tuple[int, pd.DataFrame | None, str | None, list[str] | None]
 PayloadHandler = Callable[[bytes, int, HeaderTuple], ParseResult]
 
 
@@ -32,19 +36,16 @@ class BaseBinaryReader:
 
     def __init__(
         self,
-        filename: str,
+        filename: Path,
         header_struct: struct.Struct,
         sample_size_index: int,
         payloads: dict[int, PayloadHandler],
     ) -> None:
-        self.f = open(filename, 'rb')
-        self.content: bytes = self.f.read()
+        with filename.open("rb") as f:
+            self.content: bytes = f.read()
         self.header_struct = header_struct
         self.sample_size_index = sample_size_index
         self.payloads = payloads
-
-    def close(self) -> None:
-        self.f.close()
 
     def read(self) -> dict[str, pd.DataFrame]:
         frames: dict[str, list[pd.DataFrame]] = {}
