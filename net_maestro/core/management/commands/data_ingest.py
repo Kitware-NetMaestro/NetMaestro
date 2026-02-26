@@ -7,11 +7,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from django.core.files import File
 import djclick as click
+from django.core.files import File
 
 from net_maestro.core.constants import RunStatus
-from net_maestro.core.models import EventFile, Run
+from net_maestro.core.models import EventFile, Run, SimulationFile
 from net_maestro.core.tasks.events import run_event_task
 
 
@@ -87,3 +87,10 @@ def data_ingest(  # noqa: PLR0913
             task.apply()
         else:
             task.delay()
+
+    if simulation_file:
+        with simulation_file.open("rb") as sim_reader:
+            SimulationFile.objects.create(
+                run=new_run,
+                file=File(sim_reader)
+            )
