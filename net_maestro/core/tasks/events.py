@@ -22,5 +22,8 @@ def run_event_task(event_file_pk: int) -> None:
 
     with transaction.atomic():
         parser = EventFileParser(content)
-        batch = [EventRecord(event_file_id=event_file_pk,**rec_dict) for rec_dict in parser.parse_event_records()]
+        batch = [
+            EventRecord(event_file=event_file_model, **rec_dict)
+            for rec_dict in parser.parse_event_records()
+        ]
         EventRecord.objects.bulk_create(batch)

@@ -1,5 +1,5 @@
 from __future__ import annotations
 
-from . import events
+from .events import run_event_task
 
-__all__ = ["events"]
+__all__ = ["run_event_task"]
