@@ -3,12 +3,6 @@
 Provides the main application view that handles:
 - Rendering the main UI template
 - Managing data file selection via session state
-- Providing CSRF tokens for AJAX requests
-
-Note: The home view supports both GET (display) and POST (file selection) requests.
-Currently, the UI uses AJAX POST requests to /api/v1/data/select instead of
-traditional form submissions (POST) to this view. This allows file selection without
-page reloads.
 """
 
 from __future__ import annotations
@@ -16,12 +10,7 @@ from __future__ import annotations
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
-
-def _event_data(request: HttpRequest) -> HttpResponse:
-    """Return event data as JSON."""
-    # TODO: Implement event data retrieval
-    #
-    return HttpResponse('Event data')
+from net_maestro.core.models.run import Run
 
 
 def home(request: HttpRequest) -> HttpResponse:
@@ -30,8 +19,6 @@ def home(request: HttpRequest) -> HttpResponse:
 
 
 def analysis_page(request: HttpRequest) -> HttpResponse:
-    """Render the analysis page."""
-    # Get a list of all available runs
-    # runs =
-    # Get event data from _event_data
-    return render(request, 'net_maestro/analysis.html')
+    """Render the analysis page with list of runs."""
+    runs = Run.objects.all()
+    return render(request, 'net_maestro/analysis.html', {'runs': runs})

@@ -22,8 +22,11 @@ document.addEventListener('alpine:init', () => {
      * Initialize the component and set up watchers.
      */
     init() {
-      this.$watch('$store.dataStore.loadTick', () => {
-        this.load();
+      // Watch for run selection changes
+      this.$watch('$store.state.selectedRunId', (runId) => {
+        if (runId) {
+          this.loadRunData(runId);
+        }
       });
     },
 
@@ -71,16 +74,12 @@ document.addEventListener('alpine:init', () => {
       Plotly.newPlot(this.heatmapPlotEl, data, layout, config);
     },
 
-    async load() {
+    async loadRunData(runId) {
       this.initPlot();
-      await this.loadEventData();
-      this.isPlotInitialized = true;
-    },
-
-    async loadEventData() {
-      const payload = await this.$store.dataStore.fetchEventData();
+      const payload = await this.$store.dataStore.fetchRunEventData(runId);
       this.records = payload.data ?? [];
       this.updatePlotData();
+      this.isPlotInitialized = true;
     },
 
     createHeatmapMatrix() {

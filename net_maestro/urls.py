@@ -10,6 +10,7 @@ from net_maestro.core.rest.data_api import (
     EventDataView,
     ModelDataView,
     RossDataView,
+    RunEventDataView,
     SelectDataFileView,
 )
 
@@ -47,6 +48,7 @@ urlpatterns = [
     path('api/v1/data/ross', RossDataView.as_view(), name='api-data-ross'),
     path('api/v1/data/files', DataFilesView.as_view(), name='api-data-files'),
     path('api/v1/data/select', SelectDataFileView.as_view(), name='api-data-select'),
+    path('api/v1/data/runs/<int:run_id>/events', RunEventDataView.as_view(), name='api-run-events'),
     path('api/docs/redoc/', schema_view.with_ui('redoc'), name='docs-redoc'),
     path('api/docs/swagger/', schema_view.with_ui('swagger'), name='docs-swagger'),
 ]

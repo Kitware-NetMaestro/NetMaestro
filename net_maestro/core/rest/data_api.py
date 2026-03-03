@@ -26,6 +26,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from net_maestro.core.models import EventRecord
 from net_maestro.core.parsers.event_trace_file import EventFileParser
 from net_maestro.core.parsers.model_file import ModelFile
 from net_maestro.core.parsers.ross_binary_file import ROSSFile
@@ -413,3 +414,47 @@ class SelectDataFileView(APIView):
         # Update session with selected file
         request.session[_SESSION_KEYS[str(category)]] = file_name
         return Response({'selected': {str(category): file_name}})
+
+
+class RunEventDataView(APIView):
+    """API endpoint for fetching event records for a specific run from the database.
+
+    GET /api/v1/data/runs/<run_id>/events
+
+    WARNING: Internal API - subject to change without notice.
+    Do not build external integrations against this endpoint.
+    """
+
+    permission_classes = DATA_API_PERMISSION_CLASSES
+
+    def get(self, _request: Request, run_id: int) -> Response:
+        """Fetch event records for a specific run from the database.
+
+        Returns:
+            JSON with 'columns' and 'data' keys, or 404 if run not found or has no events
+        """
+        # FIXME: Consider pagination to avoid loading all events into memory at once
+        event_records = EventRecord.objects.filter(event_file__run_id=run_id)
+
+        # Convert to list of dicts
+        columns = [
+            'source_lp',
+            'dest_lp',
+            'time_step',
+            'event_type',
+            'virtual_send',
+            'virtual_receive',
+        ]
+        data = [
+            {
+                'source_lp': record.source_lp,
+                'dest_lp': record.dest_lp,
+                'time_step': record.time_step,
+                'event_type': record.event_type,
+                'virtual_send': record.virtual_send,
+                'virtual_receive': record.virtual_receive,
+            }
+            for record in event_records
+        ]
+
+        return Response({'columns': columns, 'data': data})

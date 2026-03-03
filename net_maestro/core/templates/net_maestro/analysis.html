@@ -3,15 +3,41 @@
 {% block content %}
 <div class="flex flex-row w-full">
   <!-- Run Selection-->
-  <div class="bg-base-200 p-4 w-50">
-    <!-- TODO: For each run, show card as button to select it. -->
-    <!-- This will then load the associated data and populate the plots. -->
+  <div class="bg-base-200 p-4 w-75" role="region" aria-label="Completed runs selection">
+    <h2 class="text-lg font-semibold mb-4" id="runs-heading">Completed Runs</h2>
+    <div role="list" aria-labelledby="runs-heading">
+      {% for run in runs %}
+      <button
+        class="card bg-base-100 w-full shadow-sm my-1 cursor-pointer hover:bg-base-300"
+        :class="{ 'ring-2 ring-primary': $store.state.selectedRunId === {{ run.id }} }"
+        @click="$store.state.selectedRunId = {{ run.id }}"
+        :aria-label="'Select run: {{ run.name }}'"
+        :title="{{ run.description }}"
+      >
+          <div class="card-body">
+            <h2 class="card-title">{{ run.name }}</h2>
+          </div>
+        </button>
+      {% endfor %}
+    </div>
   </div>
   <!-- Analysis Tabs -->
   <div class="flex-1 bg-base-300 p-4">
     <div role="tablist" class="tabs tabs-border">
-      <a role="tab" class="tab" :class="{ 'tab-active': $store.state.activeAnalysisTab === 'events' }" @click="$store.state.activeAnalysisTab = 'events'">Events</a>
-      <a role="tab" class="tab" :class="{ 'tab-active': $store.state.activeAnalysisTab === 'simulation' }" @click="$store.state.activeAnalysisTab = 'simulation'">Simulation</a>
+      <a
+        role="tab"
+        class="tab"
+        :class="{ 'tab-active': $store.state.activeAnalysisTab === 'events' }"
+        @click="$store.state.activeAnalysisTab = 'events'"
+        >Events</a
+      >
+      <a
+        role="tab"
+        class="tab"
+        :class="{ 'tab-active': $store.state.activeAnalysisTab === 'simulation' }"
+        @click="$store.state.activeAnalysisTab = 'simulation'"
+        >Simulation</a
+      >
     </div>
     <!-- Events Plots -->
     <div class="grid grid-cols-2 gap-4 h-full" x-show="$store.state.activeAnalysisTab === 'events'">

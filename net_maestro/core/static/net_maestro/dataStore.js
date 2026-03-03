@@ -11,6 +11,10 @@ document.addEventListener('alpine:init', () => {
     modelDataCache: null,
     modelDataPromise: null,
 
+    // Cache storage for run-based event data (keyed by run ID)
+    runEventDataCache: {},
+    runEventDataPromises: {},
+
     async fetchRossData() {
       // Return cached data if available
       if (this.rossDataCache) {
@@ -92,6 +96,35 @@ document.addEventListener('alpine:init', () => {
       return this.modelDataPromise;
     },
 
+    async fetchRunEventData(runId) {
+      // Return cached data if available
+      if (this.runEventDataCache[runId]) {
+        return this.runEventDataCache[runId];
+      }
+
+      // Return existing promise if request is in-flight
+      if (this.runEventDataPromises[runId]) {
+        return this.runEventDataPromises[runId];
+      }
+
+      // Make new request
+      this.runEventDataPromises[runId] = fetch(`/api/v1/data/runs/${runId}/events`)
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`Failed to fetch event data for run ${runId}: ${response.statusText}`);
+          }
+          const data = await response.json();
+          this.runEventDataCache[runId] = data;
+          delete this.runEventDataPromises[runId];
+          return data;
+        })
+        .catch((error) => {
+          delete this.runEventDataPromises[runId];
+          throw error;
+        });
+      return this.runEventDataPromises[runId];
+    },
+
     /**
      * Clear cached data. Call when new data files are selected.
      */
@@ -102,6 +135,8 @@ document.addEventListener('alpine:init', () => {
       this.eventDataPromise = null;
       this.modelDataCache = null;
       this.modelDataPromise = null;
+      this.runEventDataCache = {};
+      this.runEventDataPromises = {};
     },
   });
 });

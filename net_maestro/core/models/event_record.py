@@ -4,7 +4,7 @@ from net_maestro.core.models.event_file import EventFile
 
 
 class EventRecord(models.Model):
-    event_file = models.ForeignKey(EventFile, on_delete=models.CASCADE)
+    event_file = models.ForeignKey(EventFile, on_delete=models.CASCADE, related_name='events')
 
     source_lp = models.FloatField()
     dest_lp = models.FloatField()
