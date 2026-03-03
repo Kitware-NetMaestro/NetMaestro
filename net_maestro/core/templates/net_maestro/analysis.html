@@ -14,12 +14,34 @@
         :aria-label="'Select run: {{ run.name }}'"
         :title="{{ run.description }}"
       >
-          <div class="card-body">
-            <h2 class="card-title">{{ run.name }}</h2>
-          </div>
-        </button>
-      {% endfor %}
-    </div>
+        <div class="card-body">
+          <h2 class="card-title">
+            {% if run.status == 'pending' %}
+              <div class="badge badge-dash badge-warning px-1">
+                <i class="ri-time-line"></i>
+              </div>
+            {% elif run.status == 'completed' %}
+              <div class="badge badge-outline badge-success px-1">
+                <i class="ri-check-line"></i>
+              </div>
+            {% elif run.status == 'running' %}
+              <div class="badge badge-soft badge-info px-1">
+                <i class="ri-run-line"></i>
+              </div>
+            {% elif run.status == 'failed' %}
+              <div class="badge badge-error px-1">
+                <i class="ri-error-warning-line"></i>
+              </div>
+            {% elif run.status == 'cancelled' %}
+              <div class="badge badge-outline badge-error px-1">
+                <i class="ri-close-circle-line"></i>
+              </div>
+            {% endif %}
+            {{ run.name }}
+          </h2>
+        </div>
+      </button>
+    {% endfor %}
   </div>
   <!-- Analysis Tabs -->
   <div class="flex-1 bg-base-300 p-4">
@@ -27,20 +49,20 @@
       <a
         role="tab"
         class="tab"
-        :class="{ 'tab-active': $store.state.activeAnalysisTab === 'events' }"
-        @click="$store.state.activeAnalysisTab = 'events'"
-        >Events</a
-      >
+        :class="{ 'tab-active': $store.state.activeAnalysisTab === 'network' }"
+        @click="$store.state.activeAnalysisTab = 'network'">
+        Network Performance
+      </a>
       <a
         role="tab"
         class="tab"
         :class="{ 'tab-active': $store.state.activeAnalysisTab === 'simulation' }"
-        @click="$store.state.activeAnalysisTab = 'simulation'"
-        >Simulation</a
-      >
+        @click="$store.state.activeAnalysisTab = 'simulation'">
+        Simulation Performance
+      </a>
     </div>
-    <!-- Events Plots -->
-    <div class="grid grid-cols-2 gap-4 h-full" x-show="$store.state.activeAnalysisTab === 'events'">
+    <!-- Network Plots -->
+    <div class="grid grid-cols-2 gap-4 h-auto" x-show="$store.state.activeAnalysisTab === 'network'">
       <div class="bg-base-100 rounded-lg">
       {% include 'net_maestro/plots/heatmap.html' %}
       </div>
@@ -50,7 +72,7 @@
       <div></div>
     </div>
     <!-- Simulation Plots -->
-    <div class="grid grid-cols-2 gap-4 h-full" x-show="$store.state.activeAnalysisTab === 'simulation'">
+    <div class="grid grid-cols-2 gap-4 h-auto" x-show="$store.state.activeAnalysisTab === 'simulation'">
       <div class="bg-base-100 rounded-lg">
       {% include 'net_maestro/plots/scatterPlot.html' %}
       </div>

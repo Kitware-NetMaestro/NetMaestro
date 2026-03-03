@@ -1,6 +1,6 @@
 document.addEventListener('alpine:init', () => {
     Alpine.store('state', {
-        activeAnalysisTab: 'events',
+        activeAnalysisTab: 'network',
         selectedRunId: null,
     });
 });
