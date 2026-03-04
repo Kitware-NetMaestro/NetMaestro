@@ -5,21 +5,24 @@
   <head>
     <meta charset="UTF-8">
     <title>{% block title %}NetMaestro{% endblock %}</title>
-    <!-- Lodash -->
-    <script src="https://cdn.jsdelivr.net/npm/lodash@4/lodash.min.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "alpinejs": "https://cdn.jsdelivr.net/npm/alpinejs@3/dist/module.esm.min.js",
+          "lodash": "https://cdn.jsdelivr.net/npm/lodash-es@4/+esm",
+          "plotly.js-dist-min": "https://esm.sh/plotly.js-dist-min@3/plotly.min.js"
+        }
+      }
+    </script>
+
     <!-- DaisyUI -->
     <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css">
     <!-- Tailwind -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script src="{% static 'net_maestro/dataStore.js' %}"></script>
-    <!-- Alpine.js -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="{% static 'net_maestro/partials/dataFileSelector.js' %}"></script>
-    <!-- Plotly.js -->
-    <script src="https://cdn.plot.ly/plotly-3.3.0.min.js" charset="utf-8"></script>
     <!-- Remix Icon -->
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.7.0/fonts/remixicon.css" rel="stylesheet">
-    <!-- Custom styles -->
+    <!-- Application -->
+    <script type="module" src="{% static 'net_maestro/init.js' %}"></script>
     <link rel="stylesheet" href="{% static 'net_maestro/customStyles.css' %}">
   </head>
   <body x-data>

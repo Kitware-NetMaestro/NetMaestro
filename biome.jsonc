@@ -7,8 +7,5 @@
       // Biome doesn't support Django HTML
       "!**/*.html"
     ]
-  },
-  "javascript": {
-    "globals": ["_", "Alpine", "Plotly"]
   }
 }
