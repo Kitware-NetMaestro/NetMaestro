@@ -13,6 +13,7 @@ import djclick as click
 from net_maestro.core.constants import RunStatus
 from net_maestro.core.models import EventFile, Run, SimulationFile
 from net_maestro.core.tasks.events import run_event_task
+from net_maestro.core.tasks.simulation import run_simulation_task
 
 
 @click.command()
@@ -90,4 +91,13 @@ def data_ingest(  # noqa: PLR0913
 
     if simulation_file:
         with simulation_file.open("rb") as sim_reader:
-            SimulationFile.objects.create(run=new_run, file=File(sim_reader))
+            simulation_file_obj = SimulationFile.objects.create(
+                run=new_run,
+                file=File(sim_reader),
+            )
+
+        task = run_simulation_task.s(simulation_file_pk=simulation_file_obj.pk)
+        if immediate:
+            task.apply()
+        else:
+            task.delay()
