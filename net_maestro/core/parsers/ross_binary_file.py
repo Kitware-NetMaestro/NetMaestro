@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import logging
 import struct
+from collections import defaultdict
+from enum import Enum
+from pathlib import Path
 from struct import Struct
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import pandas as pd
 
 from .schema import ENDIAN, validate_time_columns
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from collections.abc import Generator
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +29,10 @@ class META(NamedTuple):
     virtual_time: float
     real_time: float
 
+class RecordType(Enum):
+    PE = 'pe'
+    KP = 'kp'
+    LP = 'lp'
 
 # Payload structs
 PE_FORMAT = f"{ENDIAN}13I13f"
@@ -161,9 +168,12 @@ class ROSSFile:
     followed by a payload whose size determines the structure (PE/KP/LP).
     """
 
-    def __init__(self, filename: Path) -> None:
-        with filename.open("rb") as f:
-            self.content: bytes = f.read()
+    def __init__(self, source: Path | bytes) -> None:
+        if isinstance(source, Path):
+            with source.open("rb") as f:
+                self.content = f.read()
+        else:
+            self.content = source
 
         self.metadata_struct: Struct = META_STRUCT
         self.metadata_size: int = META_STRUCT.size
@@ -186,16 +196,15 @@ class ROSSFile:
         self._min_time: float | None = None
         self._max_time: float | None = None
 
-    def read(self) -> None:
-        pe_list: list[pd.DataFrame] = []
-        kp_list: list[pd.DataFrame] = []
-        lp_list: list[pd.DataFrame] = []
+    def parse_simulation_records(self) -> Generator[tuple[RecordType, dict[str, Any]], None, None]:
         byte_pos = 0
 
         while byte_pos + self.metadata_size <= len(self.content):
             metadata_tuple = self.metadata_struct.unpack_from(self.content, byte_pos)
             byte_pos += self.metadata_size
             metadata = META(*metadata_tuple)
+            record_type = None
+            record_data = None
 
             if metadata.sample_size == self._proc_elem_size and (
                 byte_pos + self._proc_elem_size
@@ -203,30 +212,30 @@ class ROSSFile:
                 pe_tuple = self._proc_elem_struct.unpack_from(self.content, byte_pos)
                 byte_pos += self._proc_elem_size
                 pe_data = PE(*pe_tuple)
-                df = pd.DataFrame([pe_data])
-                df["virtual_time"] = metadata.virtual_time
-                df["real_time"] = metadata.real_time
-                pe_list.append(df)
+                record_type = RecordType.PE
+                record_data = pe_data._asdict()
+                record_data["virtual_time"] = metadata.virtual_time
+                record_data["real_time"] = metadata.real_time
             elif metadata.sample_size == self._kernel_proc_size and (
                 byte_pos + self._kernel_proc_size
             ) <= len(self.content):
                 kp_tuple = self._kernel_proc_struct.unpack_from(self.content, byte_pos)
                 byte_pos += self._kernel_proc_size
                 kp_data = KP(*kp_tuple)
-                df = pd.DataFrame([kp_data])
-                df["virtual_time"] = metadata.virtual_time
-                df["real_time"] = metadata.real_time
-                kp_list.append(df)
+                record_type = RecordType.KP
+                record_data = kp_data._asdict()
+                record_data["virtual_time"] = metadata.virtual_time
+                record_data["real_time"] = metadata.real_time
             elif metadata.sample_size == self.lp_size and (byte_pos + self.lp_size) <= len(
                 self.content
             ):
                 lp_tuple = self.lp_struct.unpack_from(self.content, byte_pos)
                 byte_pos += self.lp_size
                 lp_data = LP(*lp_tuple)
-                df = pd.DataFrame([lp_data])
-                df["virtual_time"] = metadata.virtual_time
-                df["real_time"] = metadata.real_time
-                lp_list.append(df)
+                record_type = RecordType.LP
+                record_data = lp_data._asdict()
+                record_data["virtual_time"] = metadata.virtual_time
+                record_data["real_time"] = metadata.real_time
             else:
                 remaining = len(self.content) - byte_pos
                 logger.warning(
@@ -236,14 +245,26 @@ class ROSSFile:
                 )
                 break
 
+            yield record_type, record_data
+
+
+    def read(self) -> None:
+        record_lists = defaultdict(list[pd.DataFrame])
+
+        for record_type, record_data in self.parse_simulation_records():
+            df = pd.DataFrame([record_data])
+
+            record_lists[record_type].append(df)
+
+        # TODO review for more efficient approach. Perhaps a helper function here.
         self.pe_df = validate_time_columns(
-            pd.concat(pe_list, ignore_index=True) if pe_list else pd.DataFrame(), TIME_COLUMNS
+            pd.concat(record_lists[RecordType.PE], ignore_index=True) if record_lists[RecordType.PE] else pd.DataFrame(), TIME_COLUMNS
         )
         self.kp_df = validate_time_columns(
-            pd.concat(kp_list, ignore_index=True) if kp_list else pd.DataFrame(), TIME_COLUMNS
+            pd.concat(record_lists[RecordType.KP], ignore_index=True) if record_lists[RecordType.KP] else pd.DataFrame(), TIME_COLUMNS
         )
         self.lp_df = validate_time_columns(
-            pd.concat(lp_list, ignore_index=True) if lp_list else pd.DataFrame(), TIME_COLUMNS
+            pd.concat(record_lists[RecordType.LP], ignore_index=True) if record_lists[RecordType.LP] else pd.DataFrame(), TIME_COLUMNS
         )
 
         if not self.pe_df.empty:
