@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling==1.29.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -11,43 +11,43 @@ license-files = ["LICENSE", "NOTICE"]
 classifiers = ["Private :: Do Not Upload"]
 dependencies = [
   # Runtime dependencies, always needed
-  "celery",
-  "django[argon2]",
-  "django-allauth",
-  "django-auth-style",
-  "django-click",
-  "django-cors-headers",
-  "django-environ",
-  "django-extensions",
-  "django-filter",
-  "django-oauth-toolkit",
-  "django-resonant-settings[allauth,celery]",
-  "django-resonant-utils[allauth,s3_storage]",
-  "django-stubs-ext",
-  "djangorestframework",
-  "drf-yasg",
-  "pandas",
-  "psycopg[binary]",
-  "rich",
-  "whitenoise[brotli]",
+  "celery==5.6.2",
+  "django[argon2]==6.0.2",
+  "django-allauth==65.14.3",
+  "django-auth-style==0.14.0",
+  "django-click==2.5.0",
+  "django-cors-headers==4.9.0",
+  "django-environ==0.12.1",
+  "django-extensions==4.1",
+  "django-filter==25.2",
+  "django-oauth-toolkit==3.2.0",
+  "django-resonant-settings[allauth,celery]==0.48.1",
+  "django-resonant-utils[allauth,s3_storage]==0.18.0",
+  "django-stubs-ext==5.2.9",
+  "djangorestframework==3.16.1",
+  "drf-yasg==1.21.14",
+  "pandas==3.0.0",
+  "psycopg[binary]==3.3.2",
+  "rich==14.3.2",
+  "whitenoise[brotli]==6.11.0",
   # Production-only
-  "django-s3-file-field[s3]",
-  "django-storages[s3]",
-  "sentry-sdk[celery,django,pure_eval]",
-  "gunicorn",
+  "django-s3-file-field[s3]==1.1.0",
+  "django-storages[s3]==1.14.6",
+  "sentry-sdk[celery,django,pure_eval]==2.53.0",
+  "gunicorn==25.1.0",
 ]
 
 [project.optional-dependencies]
 development = [
   # Runtime dependencies, only needed with "development" settings
-  "django-browser-reload",
-  "django-debug-toolbar",
-  "django-minio-storage",
-  "django-resonant-utils[minio_storage]",
-  "django-s3-file-field[minio]",
-  "ipython",
-  "watchdog",
-  "werkzeug",
+  "django-browser-reload==1.21.0",
+  "django-debug-toolbar==6.2.0",
+  "django-minio-storage==0.5.9",
+  "django-resonant-utils[minio_storage]==0.18.0",
+  "django-s3-file-field[minio]==1.1.0",
+  "ipython==9.10.0",
+  "watchdog==6.0.0",
+  "werkzeug==3.1.5",
 ]
 
 [dependency-groups]
@@ -56,28 +56,28 @@ dev = [
   # The "dev" dependency group is installed by default,
   # so use this to install "development" extras by default too
   "net-maestro[development]",
-  "pre-commit",
-  "tox",
-  "tox-uv",
+  "pre-commit==4.5.1",
+  "tox==4.36.1",
+  "tox-uv==1.29.0",
 ]
 lint = [
-  "ruff",
+  "ruff==0.15.1",
 ]
 type = [
-  "mypy",
-  "celery-types",
-  "django-stubs[compatible-mypy]",
-  "djangorestframework-stubs",
+  "mypy==1.19.1",
+  "celery-types==0.24.0",
+  "django-stubs[compatible-mypy]==5.2.9",
+  "djangorestframework-stubs[compatible-mypy]==3.16.8",
 ]
 test = [
-  "factory-boy",
-  "pytest",
-  "pytest-django",
-  "pytest-mock",
+  "factory-boy==3.3.3",
+  "pytest==9.0.2",
+  "pytest-django==4.12.0",
+  "pytest-mock==3.15.1",
   # Enable with "pytest --random-order ..."
-  "pytest-random-order",
+  "pytest-random-order==1.2.0",
   # Enable with "pytest --count=... ..."
-  "pytest-repeat",
+  "pytest-repeat==0.9.4",
 ]
 
 [tool.hatch.build]
@@ -182,6 +182,7 @@ warn_unused_configs = true
 warn_unused_ignores = true
 plugins = [
   "mypy_django_plugin.main",
+  "mypy_drf_plugin.main",
 ]
 
 [tool.django-stubs]
