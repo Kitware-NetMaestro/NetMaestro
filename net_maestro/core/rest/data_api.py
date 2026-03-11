@@ -18,7 +18,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from net_maestro.core.parsers.event_trace_file import EventFileParser
-from net_maestro.core.parsers.model_file import ModelFile
+from net_maestro.core.parsers.model_file import ModelFileParser
 from net_maestro.core.parsers.ross_binary_file import ROSSFile
 
 if TYPE_CHECKING:
@@ -177,12 +177,12 @@ class EventDataView(APIView):
 
         # Parse binary file and return network DataFrame as JSON
         parser = EventFileParser(path)
-        df = parser.network_df
+        data_frame = parser.network_df
         return Response(
             {
                 "file": path.name,
-                "columns": list(df.columns),
-                "data": _df_records(df),
+                "columns": list(data_frame.columns),
+                "data": _df_records(data_frame),
             }
         )
 
@@ -226,14 +226,14 @@ class ModelDataView(APIView):
             return Response({"detail": detail}, status=404)
 
         # Parse binary file and return network DataFrame as JSON
-        model_file = ModelFile(path)
-        model_file.read()
-        df = model_file.network_df
+        parser = ModelFileParser(path)
+        parser.read()
+        data_frame = parser.network_df
         return Response(
             {
                 "file": path.name,
-                "columns": list(df.columns),
-                "data": _df_records(df),
+                "columns": list(data_frame.columns),
+                "data": _df_records(data_frame),
             }
         )
 
@@ -279,12 +279,12 @@ class RossDataView(APIView):
         # Parse binary file and return PE engine DataFrame as JSON
         ross_file = ROSSFile(path)
         ross_file.read()
-        df = ross_file.pe_engine_df
+        data_frame = ross_file.pe_engine_df
         return Response(
             {
                 "file": path.name,
-                "columns": list(df.columns),
-                "data": _df_records(df),
+                "columns": list(data_frame.columns),
+                "data": _df_records(data_frame),
             }
         )
 
