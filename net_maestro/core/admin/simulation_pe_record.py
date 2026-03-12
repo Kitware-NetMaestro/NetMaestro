@@ -17,5 +17,9 @@ class SimulationPeRecordAdmin(admin.ModelAdmin):
         "total_rollbacks",
     ]
     list_filter = [
-        # what would be a goo filter field here?
+        "simulation_file__file",
+        "PE_ID",
+        "events_processed",
+        "events_rolled_back",
+        "total_rollbacks",
     ]
