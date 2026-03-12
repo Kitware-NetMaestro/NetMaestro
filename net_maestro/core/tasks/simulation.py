@@ -18,7 +18,7 @@ def run_simulation_task(simulation_file_pk: int) -> None:
     simulation_file = SimulationFile.objects.get(pk=simulation_file_pk)
 
     # Mapping for three possible models
-    models = {
+    models: dict[RecordType, type[SimulationKpRecord | SimulationLpRecord | SimulationPeRecord]] = {
         RecordType.PE: SimulationPeRecord,
         RecordType.KP: SimulationKpRecord,
         RecordType.LP: SimulationLpRecord,
@@ -29,7 +29,9 @@ def run_simulation_task(simulation_file_pk: int) -> None:
 
     with transaction.atomic():
         parser = SimulationFileParser(content)
-        record_batches = defaultdict(list)
+        record_batches: dict[
+            RecordType, list[SimulationKpRecord | SimulationLpRecord | SimulationPeRecord]
+        ] = defaultdict(list)
 
         # Create batches for each model type
         for record_type, record_data in parser.parse_simulation_records():
@@ -41,4 +43,4 @@ def run_simulation_task(simulation_file_pk: int) -> None:
         # Bulk create batches for each model type
         for record_type, batch in record_batches.items():
             model = models[record_type]
-            model.objects.bulk_create(batch)
+            model.objects.bulk_create(batch)  # type: ignore[arg-type]
