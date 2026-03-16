@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import logging
 
 from celery import shared_task
 from django.db import transaction
@@ -11,6 +12,8 @@ from net_maestro.core.models.simulation_lp_record import SimulationLpRecord
 from net_maestro.core.models.simulation_pe_record import SimulationPeRecord
 from net_maestro.core.parsers.ross_binary_file import RecordType
 from net_maestro.core.parsers.ross_binary_file import ROSSFile as SimulationFileParser
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task
@@ -36,7 +39,10 @@ def run_simulation_task(simulation_file_pk: int) -> None:
         # Create batches for each model type
         for record_type, record_data in parser.parse_simulation_records():
             if record_type in models:
-                model = models[record_type]
+                try:
+                    model = models[record_type]
+                except KeyError:
+                    logger.warning("Unsupported record type found. Expected KP, LP or PE record.")
                 record = model(simulation_file=simulation_file, **record_data)
                 record_batches[record_type].append(record)
 
