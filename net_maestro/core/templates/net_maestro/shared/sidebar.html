@@ -1,17 +1,15 @@
 <div class="menu menu-lg bg-neutral min-h-[calc(100vh-64px)] w-16 flex flex-col">
   <!-- Navigation menu items -->
   <ul class="grid h-screen gap-6 content-baseline">
-    <!-- Base Models section (disabled - future feature) -->
+    <!-- Base Models section -->
     <li>
-      <button
-        type="button"
+      <a
+        href="{% url 'configuration' %}"
         class="flex items-center justify-center"
-        @click="activeItem = 'baseModels'"
         :class="{ 'menu-active': activeItem === 'baseModels' }"
-        disabled
       >
         <i class="ri-stack-line" aria-hidden="true"></i>
-      </button>
+      </a>
     </li>
 
     <!-- Components section (disabled - future feature) -->
@@ -42,14 +40,13 @@
 
     <!-- Results (data visualization) section -->
     <li>
-      <button
-        type="button"
+      <a
+        href="{% url 'analysis' %}"
         class="flex items-center justify-center"
-        @click="activeItem = 'results'"
         :class="{ 'menu-active': activeItem === 'results' }"
       >
         <i class="ri-bar-chart-grouped-line" aria-hidden="true"></i>
-      </button>
+      </a>
     </li>
   </ul>
 </div>
