@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 import factory.django
 
 from net_maestro.core.constants import RunStatus
-from net_maestro.core.models import EventFile, EventRecord, Run
+from net_maestro.core.models import EventFile, EventRecord, Run, SimulationFile, SimulationPeRecord
 
 
 class UserFactory(factory.django.DjangoModelFactory[User]):
@@ -46,3 +46,47 @@ class EventRecordFactory(factory.django.DjangoModelFactory):
     event_type = factory.Faker("pyfloat")
     virtual_send = factory.Faker("pyfloat")
     virtual_receive = factory.Faker("pyfloat")
+
+
+class SimulationFileFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = SimulationFile
+
+    run = factory.SubFactory(RunFactory)
+    uploaded = factory.Faker("date_time_this_decade")
+    file = factory.django.FileField()
+
+
+class SimulationPeRecordFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = SimulationPeRecord
+
+    simulation_file = factory.SubFactory(SimulationFileFactory)
+    PE_ID = factory.Sequence(lambda n: n)
+    events_processed = factory.Faker("pyint", min_value=0)
+    events_aborted = factory.Faker("pyint", min_value=0)
+    events_rolled_back = factory.Faker("pyint", min_value=0)
+    total_rollbacks = factory.Faker("pyint", min_value=0)
+    secondary_rollbacks = factory.Faker("pyint", min_value=0)
+    fossil_collection_attempts = factory.Faker("pyint", min_value=0)
+    pq_queue_size = factory.Faker("pyint", min_value=0)
+    network_sends = factory.Faker("pyint", min_value=0)
+    network_reads = factory.Faker("pyint", min_value=0)
+    number_gvt = factory.Faker("pyint", min_value=0)
+    pe_event_ties = factory.Faker("pyint", min_value=0)
+    all_reduce = factory.Faker("pyint", min_value=0)
+    efficiency = factory.Faker("pyfloat", min_value=0.0, max_value=1.0)
+    network_read_time = factory.Faker("pyfloat", min_value=0.0)
+    network_other_time = factory.Faker("pyfloat", min_value=0.0)
+    gvt_time = factory.Faker("pyfloat", min_value=0.0)
+    fossil_collect_time = factory.Faker("pyfloat", min_value=0.0)
+    event_abort_time = factory.Faker("pyfloat", min_value=0.0)
+    event_process_time = factory.Faker("pyfloat", min_value=0.0)
+    pq_time = factory.Faker("pyfloat", min_value=0.0)
+    rollback_time = factory.Faker("pyfloat", min_value=0.0)
+    cancel_q_time = factory.Faker("pyfloat", min_value=0.0)
+    avl_time = factory.Faker("pyfloat", min_value=0.0)
+    buddy_time = factory.Faker("pyfloat", min_value=0.0)
+    lz4_time = factory.Faker("pyfloat", min_value=0.0)
+    virtual_time = factory.Faker("pyfloat", min_value=0.0)
+    real_time = factory.Faker("pyfloat", min_value=0.0)

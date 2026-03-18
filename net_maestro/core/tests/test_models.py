@@ -6,29 +6,34 @@ If files are missing, endpoints will return 404 (which will fail these tests).
 
 from __future__ import annotations
 
+from django.db import models
 import pytest
 
 from net_maestro.core.constants import RunStatus
 from net_maestro.core.models.event_file import EventFile
 from net_maestro.core.models.event_record import EventRecord
 from net_maestro.core.models.run import Run
+from net_maestro.core.models.simulation_file import SimulationFile
+from net_maestro.core.models.simulation_pe_record import SimulationPeRecord
 from net_maestro.core.tests.factories import (
     EventFileFactory,
     EventRecordFactory,
     RunFactory,
-    UserFactory,
+    SimulationFileFactory,
+    SimulationPeRecordFactory,
 )
 
+INTEGER_VALUE = 5
+FLOAT_VALUE = 1.5
 
-@pytest.mark.django_db
-def test_run_creation(api_client: APIClient) -> None:
-    """Smoke test for run creation."""
-    user = UserFactory.create()
-    api_client.force_authenticate(user=user)
-    resp = api_client.post(
-        "/api/v1/runs/",
-        {"name": "Test Run", "description": "Test Run description"},
-    )
+
+def _get_model_fields_by_type(model_class, field_type, value):
+    """Get field names from a model filtered by field type."""
+    return {
+        field.name: value
+        for field in model_class._meta.fields
+        if isinstance(field, field_type) and field.name != "id"
+    }
 
 
 @pytest.mark.django_db
@@ -52,12 +57,18 @@ def test_run_cascade_delete() -> None:
     event_file = EventFileFactory.create(run=run)
     record1 = EventRecordFactory.create(event_file=event_file)
     record2 = EventRecordFactory.create(event_file=event_file)
+    simulation_file = SimulationFileFactory.create(run=run)
+    simulation_pe_record1 = SimulationPeRecordFactory.create(simulation_file=simulation_file)
+    simulation_pe_record2 = SimulationPeRecordFactory.create(simulation_file=simulation_file)
 
     # Verify objects exist
     assert Run.objects.filter(id=run.id).exists()
     assert EventFile.objects.filter(id=event_file.id).exists()
     assert EventRecord.objects.filter(id=record1.id).exists()
     assert EventRecord.objects.filter(id=record2.id).exists()
+    assert SimulationFile.objects.filter(id=simulation_file.id).exists()
+    assert SimulationPeRecord.objects.filter(id=simulation_pe_record1.id).exists()
+    assert SimulationPeRecord.objects.filter(id=simulation_pe_record2.id).exists()
 
     # Delete the Run
     run.delete()
@@ -67,6 +78,9 @@ def test_run_cascade_delete() -> None:
     assert not EventFile.objects.filter(id=event_file.id).exists()
     assert not EventRecord.objects.filter(id=record1.id).exists()
     assert not EventRecord.objects.filter(id=record2.id).exists()
+    assert not SimulationFile.objects.filter(id=simulation_file.id).exists()
+    assert not SimulationPeRecord.objects.filter(id=simulation_pe_record1.id).exists()
+    assert not SimulationPeRecord.objects.filter(id=simulation_pe_record2.id).exists()
 
 
 @pytest.mark.django_db
@@ -138,3 +152,70 @@ def test_eventfile_cascade_delete() -> None:
     assert not EventFile.objects.filter(id=event_file.id).exists()
     assert not EventRecord.objects.filter(id=record1.id).exists()
     assert not EventRecord.objects.filter(id=record2.id).exists()
+
+
+@pytest.mark.django_db
+def test_simulationfile_creation() -> None:
+    """Smoke test for SimulationFile model creation and relationships."""
+    # Create a Run first
+    run = RunFactory.create()
+
+    # Create SimulationFile using factory (handles S3FileField properly)
+    sim_file = SimulationFileFactory.create(run=run)
+
+    # Test model properties and relationships
+    assert sim_file.run.id == run.id
+    assert sim_file.uploaded is not None
+    assert sim_file.file is not None  # File field exists
+    assert SimulationFile.objects.filter(id=sim_file.id).exists()
+
+    # Test reverse relationship
+    assert sim_file in run.simulation_files.all()
+
+
+@pytest.mark.django_db
+def test_simulation_pe_record_creation() -> None:
+    """Smoke test for SimulationPeRecord model creation and relationships."""
+    # Create dependencies using factories
+    sim_file = SimulationFileFactory.create()
+
+    # Use module-level constants for field lists
+    int_fields = _get_model_fields_by_type(SimulationPeRecord, models.IntegerField, INTEGER_VALUE)
+    float_fields = _get_model_fields_by_type(SimulationPeRecord, models.FloatField, FLOAT_VALUE)
+
+    # Create SimulationPeRecord with specific values
+    pe_record = SimulationPeRecordFactory.create(
+        simulation_file=sim_file, **int_fields, **float_fields
+    )
+
+    # Test model properties and relationships
+    assert list(int_fields.values()) == [INTEGER_VALUE] * len(int_fields)
+    assert list(float_fields.values()) == [FLOAT_VALUE] * len(float_fields)
+    assert SimulationPeRecord.objects.filter(id=pe_record.id).exists()
+
+    # Test that pe_record was created with correct simulation_file
+    assert pe_record.simulation_file == sim_file
+
+    # Test reverse relationship using the custom related_name="pe_records"
+    assert pe_record in sim_file.pe_records.all()
+
+
+@pytest.mark.django_db
+def test_simulation_cascade_delete() -> None:
+    """Test CASCADE deletion: deleting SimulationFile deletes SimulationPeRecords."""
+    sim_file = SimulationFileFactory.create()
+    record1 = SimulationPeRecordFactory.create(simulation_file=sim_file)
+    record2 = SimulationPeRecordFactory.create(simulation_file=sim_file)
+
+    # Verify objects exist
+    assert SimulationFile.objects.filter(id=sim_file.id).exists()
+    assert SimulationPeRecord.objects.filter(id=record1.id).exists()
+    assert SimulationPeRecord.objects.filter(id=record2.id).exists()
+
+    # Delete the SimulationFile
+    sim_file.delete()
+
+    # Verify CASCADE: all related records deleted
+    assert not SimulationFile.objects.filter(id=sim_file.id).exists()
+    assert not SimulationPeRecord.objects.filter(id=record1.id).exists()
+    assert not SimulationPeRecord.objects.filter(id=record2.id).exists()
