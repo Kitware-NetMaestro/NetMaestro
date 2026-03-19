@@ -38,13 +38,9 @@ def run_simulation_task(simulation_file_pk: int) -> None:
 
         # Create batches for each model type
         for record_type, record_data in parser.parse_simulation_records():
-            if record_type in models:
-                try:
-                    model = models[record_type]
-                except KeyError:
-                    logger.warning("Unsupported record type found. Expected KP, LP or PE record.")
-                record = model(simulation_file=simulation_file, **record_data)
-                record_batches[record_type].append(record)
+            model = models[record_type]
+            record = model(simulation_file=simulation_file, **record_data)
+            record_batches[record_type].append(record)
 
         # Bulk create batches for each model type
         for record_type, batch in record_batches.items():
