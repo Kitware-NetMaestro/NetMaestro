@@ -12,12 +12,16 @@ import pytest
 from net_maestro.core.constants import RunStatus
 from net_maestro.core.models.event_file import EventFile
 from net_maestro.core.models.event_record import EventRecord
+from net_maestro.core.models.model_file import ModelFile
+from net_maestro.core.models.model_record import ModelRecord
 from net_maestro.core.models.run import Run
 from net_maestro.core.models.simulation_file import SimulationFile
 from net_maestro.core.models.simulation_pe_record import SimulationPeRecord
 from net_maestro.core.tests.factories import (
     EventFileFactory,
     EventRecordFactory,
+    ModelFileFactory,
+    ModelRecordFactory,
     RunFactory,
     SimulationFileFactory,
     SimulationPeRecordFactory,
@@ -60,6 +64,9 @@ def test_run_cascade_delete() -> None:
     simulation_file = SimulationFileFactory.create(run=run)
     simulation_pe_record1 = SimulationPeRecordFactory.create(simulation_file=simulation_file)
     simulation_pe_record2 = SimulationPeRecordFactory.create(simulation_file=simulation_file)
+    model_file = ModelFileFactory.create(run=run)
+    model_record1 = ModelRecordFactory.create(model_file=model_file)
+    model_record2 = ModelRecordFactory.create(model_file=model_file)
 
     # Verify objects exist
     assert Run.objects.filter(id=run.id).exists()
@@ -69,6 +76,9 @@ def test_run_cascade_delete() -> None:
     assert SimulationFile.objects.filter(id=simulation_file.id).exists()
     assert SimulationPeRecord.objects.filter(id=simulation_pe_record1.id).exists()
     assert SimulationPeRecord.objects.filter(id=simulation_pe_record2.id).exists()
+    assert ModelFile.objects.filter(id=model_file.id).exists()
+    assert ModelRecord.objects.filter(id=model_record1.id).exists()
+    assert ModelRecord.objects.filter(id=model_record2.id).exists()
 
     # Delete the Run
     run.delete()
@@ -81,6 +91,9 @@ def test_run_cascade_delete() -> None:
     assert not SimulationFile.objects.filter(id=simulation_file.id).exists()
     assert not SimulationPeRecord.objects.filter(id=simulation_pe_record1.id).exists()
     assert not SimulationPeRecord.objects.filter(id=simulation_pe_record2.id).exists()
+    assert not ModelFile.objects.filter(id=model_file.id).exists()
+    assert not ModelRecord.objects.filter(id=model_record1.id).exists()
+    assert not ModelRecord.objects.filter(id=model_record2.id).exists()
 
 
 @pytest.mark.django_db
@@ -219,3 +232,65 @@ def test_simulation_cascade_delete() -> None:
     assert not SimulationFile.objects.filter(id=sim_file.id).exists()
     assert not SimulationPeRecord.objects.filter(id=record1.id).exists()
     assert not SimulationPeRecord.objects.filter(id=record2.id).exists()
+
+
+@pytest.mark.django_db
+def test_model_file_creation() -> None:
+    """Smoke test for ModelFile model creation and relationships."""
+    # Create dependencies using factories
+    run = RunFactory.create()
+
+    # Create ModelFile with specific values
+    model_file = ModelFileFactory.create(run=run)
+
+    # Test model properties and relationships
+    assert ModelFile.objects.filter(id=model_file.id).exists()
+
+    # Test reverse relationship
+    assert model_file in run.model_files.all()
+
+
+@pytest.mark.django_db
+def test_model_record_creation() -> None:
+    """Smoke test for ModelRecord model creation and relationships."""
+    # Create dependencies using factories
+    model_file = ModelFileFactory.create()
+
+    # Use module-level constants for field lists
+    int_fields = _get_model_fields_by_type(ModelRecord, models.IntegerField, INTEGER_VALUE)
+    float_fields = _get_model_fields_by_type(ModelRecord, models.FloatField, FLOAT_VALUE)
+
+    # Create ModelRecord with specific values
+    model_record = ModelRecordFactory.create(model_file=model_file, **int_fields, **float_fields)
+
+    # Test model properties and relationships
+    assert list(int_fields.values()) == [INTEGER_VALUE] * len(int_fields)
+    assert list(float_fields.values()) == [FLOAT_VALUE] * len(float_fields)
+    assert ModelRecord.objects.filter(id=model_record.id).exists()
+
+    # Test that model_record was created with correct model_file
+    assert model_record.model_file == model_file
+
+    # Test reverse relationship using the custom related_name="model_records"
+    assert model_record in model_file.model_records.all()
+
+
+@pytest.mark.django_db
+def test_model_cascade_delete() -> None:
+    """Test CASCADE deletion: deleting ModelFile deletes ModelRecords."""
+    model_file = ModelFileFactory.create()
+    record1 = ModelRecordFactory.create(model_file=model_file)
+    record2 = ModelRecordFactory.create(model_file=model_file)
+
+    # Verify objects exist
+    assert ModelFile.objects.filter(id=model_file.id).exists()
+    assert ModelRecord.objects.filter(id=record1.id).exists()
+    assert ModelRecord.objects.filter(id=record2.id).exists()
+
+    # Delete the ModelFile
+    model_file.delete()
+
+    # Verify CASCADE: all related records deleted
+    assert not ModelFile.objects.filter(id=model_file.id).exists()
+    assert not ModelRecord.objects.filter(id=record1.id).exists()
+    assert not ModelRecord.objects.filter(id=record2.id).exists()
