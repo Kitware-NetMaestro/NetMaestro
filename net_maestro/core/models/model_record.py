@@ -6,7 +6,9 @@ from net_maestro.core.models.model_file import ModelFile
 
 
 class ModelRecord(models.Model):
-    model_file = models.ForeignKey(ModelFile, on_delete=models.CASCADE)
+    model_file = models.ForeignKey(
+        ModelFile, on_delete=models.CASCADE, related_name="model_records"
+    )
 
     lp_id = models.IntegerField()
     component_id = models.IntegerField()

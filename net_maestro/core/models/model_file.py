@@ -7,7 +7,7 @@ from net_maestro.core.models.run import Run
 
 
 class ModelFile(models.Model):
-    run = models.ForeignKey(Run, on_delete=models.CASCADE)
+    run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name="model_files")
     uploaded = models.DateTimeField(auto_now_add=True)
 
     file = S3FileField()

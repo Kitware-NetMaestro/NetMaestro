@@ -99,7 +99,7 @@ def test_eventfile_creation() -> None:
     assert EventFile.objects.filter(id=event_file.id).exists()
 
     # Test reverse relationship
-    assert event_file in run.eventfile_set.all()
+    assert event_file in run.event_files.all()
 
 
 @pytest.mark.django_db
@@ -130,7 +130,7 @@ def test_event_record_creation() -> None:
     assert EventRecord.objects.filter(id=event_record.id).exists()
 
     # Test reverse relationship
-    assert event_record in event_file.eventrecord_set.all()
+    assert event_record in event_file.event_records.all()
 
 
 @pytest.mark.django_db
