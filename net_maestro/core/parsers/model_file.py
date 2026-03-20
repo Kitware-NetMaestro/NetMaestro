@@ -118,12 +118,20 @@ class ModelFileParser:
                 sp_tuple = self.simplep2p_struct.unpack_from(self.content, byte_pos)
                 byte_pos += self.simplep2p_size
                 sp_data = SimpleP2P(*sp_tuple)
-                sp_data_dict = sp_data._asdict()
-                sp_data_dict["lp_id"] = metadata.lp_id
-                sp_data_dict["virtual_time"] = metadata.virtual_time
-                sp_data_dict["real_time"] = metadata.real_time
+                record: ModelRecordDict = {
+                    "lp_id": metadata.lp_id,
+                    "component_id": sp_data.component_id,
+                    "send_count": sp_data.send_count,
+                    "send_bytes": sp_data.send_bytes,
+                    "send_time": sp_data.send_time,
+                    "receive_count": sp_data.receive_count,
+                    "receive_bytes": sp_data.receive_bytes,
+                    "receive_time": sp_data.receive_time,
+                    "virtual_time": metadata.virtual_time,
+                    "real_time": metadata.real_time,
+                }
 
-                yield sp_data_dict
+                yield record
             else:
                 remaining = len(self.content) - byte_pos
                 logger.warning(
