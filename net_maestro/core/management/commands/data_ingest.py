@@ -14,6 +14,7 @@ from net_maestro.core.constants import RunStatus
 from net_maestro.core.models import EventFile, ModelFile, Run, SimulationFile
 from net_maestro.core.tasks.events import run_event_task
 from net_maestro.core.tasks.models import run_model_task
+from net_maestro.core.tasks.simulation import run_simulation_task
 
 
 @click.command()
