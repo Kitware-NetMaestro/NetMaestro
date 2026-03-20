@@ -12,9 +12,7 @@ import djclick as click
 
 from net_maestro.core.constants import RunStatus
 from net_maestro.core.models import EventFile, ModelFile, Run, SimulationFile
-from net_maestro.core.tasks.events import run_event_task
-from net_maestro.core.tasks.models import run_model_task
-from net_maestro.core.tasks.simulation import run_simulation_task
+from net_maestro.core.tasks import run_event_task, run_model_task, run_simulation_task
 
 
 @click.command()
@@ -84,11 +82,11 @@ def data_ingest(  # noqa: PLR0913
                 file=File(file_handle),
             )
 
-        event_handler = run_event_task.s(event_file_pk=event_file_obj.pk)
+        run_event_signature = run_event_task.s(event_file_pk=event_file_obj.pk)
         if immediate:
-            event_handler.apply()
+            run_event_signature.apply()
         else:
-            event_handler.delay()
+            run_event_signature.delay()
 
     if simulation_file:
         with simulation_file.open("rb") as sim_reader:
@@ -102,7 +100,6 @@ def data_ingest(  # noqa: PLR0913
             run_simulation_signature.apply()
         else:
             run_simulation_signature.delay()
-            SimulationFile.objects.create(run=new_run, file=File(sim_reader))
 
     if model_file:
         with model_file.open("rb") as file_handle:
@@ -111,8 +108,8 @@ def data_ingest(  # noqa: PLR0913
                 file=File(file_handle),
             )
 
-        model_handler = run_model_task.s(model_file_pk=model_file_obj.pk)
+        run_model_signature = run_model_task.s(model_file_pk=model_file_obj.pk)
         if immediate:
-            model_handler.apply()
+            run_model_signature.apply()
         else:
-            model_handler.delay()
+            run_model_signature.delay()
