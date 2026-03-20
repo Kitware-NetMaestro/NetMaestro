@@ -122,24 +122,14 @@ def test_event_record_creation() -> None:
     event_file = EventFileFactory.create()
 
     # Create EventRecord with specific values
-    event_record = EventRecordFactory.create(
-        event_file=event_file,
-        source_lp=0.1,
-        dest_lp=0.2,
-        time_step=0,
-        event_type=1.0,
-        virtual_send=1.5,
-        virtual_receive=2.5,
-    )
+    int_fields = _get_model_fields_by_type(EventRecord, models.IntegerField, INTEGER_VALUE)
+    float_fields = _get_model_fields_by_type(EventRecord, models.FloatField, FLOAT_VALUE)
+    event_record = EventRecordFactory.create(event_file=event_file, **int_fields, **float_fields)
 
     # Test model properties and relationships
     assert event_record.event_file.id == event_file.id
-    assert event_record.source_lp == 0.1
-    assert event_record.dest_lp == 0.2
-    assert event_record.time_step == 0
-    assert event_record.event_type == 1.0
-    assert event_record.virtual_send == 1.5
-    assert event_record.virtual_receive == 2.5
+    assert list(int_fields.values()) == [INTEGER_VALUE] * len(int_fields)
+    assert list(float_fields.values()) == [FLOAT_VALUE] * len(float_fields)
     assert EventRecord.objects.filter(id=event_record.id).exists()
 
     # Test reverse relationship
