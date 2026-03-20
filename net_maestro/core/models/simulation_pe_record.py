@@ -2,28 +2,22 @@ from __future__ import annotations
 
 from django.db import models
 
-from net_maestro.core.models.simulation_file import SimulationFile
+from net_maestro.core.models import SimulationBaseRecord, SimulationFile
 
 
-class SimulationPeRecord(models.Model):
+class SimulationPeRecord(SimulationBaseRecord):
     simulation_file = models.ForeignKey(
         SimulationFile, on_delete=models.CASCADE, related_name="pe_records"
     )
 
-    PE_ID = models.IntegerField()
-    events_processed = models.IntegerField()
     events_aborted = models.IntegerField()
-    events_rolled_back = models.IntegerField()
     total_rollbacks = models.IntegerField()
     secondary_rollbacks = models.IntegerField()
     fossil_collection_attempts = models.IntegerField()
     pq_queue_size = models.IntegerField()
-    network_sends = models.IntegerField()
-    network_reads = models.IntegerField()
     number_gvt = models.IntegerField()
     pe_event_ties = models.IntegerField()
     all_reduce = models.IntegerField()
-    efficiency = models.FloatField()
     network_read_time = models.FloatField()
     network_other_time = models.FloatField()
     gvt_time = models.FloatField()
@@ -36,8 +30,6 @@ class SimulationPeRecord(models.Model):
     avl_time = models.FloatField()
     buddy_time = models.FloatField()
     lz4_time = models.FloatField()
-    virtual_time = models.FloatField()
-    real_time = models.FloatField()
 
     def __str__(self) -> str:
         return f"PeRecord {self.id}"

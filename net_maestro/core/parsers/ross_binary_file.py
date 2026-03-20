@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from dataclasses import asdict, dataclass
 from enum import Enum
 import logging
 from pathlib import Path
@@ -39,51 +40,28 @@ class RecordType(Enum):
 # Payload structs
 PE_FORMAT = f"{ENDIAN}13I13f"
 PE_STRUCT = struct.Struct(PE_FORMAT)
-PE_FIELDS = (
-    "PE_ID",
-    "events_processed",
-    "events_aborted",
-    "events_rolled_back",
-    "total_rollbacks",
-    "secondary_rollbacks",
-    "fossil_collection_attempts",
-    "pq_queue_size",
-    "network_sends",
-    "network_reads",
-    "number_gvt",
-    "pe_event_ties",
-    "all_reduce",
-    "efficiency",
-    "network_read_time",
-    "network_other_time",
-    "gvt_time",
-    "fossil_collect_time",
-    "event_abort_time",
-    "event_process_time",
-    "pq_time",
-    "rollback_time",
-    "cancel_q_time",
-    "avl_time",
-    "buddy_time",
-    "lz4_time",
-)
 
 
-class PE(NamedTuple):
+@dataclass
+class BaseType:
     PE_ID: int
     events_processed: int
-    events_aborted: int
     events_rolled_back: int
+    network_sends: int
+    network_reads: int
+    efficiency: float
+
+
+@dataclass
+class PE(BaseType):
+    events_aborted: int
     total_rollbacks: int
     secondary_rollbacks: int
     fossil_collection_attempts: int
     pq_queue_size: int
-    network_sends: int
-    network_reads: int
     number_gvt: int
     pe_event_ties: int
     all_reduce: int
-    efficiency: float
     network_read_time: float
     network_other_time: float
     gvt_time: float
@@ -100,61 +78,27 @@ class PE(NamedTuple):
 
 KP_FORMAT = f"{ENDIAN}9I2f"
 KP_STRUCT = struct.Struct(KP_FORMAT)
-KP_FIELDS = (
-    "PE_ID",
-    "KP_ID",
-    "events_processed",
-    "events_abort",
-    "events_rolled_back",
-    "total_rollbacks",
-    "secondary_rollbacks",
-    "network_sends",
-    "network_reads",
-    "time_ahead_gvt",
-    "efficiency",
-)
 
 
-class KP(NamedTuple):
-    PE_ID: int
+@dataclass
+class KP(BaseType):
     KP_ID: int
-    events_processed: int
     events_abort: int
-    events_rolled_back: int
     total_rollbacks: int
     secondary_rollbacks: int
-    network_sends: int
-    network_reads: int
     time_ahead_gvt: float
-    efficiency: float
 
 
 # More explicit name for "LP"
 LP_FORMAT = f"{ENDIAN}8If"
 LP_STRUCT = struct.Struct(LP_FORMAT)
-LP_FIELDS = (
-    "PE_ID",
-    "KP_ID",
-    "LP_ID",
-    "events_processed",
-    "events_abort",
-    "events_rolled_back",
-    "network_sends",
-    "network_reads",
-    "efficiency",
-)
 
 
-class LP(NamedTuple):
-    PE_ID: int
+@dataclass
+class LP(BaseType):
     KP_ID: int
     LP_ID: int
-    events_processed: int
     events_abort: int
-    events_rolled_back: int
-    network_sends: int
-    network_reads: int
-    efficiency: float
 
 
 # Default Values
@@ -215,7 +159,7 @@ class ROSSFile:
                 byte_pos += self._proc_elem_size
                 pe_data = PE(*pe_tuple)
                 record_type = RecordType.PE
-                record_data = pe_data._asdict()
+                record_data = asdict(pe_data)
                 record_data["virtual_time"] = metadata.virtual_time
                 record_data["real_time"] = metadata.real_time
             elif metadata.sample_size == self._kernel_proc_size and (
@@ -225,7 +169,7 @@ class ROSSFile:
                 byte_pos += self._kernel_proc_size
                 kp_data = KP(*kp_tuple)
                 record_type = RecordType.KP
-                record_data = kp_data._asdict()
+                record_data = asdict(kp_data)
                 record_data["virtual_time"] = metadata.virtual_time
                 record_data["real_time"] = metadata.real_time
             elif metadata.sample_size == self.lp_size and (byte_pos + self.lp_size) <= len(
@@ -235,7 +179,7 @@ class ROSSFile:
                 byte_pos += self.lp_size
                 lp_data = LP(*lp_tuple)
                 record_type = RecordType.LP
-                record_data = lp_data._asdict()
+                record_data = asdict(lp_data)
                 record_data["virtual_time"] = metadata.virtual_time
                 record_data["real_time"] = metadata.real_time
             else:
