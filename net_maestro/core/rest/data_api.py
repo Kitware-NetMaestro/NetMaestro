@@ -177,6 +177,7 @@ class EventDataView(APIView):
 
         # Parse binary file and return network DataFrame as JSON
         parser = EventFileParser(path)
+        parser.read()
         df = parser.network_df
         return Response(
             {
