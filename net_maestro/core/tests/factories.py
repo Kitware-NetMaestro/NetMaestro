@@ -4,7 +4,15 @@ from django.contrib.auth.models import User
 import factory.django
 
 from net_maestro.core.constants import RunStatus
-from net_maestro.core.models import EventFile, EventRecord, Run, SimulationFile, SimulationPeRecord
+from net_maestro.core.models import (
+    EventFile,
+    EventRecord,
+    ModelFile,
+    ModelRecord,
+    Run,
+    SimulationFile,
+    SimulationPeRecord,
+)
 
 
 class UserFactory(factory.django.DjangoModelFactory[User]):
@@ -90,3 +98,30 @@ class SimulationPeRecordFactory(factory.django.DjangoModelFactory):
     lz4_time = factory.Faker("pyfloat", min_value=0.0)
     virtual_time = factory.Faker("pyfloat", min_value=0.0)
     real_time = factory.Faker("pyfloat", min_value=0.0)
+
+
+class ModelFileFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = ModelFile
+
+    run = factory.SubFactory(RunFactory)
+    uploaded = factory.Faker("date_time_this_decade")
+    file = factory.django.FileField()
+
+
+class ModelRecordFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = ModelRecord
+
+    model_file = factory.SubFactory(ModelFileFactory)
+
+    lp_id = factory.Faker("pyint", min_value=0)
+    component_id = factory.Faker("pyint", min_value=0)
+    virtual_time = factory.Faker("pyfloat", min_value=0.0)
+    real_time = factory.Faker("pyfloat", min_value=0.0)
+    send_count = factory.Faker("pyint", min_value=0)
+    send_bytes = factory.Faker("pyint", min_value=0)
+    send_time = factory.Faker("pyfloat", min_value=0.0)
+    receive_count = factory.Faker("pyint", min_value=0)
+    receive_bytes = factory.Faker("pyint", min_value=0)
+    receive_time = factory.Faker("pyfloat", min_value=0.0)
