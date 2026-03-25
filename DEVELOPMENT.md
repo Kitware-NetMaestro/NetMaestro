@@ -2,71 +2,38 @@
 
 This guide covers development setup, testing, and code quality tools for Net Maestro contributors.
 
-## Development Setup
+## Setup
+1. Install [VS Code with dev container support](https://code.visualstudio.com/docs/devcontainers/containers#_installation).
+1. Open the project in VS Code, then run `Dev Containers: Reopen in Container`
+   from the Command Palette (`Ctrl+Shift+P`).
+1. Once the container is ready, open a terminal and run:
+   ```sh
+   ./manage.py migrate
+   ./manage.py createsuperuser
+   ```
 
-### Option 1: Develop with Docker (recommended quickstart)
-This is the simplest configuration for developers to start with.
+## Run
+Open the **Run and Debug** panel (`Ctrl+Shift+D`) and select a launch configuration:
 
-#### Initial Setup
-1. Run `docker compose run --rm django ./manage.py migrate`
-2. Run `docker compose run --rm django ./manage.py createsuperuser`
-   and follow the prompts to create your own user
+* **Django: Server** — Starts the development server at http://localhost:8000/
+* **Django: Server (eager Celery)** — Same, but Celery tasks run synchronously
+  in the web process (useful for debugging task code without a worker)
+* **Celery: Worker** — Starts only the Celery worker
+* **Django + Celery** — Starts both the server and a Celery worker
+* **Django: Management Command** — Pick and run any management command
 
-#### Run Application
-1. Run `docker compose up`
-2. Access the site, starting at <http://localhost:8000/admin/>
-3. When finished, use `Ctrl+C`
+## Test
+Run the full test suite from a terminal: `tox`
 
-#### Maintenance
-To non-destructively update your development stack at any time:
-1. Run `docker compose down`
-2. Run `docker compose pull`
-3. Run `docker compose build --pull`
-4. Run `docker compose run --rm django ./manage.py migrate`
+Auto-format code: `tox -e format`
 
-#### Destruction
-1. Run `docker compose down -v`
+Run and debug individual tests from the **Testing** panel (`Ctrl+Shift+;`).
 
-### Option 2: Develop Natively (advanced)
-This configuration still uses Docker to run attached services in the background,
-but allows developers to run Python code on their native system.
+## Rebuild
+After changes to the Dockerfile, Docker Compose files, or `devcontainer.json`,
+run `Dev Containers: Rebuild Container` from the Command Palette (`Ctrl+Shift+P`).
 
-#### Initial Setup
-1. Run `docker compose -f ./docker-compose.yml up -d`
-2. [Install `uv`](https://docs.astral.sh/uv/getting-started/installation/)
-3. Run `export UV_ENV_FILE=./dev/.env.docker-compose-native`
-4. Run `./manage.py migrate`
-5. Run `./manage.py createsuperuser` and follow the prompts to create your own user
-
-#### Run Application
-1. Ensure `docker compose -f ./docker-compose.yml up -d` is still active
-2. Run `export UV_ENV_FILE=./dev/.env.docker-compose-native`
-3. Run: `./manage.py runserver_plus`
-4. Run in a separate terminal: `uv run celery --app net_maestro.celery worker --loglevel INFO --without-heartbeat`
-5. When finished, run `docker compose stop`
-
-## Testing
-
-### Initial Setup
-tox is used to manage the execution of all tests.
-[Install `uv`](https://docs.astral.sh/uv/getting-started/installation/) and run tox with
-`uv run tox ...`.
-
-When running the "Develop with Docker" configuration, all tox commands must be run as
-`docker compose run --rm django uv run tox`; extra arguments may also be appended to this form.
-
-### Running Tests
-Run `uv run tox` to launch the full test suite.
-
-Individual test environments may be selectively run.
-This also allows additional options to be be added.
-Useful sub-commands include:
-* `uv run tox -e lint`: Run only the style checks
-* `uv run tox -e type`: Run only the type checks
-* `uv run tox -e test`: Run only the pytest-driven tests
-
-To automatically reformat all code to comply with
-some (but not all) of the style checks, run `uv run tox -e format`.
+For dependency changes in `pyproject.toml`, just run `uv sync --all-extras --all-groups`.
 
 ## Code Quality with Pre-commit
 
@@ -74,7 +41,7 @@ This project uses pre-commit hooks to enforce code quality standards before comm
 
 ### Initial Setup
 1. Run `uv sync` to install dependencies including pre-commit
-2. Run `uv run pre-commit install` to install the git hooks
+2. Run `pre-commit install` to install the git hooks
 
 ### What Pre-commit Checks
 Pre-commit automatically runs the following checks on staged files:
@@ -83,26 +50,19 @@ Pre-commit automatically runs the following checks on staged files:
 * **Linting**: flake8 with plugins for docstrings, bugbear, quotes, and naming conventions
 
 **Note**: Type checking (mypy) and Django migrations checks are **not** included in pre-commit because they require a full Django environment setup. Run these via tox instead:
-* Type checking: `uv run tox -e type`
-* Migrations check: `uv run tox -e check-migrations`
-* All checks: `uv run tox`
+* Type checking: `tox -e type`
+* Migrations check: `tox -e check-migrations`
+* All checks: `tox`
 
 ### Usage
 Pre-commit hooks run automatically when you commit. If any check fails, the commit is blocked and you'll see which files need fixes.
 
 To manually run pre-commit on all files:
 ```bash
-uv run pre-commit run --all-files
+pre-commit run --all-files
 ```
 
 To skip pre-commit hooks (not recommended):
 ```bash
 git commit --no-verify
-```
-
-### Docker Development
-When using the Docker development setup, install pre-commit in your host environment (not in the container) so it runs on git commits:
-```bash
-uv sync
-uv run pre-commit install
 ```
