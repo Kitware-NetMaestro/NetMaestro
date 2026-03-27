@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 
 from celery import shared_task
-from django.db import transaction
 
 from net_maestro.core.models.event_file import EventFile
 from net_maestro.core.models.event_record import EventRecord
@@ -20,10 +19,9 @@ def run_event_task(event_file_pk: int) -> None:
     with event_file_model.file.open("rb") as f:
         content = f.read()
 
-    with transaction.atomic():
-        parser = EventFileParser(content)
-        batch = [
-            EventRecord(event_file=event_file_model, **rec_dict)
-            for rec_dict in parser.parse_event_records()
-        ]
-        EventRecord.objects.bulk_create(batch)
+    parser = EventFileParser(content)
+    batch = [
+        EventRecord(event_file=event_file_model, **rec_dict)
+        for rec_dict in parser.parse_event_records()
+    ]
+    EventRecord.objects.bulk_create(batch)

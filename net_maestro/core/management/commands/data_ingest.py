@@ -11,8 +11,8 @@ from django.core.files import File
 import djclick as click
 
 from net_maestro.core.constants import RunStatus
-from net_maestro.core.models import EventFile, Run, SimulationFile
-from net_maestro.core.tasks import run_event_task, run_simulation_task
+from net_maestro.core.models import EventFile, ModelFile, Run, SimulationFile
+from net_maestro.core.tasks import run_event_task, run_model_task, run_simulation_task
 
 
 @click.command()
@@ -82,11 +82,11 @@ def data_ingest(  # noqa: PLR0913
                 file=File(file_handle),
             )
 
-        task = run_event_task.s(event_file_pk=event_file_obj.pk)
+        run_event_signature = run_event_task.s(event_file_pk=event_file_obj.pk)
         if immediate:
-            task.apply()
+            run_event_signature.apply()
         else:
-            task.delay()
+            run_event_signature.delay()
 
     if simulation_file:
         with simulation_file.open("rb") as sim_reader:
@@ -100,3 +100,16 @@ def data_ingest(  # noqa: PLR0913
             run_simulation_signature.apply()
         else:
             run_simulation_signature.delay()
+
+    if model_file:
+        with model_file.open("rb") as file_handle:
+            model_file_obj = ModelFile.objects.create(
+                run=new_run,
+                file=File(file_handle),
+            )
+
+        run_model_signature = run_model_task.s(model_file_pk=model_file_obj.pk)
+        if immediate:
+            run_model_signature.apply()
+        else:
+            run_model_signature.delay()

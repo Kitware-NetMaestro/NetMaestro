@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 import struct
 from struct import Struct
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple, TypedDict
 
 import pandas as pd
 
 from .schema import ENDIAN, validate_time_columns
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from collections.abc import Generator
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,19 @@ class SimpleP2P(NamedTuple):
     receive_time: float
 
 
+class ModelRecordDict(TypedDict):
+    lp_id: int
+    component_id: int
+    send_count: int
+    send_bytes: int
+    send_time: float
+    receive_count: int
+    receive_bytes: int
+    receive_time: float
+    virtual_time: float
+    real_time: float
+
+
 # Flag #3 is model data
 FLAG_MODEL_DATA = 3
 
@@ -63,12 +77,15 @@ ALT_TIME_KEY = "real_time"
 TIME_COLUMNS = [DEFAULT_TIME_KEY, ALT_TIME_KEY]
 
 
-class ModelFile:
+class ModelFileParser:
     """Parser for model analysis Logical Process (LP) binary files."""
 
-    def __init__(self, filename: Path) -> None:
-        with filename.open("rb") as f:
-            self.content: bytes = f.read()
+    def __init__(self, source: Path | bytes) -> None:
+        if isinstance(source, Path):
+            with source.open("rb") as f:
+                self.content = f.read()
+        else:
+            self.content = source
 
         self.metadata_struct: Struct = META_STRUCT
         self.metadata_size: int = META_STRUCT.size
@@ -84,8 +101,8 @@ class ModelFile:
         self._min_time: float | None = None
         self._max_time: float | None = None
 
-    def read(self) -> None:
-        sample_list: list[pd.DataFrame] = []
+    def parse_model_records(self) -> Generator[ModelRecordDict]:
+        """Yield individual model records as typed dicts."""
         byte_pos = 0
 
         while byte_pos + self.metadata_size <= len(self.content):
@@ -101,13 +118,21 @@ class ModelFile:
                 sp_tuple = self.simplep2p_struct.unpack_from(self.content, byte_pos)
                 byte_pos += self.simplep2p_size
                 sp_data = SimpleP2P(*sp_tuple)
-                df = pd.DataFrame([sp_data])
-                df["lp_id"] = metadata.lp_id
-                df["virtual_time"] = metadata.virtual_time
-                df["real_time"] = metadata.real_time
-                sample_list.append(df)
+                record: ModelRecordDict = {
+                    "lp_id": metadata.lp_id,
+                    "component_id": sp_data.component_id,
+                    "send_count": sp_data.send_count,
+                    "send_bytes": sp_data.send_bytes,
+                    "send_time": sp_data.send_time,
+                    "receive_count": sp_data.receive_count,
+                    "receive_bytes": sp_data.receive_bytes,
+                    "receive_time": sp_data.receive_time,
+                    "virtual_time": metadata.virtual_time,
+                    "real_time": metadata.real_time,
+                }
+
+                yield record
             else:
-                # Unknown payload size or flag
                 remaining = len(self.content) - byte_pos
                 logger.warning(
                     "Stopping parse due to invalid payload size: size=%d, remaining=%d",
@@ -116,12 +141,21 @@ class ModelFile:
                 )
                 break
 
-        self.simplep2p_df = validate_time_columns(
-            pd.concat(sample_list, ignore_index=True), TIME_COLUMNS
-        )
-        if not self.simplep2p_df.empty:
-            self.min_time = float(self.simplep2p_df[self.time_variable].min())
-            self.max_time = float(self.simplep2p_df[self.time_variable].max())
+    def read(self) -> None:
+        """Parse the entire file and build a DataFrame.
+
+        Uses parse_model_records() generator to build the DataFrame for
+        visualization and analysis purposes.
+        """
+        records = list(self.parse_model_records())
+
+        if records:
+            self.simplep2p_df = validate_time_columns(pd.DataFrame(records), TIME_COLUMNS)
+            if not self.simplep2p_df.empty:
+                self.min_time = float(self.simplep2p_df[self.time_variable].min())
+                self.max_time = float(self.simplep2p_df[self.time_variable].max())
+        else:
+            self.simplep2p_df = pd.DataFrame()
 
     @property
     def max_time(self) -> float | None:
