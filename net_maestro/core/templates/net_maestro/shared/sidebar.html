@@ -5,8 +5,14 @@
     <li>
       <a
         href="{% url 'configuration' %}"
+        hx-get="{% url 'configuration' %}"
+        hx-target="#main-content"
+        hx-select="#main-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
         class="flex items-center justify-center"
         :class="{ 'menu-active': activeItem === 'baseModels' }"
+        @click="activeItem = 'baseModels'"
       >
         <i class="ri-stack-line" aria-hidden="true"></i>
       </a>
@@ -42,8 +48,14 @@
     <li>
       <a
         href="{% url 'analysis' %}"
+        hx-get="{% url 'analysis' %}"
+        hx-target="#main-content"
+        hx-select="#main-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
         class="flex items-center justify-center"
         :class="{ 'menu-active': activeItem === 'results' }"
+        @click="activeItem = 'results'"
       >
         <i class="ri-bar-chart-grouped-line" aria-hidden="true"></i>
       </a>
