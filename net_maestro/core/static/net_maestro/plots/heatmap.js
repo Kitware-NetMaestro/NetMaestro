@@ -22,6 +22,12 @@ document.addEventListener('alpine:init', () => {
      * Initialize the component and set up watchers.
      */
     init() {
+      // Load cached data if available
+      if (this.$store.dataStore.eventDataCache) {
+        this.load();
+      }
+
+      // Watch for new data loads
       this.$watch('$store.dataStore.loadTick', () => {
         this.load();
       });

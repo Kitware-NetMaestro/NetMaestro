@@ -32,6 +32,12 @@ document.addEventListener('alpine:init', () => {
      * Called automatically by Alpine.js when component mounts.
      */
     init() {
+      // Load cached data if available
+      if (this.$store.dataStore.modelDataCache) {
+        this.load();
+      }
+
+      // Watch for new data loads
       this.$watch('$store.dataStore.loadTick', () => {
         this.load();
       });
