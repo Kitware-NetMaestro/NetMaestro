@@ -7,8 +7,8 @@ document.addEventListener('alpine:init', () => {
     // Component state
     records: [],
     columns: [],
-    selectedXAxis: 'events_processed',
-    selectedYAxis: 'events_rolled_back',
+    selectedXAxis: null,
+    selectedYAxis: null,
     scatterPlotEl: null,
     isPlotInitialized: false,
     isLoaded: false,
@@ -28,6 +28,23 @@ document.addEventListener('alpine:init', () => {
      * Initialize the component and set up watchers.
      */
     init() {
+      // Restore UI state
+      const savedState = this.$store.uiStateStore.getUIState('scatterPlot');
+      this.selectedXAxis = savedState.selectedXAxis || 'events_processed';
+      this.selectedYAxis = savedState.selectedYAxis || 'events_rolled_back';
+
+      this.$watch('selectedXAxis', (newValue) => {
+        if (newValue) {
+          this.$store.uiStateStore.saveUIState('scatterPlot', { selectedXAxis: newValue });
+        }
+      });
+
+      this.$watch('selectedYAxis', (newValue) => {
+        if (newValue) {
+          this.$store.uiStateStore.saveUIState('scatterPlot', { selectedYAxis: newValue });
+        }
+      });
+
       // Load cached data if available
       if (this.$store.dataStore.rossDataCache) {
         this.load();
