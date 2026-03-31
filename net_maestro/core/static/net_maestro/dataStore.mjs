@@ -1,9 +1,8 @@
-document.addEventListener('alpine:init', () => {
-  Alpine.store('dataStore', {
-    // loadTick: incremented to trigger plot updates
-    loadTick: 0,
+export const dataStore = {
+  // loadTick: incremented when "Load Data" is clicked to trigger plot updates
+  loadTick: 0,
 
-    // Currently selected run ID
+  // Currently selected run ID
     selectedRunId: null,
 
     async fetchRossData() {
@@ -47,5 +46,8 @@ document.addEventListener('alpine:init', () => {
       this.selectedRunId = runId;
       this.loadTick++;
     },
-  });
+};
+
+document.addEventListener('alpine:init', () => {
+  Alpine.store('dataStore', dataStore);
 });
