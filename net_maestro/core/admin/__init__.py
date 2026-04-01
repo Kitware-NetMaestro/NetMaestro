@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .component_config import ComponentConfigAdmin
 from .event_file import EventFileAdmin
 from .event_record import EventRecordAdmin
 from .model_file import ModelFileAdmin
@@ -11,6 +12,7 @@ from .simulation_lp_record import SimulationLpRecordAdmin
 from .simulation_pe_record import SimulationPeRecordAdmin
 
 __all__ = [
+    "ComponentConfigAdmin",
     "EventFileAdmin",
     "EventRecordAdmin",
     "ModelFileAdmin",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .component_config import ComponentConfig
 from .event_file import EventFile
 from .event_record import EventRecord
 from .model_file import ModelFile
@@ -12,6 +13,7 @@ from .simulation_lp_record import SimulationLpRecord
 from .simulation_pe_record import SimulationPeRecord
 
 __all__ = [
+    "ComponentConfig",
     "EventFile",
     "EventRecord",
     "ModelFile",
