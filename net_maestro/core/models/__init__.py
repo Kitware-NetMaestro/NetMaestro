@@ -14,6 +14,7 @@ from .simulation_kp_record import SimulationKpRecord
 from .simulation_lp_record import SimulationLpRecord
 from .simulation_pe_record import SimulationPeRecord
 from .switch_config import SwitchConfig
+from .topology import Topology
 
 __all__ = [
     "ComponentConfig",
@@ -30,4 +31,5 @@ __all__ = [
     "SimulationLpRecord",
     "SimulationPeRecord",
     "SwitchConfig",
+    "Topology",
 ]

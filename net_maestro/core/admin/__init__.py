@@ -13,6 +13,7 @@ from .simulation_kp_record import SimulationKpRecordAdmin
 from .simulation_lp_record import SimulationLpRecordAdmin
 from .simulation_pe_record import SimulationPeRecordAdmin
 from .switch_config import SwitchConfigAdmin
+from .topology import TopologyAdmin
 
 __all__ = [
     "ComponentConfigAdmin",
@@ -28,4 +29,5 @@ __all__ = [
     "SimulationLpRecordAdmin",
     "SimulationPeRecordAdmin",
     "SwitchConfigAdmin",
+    "TopologyAdmin",
 ]
