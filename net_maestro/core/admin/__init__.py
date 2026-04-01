@@ -6,6 +6,8 @@ from .event_record import EventRecordAdmin
 from .host_config import HostConfigAdmin
 from .model_file import ModelFileAdmin
 from .model_record import ModelRecordAdmin
+from .node import NodeAdmin
+from .node_link import NodeLinkAdmin
 from .router_config import RouterConfigAdmin
 from .run import RunAdmin
 from .simulation_file import SimulationFileAdmin
@@ -22,6 +24,8 @@ __all__ = [
     "HostConfigAdmin",
     "ModelFileAdmin",
     "ModelRecordAdmin",
+    "NodeAdmin",
+    "NodeLinkAdmin",
     "RouterConfigAdmin",
     "RunAdmin",
     "SimulationFileAdmin",

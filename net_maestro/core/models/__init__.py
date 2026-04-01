@@ -6,6 +6,8 @@ from .event_record import EventRecord
 from .host_config import HostConfig
 from .model_file import ModelFile
 from .model_record import ModelRecord
+from .node import Node
+from .node_link import NodeLink
 from .router_config import RouterConfig
 from .run import Run
 from .simulation_base_record import SimulationBaseRecord
@@ -23,6 +25,8 @@ __all__ = [
     "HostConfig",
     "ModelFile",
     "ModelRecord",
+    "Node",
+    "NodeLink",
     "RouterConfig",
     "Run",
     "SimulationBaseRecord",
