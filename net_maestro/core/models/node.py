@@ -18,5 +18,13 @@ class Node(models.Model):
     ingress_latency = models.FloatField(validators=[MinValueValidator(0.0)])
     egress_latency = models.FloatField(validators=[MinValueValidator(0.0)])
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["topology", "name"],
+                name="unique_node_name_per_topology",
+            )
+        ]
+
     def __str__(self) -> str:
         return f"Node {self.name}"

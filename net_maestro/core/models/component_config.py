@@ -13,5 +13,13 @@ class ComponentConfig(models.Model):
 
     model = models.CharField(max_length=255, choices=ModelType.choices)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["topology", "model"],
+                name="unique_config_per_model_per_topology",
+            )
+        ]
+
     def __str__(self) -> str:
         return f"ComponentConfig - {self.model}"
