@@ -1,4 +1,59 @@
 document.addEventListener('alpine:init', () => {
+  /**
+   * Coordinates zoom/pan across plots that share the same axis parameter.
+   *
+   * Each plot publishes its current axis ranges keyed by parameter name
+   * (e.g. 'virtual_time', 'events_processed'). Other plots watching
+   * the same parameter apply the range, preventing circular updates
+   * via the lastUpdatedBy / isSyncing guard pattern.
+   */
+  Alpine.store('plotSyncStore', {
+    // { parameterName: { min, max } }
+    parameterRanges: {},
+    // Which plot last wrote a range (used to skip self-sync)
+    lastUpdatedBy: null,
+    // Incremented on double-click reset so watchers can react
+    resetTick: 0,
+
+    /**
+     * Called by the plot that the user interacted with.
+     * @param {string} parameter - axis parameter name
+     * @param {{ min: number, max: number } | null} range - null = autorange
+     * @param {string} plotId - unique id of the originating plot
+     */
+    updateRange(parameter, range, plotId) {
+      this.lastUpdatedBy = plotId;
+      if (range) {
+        this.parameterRanges = {
+          ...this.parameterRanges,
+          [parameter]: { min: range.min, max: range.max },
+        };
+      } else {
+        // Remove the constraint (autorange)
+        const next = { ...this.parameterRanges };
+        delete next[parameter];
+        this.parameterRanges = next;
+      }
+    },
+
+    /**
+     * @param {string} parameter
+     * @returns {{ min: number, max: number } | null}
+     */
+    getRange(parameter) {
+      return this.parameterRanges[parameter] ?? null;
+    },
+
+    /**
+     * Broadcast a full reset (double-click) from the given plot.
+     */
+    resetAll(plotId) {
+      this.lastUpdatedBy = plotId;
+      this.parameterRanges = {};
+      this.resetTick++;
+    },
+  });
+
   Alpine.store('dataStore', {
     // loadTick: incremented when "Load Data" is clicked to trigger plot updates
     loadTick: 0,

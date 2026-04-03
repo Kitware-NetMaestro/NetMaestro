@@ -14,6 +14,9 @@ document.addEventListener('alpine:init', () => {
     timePlotEl: null,
     isPlotInitialized: false,
     isLoaded: false,
+    noData: false,
+    plotId: 'timePlot',
+    isSyncing: false,
 
     get xAxisValues() {
       return [
@@ -64,6 +67,8 @@ document.addEventListener('alpine:init', () => {
       this.$watch('$store.dataStore.loadTick', () => {
         this.load();
       });
+
+      this.setupSyncWatchers();
     },
 
     /**
@@ -115,6 +120,88 @@ document.addEventListener('alpine:init', () => {
       };
       const config = { responsive: true };
       Plotly.newPlot(this.timePlotEl, data, layout, config);
+
+      this.timePlotEl.on('plotly_relayout', (eventData) => {
+        this.onRelayout(eventData);
+      });
+    },
+
+    onRelayout(eventData) {
+      if (this.isSyncing) {
+        return;
+      }
+      const sync = this.$store.plotSyncStore;
+
+      // Detect double-click reset
+      if (eventData['xaxis.autorange'] || eventData['yaxis.autorange']) {
+        sync.resetAll(this.plotId);
+        return;
+      }
+
+      // Publish X-axis range
+      if (eventData['xaxis.range[0]'] != null) {
+        sync.updateRange(
+          this.selectedXAxis,
+          { min: eventData['xaxis.range[0]'], max: eventData['xaxis.range[1]'] },
+          this.plotId,
+        );
+      }
+      // Publish Y-axis range
+      if (eventData['yaxis.range[0]'] != null) {
+        sync.updateRange(
+          this.selectedYAxis,
+          { min: eventData['yaxis.range[0]'], max: eventData['yaxis.range[1]'] },
+          this.plotId,
+        );
+      }
+    },
+
+    setupSyncWatchers() {
+      const sync = this.$store.plotSyncStore;
+
+      // Watch for range changes from other plots
+      this.$watch('$store.plotSyncStore.parameterRanges', (ranges) => {
+        if (sync.lastUpdatedBy === this.plotId) {
+          return;
+        }
+        const xRange = ranges[this.selectedXAxis];
+        const yRange = ranges[this.selectedYAxis];
+        if (!xRange && !yRange) {
+          return;
+        }
+        this.applySyncedRange(xRange, yRange);
+      });
+
+      // Watch for reset from other plots
+      this.$watch('$store.plotSyncStore.resetTick', () => {
+        if (sync.lastUpdatedBy === this.plotId || !this.isPlotInitialized) {
+          return;
+        }
+        this.isSyncing = true;
+        Plotly.relayout(this.timePlotEl, {
+          'xaxis.autorange': true,
+          'yaxis.autorange': true,
+        }).then(() => { this.isSyncing = false; });
+      });
+    },
+
+    applySyncedRange(xRange, yRange) {
+      if (!this.timePlotEl || !this.isPlotInitialized) {
+        return;
+      }
+      const update = {};
+      if (xRange) {
+        update['xaxis.range'] = [xRange.min, xRange.max];
+      }
+      if (yRange) {
+        update['yaxis.range'] = [yRange.min, yRange.max];
+      }
+      if (Object.keys(update).length === 0) {
+        return;
+      }
+      this.isSyncing = true;
+      Plotly.relayout(this.timePlotEl, update)
+        .then(() => { this.isSyncing = false; });
     },
 
     async load() {

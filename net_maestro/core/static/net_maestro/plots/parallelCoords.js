@@ -6,6 +6,9 @@ document.addEventListener('alpine:init', () => {
   Alpine.data('parallelCoords', () => ({
     parallelPlotEl: null,
     isPlotInitialized: false,
+    noData: false,
+    plotId: 'parallelCoords',
+    isSyncing: false,
     records: [],
     plotDimensions: [
       { key: 'PE_ID', label: 'PE ID' },
@@ -28,6 +31,65 @@ document.addEventListener('alpine:init', () => {
       this.$watch('$store.dataStore.loadTick', () => {
         this.load();
       });
+
+      this.setupSyncWatchers();
+    },
+
+    setupSyncWatchers() {
+      const sync = this.$store.plotSyncStore;
+
+      this.$watch('$store.plotSyncStore.parameterRanges', (ranges) => {
+        if (sync.lastUpdatedBy === this.plotId || !this.isPlotInitialized) {
+          return;
+        }
+        for (let i = 0; i < this.plotDimensions.length; i++) {
+          const dimKey = this.plotDimensions[i].key;
+          const range = ranges[dimKey];
+          if (range) {
+            this.applySyncedDimension(i, [range.min, range.max]);
+          }
+        }
+      });
+
+      this.$watch('$store.plotSyncStore.resetTick', () => {
+        if (sync.lastUpdatedBy === this.plotId || !this.isPlotInitialized) {
+          return;
+        }
+        this.resetAllDimensions();
+      });
+    },
+
+    applySyncedDimension(index, constraintRange) {
+      if (!this.parallelPlotEl) {
+        return;
+      }
+      this.isSyncing = true;
+      const dimensions = this.parallelPlotEl.data[0]?.dimensions;
+      if (dimensions && dimensions[index]) {
+        dimensions[index].constraintrange = constraintRange;
+        Plotly.restyle(this.parallelPlotEl, { dimensions: [dimensions] })
+          .then(() => { this.isSyncing = false; });
+      } else {
+        this.isSyncing = false;
+      }
+    },
+
+    resetAllDimensions() {
+      if (!this.parallelPlotEl) {
+        return;
+      }
+      this.isSyncing = true;
+      const dimensions = this.parallelPlotEl.data[0]?.dimensions;
+      if (dimensions) {
+        for (const dim of dimensions) {
+          delete dim.constraintrange;
+          delete dim.range;
+        }
+        Plotly.restyle(this.parallelPlotEl, { dimensions: [dimensions] })
+          .then(() => { this.isSyncing = false; });
+      } else {
+        this.isSyncing = false;
+      }
     },
 
     /**
