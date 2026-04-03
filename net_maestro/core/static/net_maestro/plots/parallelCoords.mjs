@@ -137,6 +137,3 @@ export const parallelCoords = () => ({
     Plotly.react(this.parallelPlotEl, [trace], layout);
   },
 });
-document.addEventListener('alpine:init', () => {
-  Alpine.data('parallelCoords', parallelCoords);
-});

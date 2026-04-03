@@ -174,6 +174,3 @@ export const scatterPlot = () => ({
     );
   },
 });
-document.addEventListener('alpine:init', () => {
-  Alpine.data('scatterPlot', scatterPlot);
-});

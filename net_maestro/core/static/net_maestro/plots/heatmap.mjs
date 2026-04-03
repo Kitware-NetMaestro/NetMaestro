@@ -193,6 +193,3 @@ export const heatmapPlot = () => ({
     );
   },
 });
-document.addEventListener('alpine:init', () => {
-  Alpine.data('heatmapPlot', heatmapPlot);
-});

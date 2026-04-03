@@ -200,6 +200,3 @@ export const timePlot = () => ({
     });
   },
 });
-document.addEventListener('alpine:init', () => {
-  Alpine.data('timePlot', timePlot);
-});

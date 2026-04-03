@@ -17,19 +17,13 @@
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js" integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz" crossorigin="anonymous"></script>
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script type="module" src="{% static 'net_maestro/partials/dataFileSelector.mjs' %}"></script>
     <!-- Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-3.3.0.min.js" charset="utf-8"></script>
-    <!-- Plot component scripts -->
-    <script src="{% static 'net_maestro/plots/scatterPlot.js' %}"></script>
-    <script src="{% static 'net_maestro/plots/timePlot.js' %}"></script>
-    <script src="{% static 'net_maestro/plots/parallelCoords.js' %}"></script>
-    <script src="{% static 'net_maestro/plots/heatmap.js' %}"></script>
-    <script src="{% static 'net_maestro/plots/networkTimePlot.js' %}"></script>
     <!-- Remix Icon -->
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.7.0/fonts/remixicon.css" rel="stylesheet">
     <!-- Custom styles -->
     <link rel="stylesheet" href="{% static 'net_maestro/customStyles.css' %}">
+    <script type="module"  src="{% static 'net_maestro/init.mjs' %}"></script>
   </head>
   <body x-data>
     <!-- Main application container -->

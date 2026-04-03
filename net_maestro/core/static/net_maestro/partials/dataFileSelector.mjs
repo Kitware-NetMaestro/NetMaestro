@@ -40,7 +40,3 @@ export const dataFileSelector = () => ({
     this.selected[category] = file;
   },
 });
-
-document.addEventListener('alpine:init', () => {
-  Alpine.data('dataFileSelector', dataFileSelector);
-});

@@ -194,7 +194,3 @@ export const networkTimePlot = () => ({
     });
   },
 });
-
-document.addEventListener('alpine:init', () => {
-  Alpine.data('networkTimePlot', networkTimePlot);
-});
