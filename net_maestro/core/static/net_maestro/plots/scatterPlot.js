@@ -14,6 +14,8 @@ export const scatterPlot = () => ({
   isPlotInitialized: false,
   isLoaded: false,
   noData: false,
+  plotId: 'scatterPlot',
+  isSyncing: false,
 
   get valueList() {
     const excludedColumns = ['PE_ID', 'real_time', 'virtual_time'];
@@ -56,6 +58,84 @@ export const scatterPlot = () => ({
     this.$watch('$store.dataStore.loadTick', () => {
       this.load();
     });
+
+    this.setupSyncWatchers();
+  },
+
+  setupSyncWatchers() {
+    const sync = this.$store.plotSyncStore;
+
+    this.$watch('$store.plotSyncStore.parameterRanges', (ranges) => {
+      if (sync.lastUpdatedBy === this.plotId) {
+        return;
+      }
+      const xRange = ranges[this.selectedXAxis];
+      const yRange = ranges[this.selectedYAxis];
+      if (!xRange && !yRange) {
+        return;
+      }
+      this.applySyncedRange(xRange, yRange);
+    });
+
+    this.$watch('$store.plotSyncStore.resetTick', () => {
+      if (sync.lastUpdatedBy === this.plotId || !this.isPlotInitialized) {
+        return;
+      }
+      this.isSyncing = true;
+      Plotly.relayout(this.scatterPlotEl, {
+        'xaxis.autorange': true,
+        'yaxis.autorange': true,
+      }).finally(() => { this.isSyncing = false; });
+    });
+  },
+
+  async applySyncedRange(xRange, yRange) {
+    if (!this.scatterPlotEl || !this.isPlotInitialized) {
+      return;
+    }
+    const update = {};
+    if (xRange) {
+      update['xaxis.range'] = [xRange.min, xRange.max];
+    }
+    if (yRange) {
+      update['yaxis.range'] = [yRange.min, yRange.max];
+    }
+    if (Object.keys(update).length === 0) {
+      return;
+    }
+    this.isSyncing = true;
+    try {
+      await Plotly.relayout(this.scatterPlotEl, update);
+    } finally {
+      this.isSyncing = false;
+    }
+  },
+
+  onRelayout(eventData) {
+    if (this.isSyncing) {
+      return;
+    }
+    const sync = this.$store.plotSyncStore;
+
+    if (eventData['xaxis.autorange'] || eventData['yaxis.autorange']) {
+      sync.resetAll(this.plotId);
+      return;
+    }
+
+    if (eventData['xaxis.range[0]'] != null) {
+      sync.updateRange(
+        this.selectedXAxis,
+        { min: eventData['xaxis.range[0]'], max: eventData['xaxis.range[1]'] },
+        this.plotId,
+      );
+    }
+    if (eventData['yaxis.range[0]'] != null) {
+      sync.updateRange(
+        this.selectedYAxis,
+        { min: eventData['yaxis.range[0]'], max: eventData['yaxis.range[1]'] },
+        this.plotId,
+      );
+    }
   },
 
   /**
@@ -106,6 +186,10 @@ export const scatterPlot = () => ({
     };
     const config = { responsive: true };
     Plotly.newPlot(this.scatterPlotEl, data, layout, config);
+
+    this.scatterPlotEl.on('plotly_relayout', (eventData) => {
+      this.onRelayout(eventData);
+    });
   },
 
   async load() {

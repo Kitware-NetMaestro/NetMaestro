@@ -1,5 +1,5 @@
 import Alpine from 'alpinejs';
-import { dataStore } from './dataStore.js';
+import { dataStore, plotSyncStore } from './dataStore.js';
 import { dataFileSelector } from './partials/dataFileSelector.js';
 import { heatmapPlot } from './plots/heatmap.js';
 import { networkTimePlot } from './plots/networkTimePlot.js';
@@ -9,6 +9,7 @@ import { timePlot } from './plots/timePlot.js';
 import { uiStateStore } from './uiStateStore.js';
 
 Alpine.store('dataStore', dataStore);
+Alpine.store('plotSyncStore', plotSyncStore);
 Alpine.store('uiStateStore', uiStateStore);
 Alpine.data('dataFileSelector', dataFileSelector);
 Alpine.data('heatmapPlot', heatmapPlot);

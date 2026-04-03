@@ -8,6 +8,8 @@ export const parallelCoords = () => ({
   parallelPlotEl: null,
   isPlotInitialized: false,
   noData: false,
+  plotId: 'parallelCoords',
+  isSyncing: false,
   records: [],
   plotDimensions: [
     { key: 'PE_ID', label: 'PE ID' },
@@ -30,10 +32,99 @@ export const parallelCoords = () => ({
     this.$watch('$store.dataStore.loadTick', () => {
       this.load();
     });
+
+    this.setupSyncWatchers();
+  },
+
+  setupSyncWatchers() {
+    const sync = this.$store.plotSyncStore;
+
+    this.$watch('$store.plotSyncStore.parameterRanges', (ranges) => {
+      if (sync.lastUpdatedBy === this.plotId || !this.isPlotInitialized) {
+        return;
+      }
+      for (let i = 0; i < this.plotDimensions.length; i++) {
+        const dimKey = this.plotDimensions[i].key;
+        const range = ranges[dimKey];
+        if (range) {
+          this.applySyncedDimension(i, [range.min, range.max]);
+        }
+      }
+    });
+
+    this.$watch('$store.plotSyncStore.resetTick', () => {
+      if (sync.lastUpdatedBy === this.plotId || !this.isPlotInitialized) {
+        return;
+      }
+      this.resetAllDimensions();
+    });
+  },
+
+  async applySyncedDimension(index, constraintRange) {
+    if (!this.parallelPlotEl) {
+      return;
+    }
+    this.isSyncing = true;
+    const dimensions = this.parallelPlotEl.data[0]?.dimensions;
+    if (dimensions?.[index]) {
+      dimensions[index].constraintrange = constraintRange;
+      try {
+        await Plotly.restyle(this.parallelPlotEl, { dimensions: [dimensions] });
+      } finally {
+        this.isSyncing = false;
+      }
+    } else {
+      this.isSyncing = false;
+    }
+  },
+
+  async resetAllDimensions() {
+    if (!this.parallelPlotEl) {
+      return;
+    }
+    this.isSyncing = true;
+    const dimensions = this.parallelPlotEl.data[0]?.dimensions;
+    if (dimensions) {
+      for (const dim of dimensions) {
+        dim.constraintrange = undefined;
+        dim.range = undefined;
+      }
+      try {
+        await Plotly.restyle(this.parallelPlotEl, { dimensions: [dimensions] });
+      } finally {
+        this.isSyncing = false;
+      }
+    } else {
+      this.isSyncing = false;
+    }
   },
 
   /**
-   * Initialize the Plotly scatter plot.
+   * Handle user constraint range changes on dimensions.
+   * Publishes the current constraint state to plotSyncStore.
+   */
+  onRestyle() {
+    if (this.isSyncing) {
+      return;
+    }
+    const sync = this.$store.plotSyncStore;
+    const dimensions = this.parallelPlotEl.data[0]?.dimensions;
+    if (!dimensions) {
+      return;
+    }
+
+    const updates = this.plotDimensions.map((dim, i) => {
+      const constraint = dimensions[i]?.constraintrange;
+      return {
+        parameter: dim.key,
+        range: constraint ? { min: constraint[0], max: constraint[1] } : null,
+      };
+    });
+    sync.updateRanges(updates, this.plotId);
+  },
+
+  /**
+   * Initialize the Plotly parallel coordinates plot.
    */
   initPlot() {
     if (this.isPlotInitialized) {
@@ -70,8 +161,11 @@ export const parallelCoords = () => ({
     };
     const config = { responsive: true };
     Plotly.newPlot(this.parallelPlotEl, data, layout, config);
-
     this.isPlotInitialized = true;
+
+    this.parallelPlotEl.on('plotly_restyle', () => {
+      this.onRestyle();
+    });
   },
 
   async load() {
