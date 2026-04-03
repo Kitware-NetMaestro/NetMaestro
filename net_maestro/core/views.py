@@ -34,10 +34,10 @@ def page_view(
     For direct navigation, renders the partial inside the base layout.
     """
     partial_template = f"net_maestro/partials/{partial}.html"
+    context: dict[str, object] = {}
+    if partial == "analysis":
+        context.update(_filtered_runs(request))
     if request.headers.get("HX-Request"):
-        return render(request, partial_template)
-    return render(
-        request,
-        "net_maestro/index.html",
-        {"active_page": active_page, "partial_template": partial_template},
-    )
+        return render(request, partial_template, context)
+    context.update({"active_page": active_page, "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)

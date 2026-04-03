@@ -1,43 +1,84 @@
-<div class="tabs tabs-border bg-base-300" style="height: calc(100vh - 64px);">
-  <label class="tab">
-    <input type="radio" name="plots_tabs" value="network"
-           :checked="$store.uiStateStore.uiState.activePlotsTab === 'network'"
-           @change="$store.uiStateStore.uiState.activePlotsTab = 'network'" />
-    <i class="ri-network-line"></i>
-    Network Performance
-  </label>
-  <div class="tab-content p-6">
-    <div class="flex-1 bg-base-300 p-4">
-      <div class="grid grid-cols-2 gap-4 h-full">
-        <div class="bg-base-100 rounded-lg">
-          {% include 'net_maestro/plots/heatmap.html' %}
+<div class="flex flex-row grid grid-cols-6">
+  <!-- Available Runs -->
+  <div class="col-span-1 overflow-y-auto" style="height: calc(100vh - 64px);">
+    <!-- For each run, create a card that can be clicked to load that run's data -->
+    {% for run in runs %}
+      <div class="card bg-base-300 m-2 p-3">
+        <div class="card-title justify-between">
+          <h3>{{ run.name }}</h3>
+        {% if run.status == 'completed' %}
+          <div class="badge badge-success self-end">
+            <i class="ri-check-line"></i>
+          </div>
+        {% elif run.status == 'running' %}
+          <div class="badge badge-info self-end">
+            <i class="ri-run-line"></i>
+          </div>
+        {% elif run.status == 'failed' %}
+          <div class="badge badge-error self-end">
+            <i class="ri-error-warning-line"></i>
+          </div>
+        {% elif run.status == 'cancelled' %}
+          <div class="badge badge-warning self-end">
+            <i class="ri-forbid-line"></i>
+          </div>
+        {% else %}
+          <div class="badge badge-accent self-end">
+            <i class="ri-timer-line"></i>
+          </div>
+        {% endif %}
         </div>
+        <div class="card-body">
+          <div class="text-xs">{{ run.description }}</div>
+        </div>
+        <div class="badge badge-ghost">
+          {{ run.created|date:"Y-m-d" }}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  <!-- Plots -->
+  <div class="col-span-5 tabs tabs-border bg-base-300" style="height: calc(100vh - 64px);">
+    <label class="tab">
+      <input type="radio" name="plots_tabs" value="network"
+            :checked="$store.uiStateStore.uiState.activePlotsTab === 'network'"
+            @change="$store.uiStateStore.uiState.activePlotsTab = 'network'" />
+      <i class="ri-network-line"></i>
+      Network Performance
+    </label>
+    <div class="tab-content p-6">
+      <div class="flex-1 bg-base-300 p-4">
+        <div class="grid grid-cols-2 gap-4 h-full">
+          <div class="bg-base-100 rounded-lg">
+            {% include 'net_maestro/plots/heatmap.html' %}
+          </div>
 
-        <div class="bg-base-100 rounded-lg">
-          {% include 'net_maestro/plots/networkTimePlot.html' %}
+          <div class="bg-base-100 rounded-lg">
+            {% include 'net_maestro/plots/networkTimePlot.html' %}
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <label class="tab">
-    <input type="radio" name="plots_tabs" value="simulation"
-           :checked="$store.uiStateStore.uiState.activePlotsTab === 'simulation'"
-           @change="$store.uiStateStore.uiState.activePlotsTab = 'simulation'" />
-    <i class="ri-brain-4-line"></i>
-    Simulation Performance
-  </label>
-  <div class="tab-content p-6">
-    <div class="flex-1 bg-base-300 p-4">
-      <div class="grid grid-cols-2 gap-4 h-full">
-        <div class="bg-base-100 rounded-lg">
-          {% include 'net_maestro/plots/scatterPlot.html' %}
-        </div>
-        <div class="bg-base-100 rounded-lg">
-          {% include 'net_maestro/plots/timePlot.html' %}
-        </div>
-        <div class="bg-base-100 rounded-lg">
-          {% include 'net_maestro/plots/parallelCoords.html' %}
+    <label class="tab">
+      <input type="radio" name="plots_tabs" value="simulation"
+            :checked="$store.uiStateStore.uiState.activePlotsTab === 'simulation'"
+            @change="$store.uiStateStore.uiState.activePlotsTab = 'simulation'" />
+      <i class="ri-brain-4-line"></i>
+      Simulation Performance
+    </label>
+    <div class="tab-content p-6">
+      <div class="flex-1 bg-base-300 p-4">
+        <div class="grid grid-cols-2 gap-4 h-full">
+          <div class="bg-base-100 rounded-lg">
+            {% include 'net_maestro/plots/scatterPlot.html' %}
+          </div>
+          <div class="bg-base-100 rounded-lg">
+            {% include 'net_maestro/plots/timePlot.html' %}
+          </div>
+          <div class="bg-base-100 rounded-lg">
+            {% include 'net_maestro/plots/parallelCoords.html' %}
+          </div>
         </div>
       </div>
     </div>
