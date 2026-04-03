@@ -15,6 +15,11 @@ from net_maestro.core.rest.data_api import (
     RossDataView,
     SelectDataFileView,
 )
+from net_maestro.core.rest.run_api import (
+    RunEventDataView,
+    RunModelDataView,
+    RunRossDataView,
+)
 
 from .core import views
 
@@ -52,6 +57,10 @@ urlpatterns = [
     path("api/v1/data/ross", RossDataView.as_view(), name="api-data-ross"),
     path("api/v1/data/files", DataFilesView.as_view(), name="api-data-files"),
     path("api/v1/data/select", SelectDataFileView.as_view(), name="api-data-select"),
+    # Run-based data endpoints (serve from DB records)
+    path("api/v1/runs/<int:run_id>/ross", RunRossDataView.as_view(), name="api-run-ross"),
+    path("api/v1/runs/<int:run_id>/event", RunEventDataView.as_view(), name="api-run-event"),
+    path("api/v1/runs/<int:run_id>/model", RunModelDataView.as_view(), name="api-run-model"),
     path("api/docs/redoc/", schema_view.with_ui("redoc"), name="docs-redoc"),
     path("api/docs/swagger/", schema_view.with_ui("swagger"), name="docs-swagger"),
     # Page endpoints

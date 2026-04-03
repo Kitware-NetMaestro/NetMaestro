@@ -1,7 +1,10 @@
 document.addEventListener('alpine:init', () => {
   Alpine.store('dataStore', {
-    // loadTick: incremented when "Load Data" is clicked to trigger plot updates
+    // loadTick: incremented to trigger plot updates
     loadTick: 0,
+
+    // Currently selected run ID (null = use file-based endpoints)
+    selectedRunId: null,
 
     // Cache storage for API responses
     rossDataCache: null,
@@ -22,8 +25,11 @@ document.addEventListener('alpine:init', () => {
         return this.rossDataPromise;
       }
 
-      // Make new request
-      this.rossDataPromise = fetch('/api/v1/data/ross')
+      // Make new request — use run-based endpoint if a run is selected
+      const url = this.selectedRunId
+        ? `/api/v1/runs/${this.selectedRunId}/ross`
+        : '/api/v1/data/ross';
+      this.rossDataPromise = fetch(url)
         .then(async (response) => {
           if (!response.ok) {
             throw new Error(`Failed to fetch ROSS data: ${response.statusText}`);
@@ -49,7 +55,10 @@ document.addEventListener('alpine:init', () => {
         return this.eventDataPromise;
       }
 
-      this.eventDataPromise = await fetch('/api/v1/data/event')
+      const eventUrl = this.selectedRunId
+        ? `/api/v1/runs/${this.selectedRunId}/event`
+        : '/api/v1/data/event';
+      this.eventDataPromise = await fetch(eventUrl)
         .then(async (response) => {
           if (!response.ok) {
             throw new Error(`Failed to fetch Event data: ${response.statusText}`);
@@ -75,7 +84,10 @@ document.addEventListener('alpine:init', () => {
         return this.modelDataPromise;
       }
 
-      this.modelDataPromise = await fetch('/api/v1/data/model')
+      const modelUrl = this.selectedRunId
+        ? `/api/v1/runs/${this.selectedRunId}/model`
+        : '/api/v1/data/model';
+      this.modelDataPromise = await fetch(modelUrl)
         .then(async (response) => {
           if (!response.ok) {
             throw new Error(`Failed to fetch Model data: ${response.statusText}`);
@@ -102,6 +114,16 @@ document.addEventListener('alpine:init', () => {
       this.eventDataPromise = null;
       this.modelDataCache = null;
       this.modelDataPromise = null;
+    },
+
+    /**
+     * Select a run and trigger data reload from DB records.
+     * @param {number} runId - The run primary key
+     */
+    selectRun(runId) {
+      this.selectedRunId = runId;
+      this.clearCache();
+      this.loadTick++;
     },
   });
 });

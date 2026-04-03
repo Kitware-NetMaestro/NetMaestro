@@ -3,7 +3,11 @@
   <div class="col-span-1 overflow-y-auto" style="height: calc(100vh - 64px);">
     <!-- For each run, create a card that can be clicked to load that run's data -->
     {% for run in runs %}
-      <div class="card bg-base-300 m-2 p-3">
+      <div class="card m-2 p-3 cursor-pointer transition-colors"
+           :class="$store.dataStore.selectedRunId === {{ run.pk }}
+             ? 'bg-neutral text-neutral-content'
+             : 'bg-base-300 hover:bg-base-200'"
+           @click="$store.dataStore.selectRun({{ run.pk }})">
         <div class="card-title justify-between">
           <h3>{{ run.name }}</h3>
         {% if run.status == 'completed' %}
@@ -30,9 +34,6 @@
         </div>
         <div class="card-body">
           <div class="text-xs">{{ run.description }}</div>
-        </div>
-        <div class="badge badge-ghost">
-          {{ run.created|date:"Y-m-d" }}
         </div>
       </div>
     {% endfor %}
