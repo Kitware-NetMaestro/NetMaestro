@@ -40,8 +40,8 @@ document.addEventListener('alpine:init', () => {
     init() {
       // Restore UI state
       const savedState = this.$store.uiStateStore.getUIState('timePlot');
-      this.selectedXAxis = savedState.selectedXAxis || 'virtual_time';
-      this.selectedYAxis = savedState.selectedYAxis || 'events_processed';
+      this.selectedXAxis = savedState.selectedXAxis ?? 'virtual_time';
+      this.selectedYAxis = savedState.selectedYAxis ?? 'events_processed';
 
       this.$watch('selectedXAxis', (newValue) => {
         if (newValue) {

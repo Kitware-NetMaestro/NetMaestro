@@ -24,7 +24,7 @@ document.addEventListener('alpine:init', () => {
     init() {
       // Restore UI state
       const savedState = this.$store.uiStateStore.getUIState('heatmapPlot');
-      this.selectedMetric = savedState.selectedMetric || 'num_messages';
+      this.selectedMetric = savedState.selectedMetric ?? 'num_messages';
 
       this.$watch('selectedMetric', (newValue) => {
         if (newValue) {

@@ -30,8 +30,8 @@ document.addEventListener('alpine:init', () => {
     init() {
       // Restore UI state
       const savedState = this.$store.uiStateStore.getUIState('scatterPlot');
-      this.selectedXAxis = savedState.selectedXAxis || 'events_processed';
-      this.selectedYAxis = savedState.selectedYAxis || 'events_rolled_back';
+      this.selectedXAxis = savedState.selectedXAxis ?? 'events_processed';
+      this.selectedYAxis = savedState.selectedYAxis ?? 'events_rolled_back';
 
       this.$watch('selectedXAxis', (newValue) => {
         if (newValue) {

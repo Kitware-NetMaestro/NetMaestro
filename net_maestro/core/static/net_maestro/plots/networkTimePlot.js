@@ -34,8 +34,8 @@ document.addEventListener('alpine:init', () => {
     init() {
       // Restore UI state
       const savedState = this.$store.uiStateStore.getUIState('networkTimePlot');
-      this.selectedXAxis = savedState.selectedXAxis || 'virtual_time';
-      this.selectedYAxis = savedState.selectedYAxis || 'send_count';
+      this.selectedXAxis = savedState.selectedXAxis ?? 'virtual_time';
+      this.selectedYAxis = savedState.selectedYAxis ?? 'send_count';
 
       this.$watch('selectedXAxis', (newValue) => {
         if (newValue) {
