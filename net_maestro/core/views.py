@@ -23,11 +23,21 @@ def event_data(request: HttpRequest) -> HttpResponse:
     return HttpResponse("Event data")
 
 
-def analysis(request: HttpRequest) -> HttpResponse:
-    """Render the analysis page."""
-    return render(request, "net_maestro/analysis.html", {"active_page": "results"})
+def page_view(
+    request: HttpRequest,
+    partial: str,
+    active_page: str,
+) -> HttpResponse:
+    """Render a page using its partial template.
 
-
-def configuration(request: HttpRequest) -> HttpResponse:
-    """Render the configuration page."""
-    return render(request, "net_maestro/configuration.html", {"active_page": "baseModels"})
+    For HTMX requests, returns only the partial fragment.
+    For direct navigation, renders the partial inside the base layout.
+    """
+    partial_template = f"net_maestro/partials/{partial}.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template)
+    return render(
+        request,
+        "net_maestro/index.html",
+        {"active_page": active_page, "partial_template": partial_template},
+    )

@@ -176,8 +176,12 @@
         {% include 'net_maestro/shared/sidebar.html' %}
         <!-- Main content -->
         <div id="main-content" class="flex-1">
-          {% block content %}
-          {% endblock %}
+          {% if partial_template %}
+            {% include partial_template %}
+          {% else %}
+            {% block content %}
+            {% endblock %}
+          {% endif %}
         </div>
       </div>
     </div>

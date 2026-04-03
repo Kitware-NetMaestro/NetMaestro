@@ -4,10 +4,9 @@
     <!-- Base Models section -->
     <li>
       <a
-        href="{% url 'configuration' %}"
-        hx-get="{% url 'configuration' %}"
+        href="{% url 'configuration-partial' %}"
+        hx-get="{% url 'configuration-partial' %}"
         hx-target="#main-content"
-        hx-select="#main-content"
         hx-swap="innerHTML"
         hx-push-url="true"
         class="flex items-center justify-center"
@@ -47,10 +46,9 @@
     <!-- Results (data visualization) section -->
     <li>
       <a
-        href="{% url 'analysis' %}"
-        hx-get="{% url 'analysis' %}"
+        href="{% url 'analysis-partial' %}"
+        hx-get="{% url 'analysis-partial' %}"
         hx-target="#main-content"
-        hx-select="#main-content"
         hx-swap="innerHTML"
         hx-push-url="true"
         class="flex items-center justify-center"

@@ -53,8 +53,18 @@ urlpatterns = [
     path("api/docs/redoc/", schema_view.with_ui("redoc"), name="docs-redoc"),
     path("api/docs/swagger/", schema_view.with_ui("swagger"), name="docs-swagger"),
     # Page endpoints
-    path("analysis/", views.analysis, name="analysis"),
-    path("configuration/", views.configuration, name="configuration"),
+    path(
+        "analysis/",
+        views.page_view,
+        {"partial": "analysis", "active_page": "results"},
+        name="analysis-partial",
+    ),
+    path(
+        "configuration/",
+        views.page_view,
+        {"partial": "configuration", "active_page": "baseModels"},
+        name="configuration-partial",
+    ),
 ]
 
 if settings.DEBUG:
