@@ -3,9 +3,12 @@
     <h2 class="card-title text-white">
       Network Time Plot
     </h2>
-    <div id="networkTimePlot"></div>
+    <div x-show="noData" x-cloak class="flex items-center justify-center h-64 text-base-content/50">
+      <span>No model data available for this run.</span>
+    </div>
+    <div id="networkTimePlot" x-show="!noData"></div>
   </div>
-  <div class="flex" x-show="yAxisValues.length > 0" x-cloak>
+  <div class="flex" x-show="!noData && yAxisValues.length > 0" x-cloak>
     <div class="flex-1 selects">
       <fieldset>
         <legend class="fieldset-legend">

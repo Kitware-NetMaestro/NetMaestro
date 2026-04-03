@@ -8,32 +8,19 @@
              ? 'bg-neutral text-neutral-content'
              : 'bg-base-300 hover:bg-base-200'"
            @click="$store.dataStore.selectRun({{ run.pk }})">
-        <div class="card-title justify-between">
+        <div class="card-body flex flex-row p-2 items-baseline">
+          {% if run.status == 'completed' %}
+            <i class="ri-check-line text-success text-lg"></i>
+          {% elif run.status == 'running' %}
+            <i class="ri-run-line text-info text-lg"></i>
+          {% elif run.status == 'failed' %}
+            <i class="ri-error-warning-line text-error text-lg"></i>
+          {% elif run.status == 'cancelled' %}
+            <i class="ri-forbid-line text-warning text-lg"></i>
+          {% else %}
+            <i class="ri-timer-line text-accent text-lg"></i>
+          {% endif %}
           <h3>{{ run.name }}</h3>
-        {% if run.status == 'completed' %}
-          <div class="badge badge-success self-end">
-            <i class="ri-check-line"></i>
-          </div>
-        {% elif run.status == 'running' %}
-          <div class="badge badge-info self-end">
-            <i class="ri-run-line"></i>
-          </div>
-        {% elif run.status == 'failed' %}
-          <div class="badge badge-error self-end">
-            <i class="ri-error-warning-line"></i>
-          </div>
-        {% elif run.status == 'cancelled' %}
-          <div class="badge badge-warning self-end">
-            <i class="ri-forbid-line"></i>
-          </div>
-        {% else %}
-          <div class="badge badge-accent self-end">
-            <i class="ri-timer-line"></i>
-          </div>
-        {% endif %}
-        </div>
-        <div class="card-body">
-          <div class="text-xs">{{ run.description }}</div>
         </div>
       </div>
     {% endfor %}

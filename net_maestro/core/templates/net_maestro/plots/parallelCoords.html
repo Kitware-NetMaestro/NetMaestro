@@ -3,6 +3,9 @@
     <h2 class="card-title text-white">
       Parallel Coordinates
     </h2>
-    <div id="parallelCoords"></div>
+    <div x-show="noData" x-cloak class="flex items-center justify-center h-64 text-base-content/50">
+      <span>No simulation data available for this run.</span>
+    </div>
+    <div id="parallelCoords" x-show="!noData"></div>
   </div>
 </div>

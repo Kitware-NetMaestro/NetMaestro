@@ -14,6 +14,7 @@ document.addEventListener('alpine:init', () => {
     timePlotEl: null,
     isPlotInitialized: false,
     isLoaded: false,
+    noData: false,
 
     get xAxisValues() {
       return [
@@ -125,10 +126,23 @@ document.addEventListener('alpine:init', () => {
 
     async loadRossData() {
       this.isLoaded = false;
+      this.noData = false;
       const payload = await this.$store.dataStore.fetchRossData();
       this.columns = payload.columns ?? [];
       this.records = payload.data ?? [];
+      if (this.records.length === 0) {
+        this.noData = true;
+        this.purge();
+        return;
+      }
       this.updatePlotData();
+    },
+
+    purge() {
+      if (this.timePlotEl) {
+        Plotly.purge(this.timePlotEl);
+        this.isPlotInitialized = false;
+      }
     },
 
     /**

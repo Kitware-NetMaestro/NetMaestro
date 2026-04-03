@@ -3,9 +3,12 @@
     <h2 class="card-title text-white">
       Event Heatmap
     </h2>
-    <div id="heatmapPlot"></div>
+    <div x-show="noData" x-cloak class="flex items-center justify-center h-64 text-base-content/50">
+      <span>No event data available for this run.</span>
+    </div>
+    <div id="heatmapPlot" x-show="!noData"></div>
   </div>
-  <div class="flex" x-show="isPlotInitialized">
+  <div class="flex" x-show="!noData && isPlotInitialized">
     <div class="flex-1 selects">
       <fieldset>
         <legend class="fieldset-legend">

@@ -6,6 +6,7 @@ document.addEventListener('alpine:init', () => {
   Alpine.data('heatmapPlot', () => ({
     heatmapPlotEl: null,
     isPlotInitialized: false,
+    noData: false,
     records: [],
     metricList: [
       { key: 'num_messages', label: 'Num Messages', disabled: false },
@@ -94,9 +95,22 @@ document.addEventListener('alpine:init', () => {
     },
 
     async loadEventData() {
+      this.noData = false;
       const payload = await this.$store.dataStore.fetchEventData();
       this.records = payload.data ?? [];
+      if (this.records.length === 0) {
+        this.noData = true;
+        this.purge();
+        return;
+      }
       this.updatePlotData();
+    },
+
+    purge() {
+      if (this.heatmapPlotEl) {
+        Plotly.purge(this.heatmapPlotEl);
+        this.isPlotInitialized = false;
+      }
     },
 
     createHeatmapMatrix() {

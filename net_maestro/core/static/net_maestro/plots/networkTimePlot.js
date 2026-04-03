@@ -9,6 +9,7 @@ document.addEventListener('alpine:init', () => {
     networkTimePlotEl: null,
     isPlotInitialized: false,
     isLoaded: false,
+    noData: false,
 
     get xAxisValues() {
       return [
@@ -117,10 +118,23 @@ document.addEventListener('alpine:init', () => {
     },
 
     async loadModelData() {
+      this.noData = false;
       const payload = await this.$store.dataStore.fetchModelData();
       this.columns = payload.columns ?? [];
       this.records = payload.data ?? [];
+      if (this.records.length === 0) {
+        this.noData = true;
+        this.purge();
+        return;
+      }
       this.updatePlotData();
+    },
+
+    purge() {
+      if (this.networkTimePlotEl) {
+        Plotly.purge(this.networkTimePlotEl);
+        this.isPlotInitialized = false;
+      }
     },
 
     /**
