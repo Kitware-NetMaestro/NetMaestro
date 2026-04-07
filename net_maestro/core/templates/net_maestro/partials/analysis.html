@@ -1,19 +1,30 @@
 <div class="flex flex-row grid grid-cols-6">
   <!-- Available Runs -->
   <div class="col-span-1 overflow-y-auto" style="height: calc(100vh - 64px);">
-    <!-- Status filter -->
-    <div class="p-2 flex justify-end">
+    <!-- Search and filter controls -->
+    <div class="p-2 flex items-center gap-1">
+      <input type="search" name="q" placeholder="Search..."
+             class="input input-sm flex-1 min-w-0"
+             id="run-search"
+             value="{{ search_query }}"
+             hx-get="{% url 'run-list' %}"
+             hx-trigger="input changed delay:300ms, search"
+             hx-target="#run-list"
+             hx-swap="innerHTML"
+             hx-include="#status-filter">
       <div class="dropdown dropdown-end">
         <button class="btn btn-ghost btn-sm btn-square" type="button" tabindex="0"
                 aria-label="Filter by status">
           <i class="ri-filter-3-line text-lg"></i>
         </button>
-        <form class="dropdown-content z-[1] menu bg-base-200 rounded-box shadow w-44 p-2"
+        <form id="status-filter"
+              class="dropdown-content z-[1] menu bg-base-200 rounded-box shadow w-44 p-2"
               tabindex="0"
               hx-get="{% url 'run-list' %}"
               hx-trigger="change"
               hx-target="#run-list"
-              hx-swap="innerHTML">
+              hx-swap="innerHTML"
+              hx-include="#run-search">
           {% for value, label in status_choices %}
             <label class="label cursor-pointer gap-2 px-2 py-1">
               <input type="checkbox" name="status" value="{{ value }}"
@@ -26,7 +37,8 @@
           <button class="btn btn-ghost btn-xs w-full" type="reset"
                   hx-get="{% url 'run-list' %}"
                   hx-target="#run-list"
-                  hx-swap="innerHTML">
+                  hx-swap="innerHTML"
+                  hx-include="#run-search">
             Clear
           </button>
         </form>
