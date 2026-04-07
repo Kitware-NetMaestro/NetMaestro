@@ -57,6 +57,7 @@ urlpatterns = [
         {"partial": "analysis", "active_page": "results"},
         name="analysis-partial",
     ),
+    path("analysis/runs/", views.run_list, name="run-list"),
     path(
         "configuration/",
         views.page_view,

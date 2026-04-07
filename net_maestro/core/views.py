@@ -6,14 +6,34 @@ Data loading is driven by selecting a Run on the analysis page.
 
 from __future__ import annotations
 
-from django.http import HttpRequest, HttpResponse
+from typing import TYPE_CHECKING
+
 from django.shortcuts import render
 
+if TYPE_CHECKING:
+    from django.http import HttpRequest, HttpResponse
 
-def event_data(request: HttpRequest) -> HttpResponse:
-    """Return event data as JSON."""
-    # TODO: Implement event data retrieval
-    return HttpResponse("Event data")
+from .constants import RunStatus
+from .models import Run
+
+
+def _filtered_runs(request: HttpRequest) -> dict[str, object]:
+    """Return runs queryset and status choices, filtered by ?status= params."""
+    statuses = request.GET.getlist("status")
+    runs = Run.objects.all()
+    if statuses:
+        runs = runs.filter(status__in=statuses)
+    return {
+        "runs": runs,
+        "status_choices": RunStatus.choices,
+        "selected_statuses": statuses,
+    }
+
+
+def run_list(request: HttpRequest) -> HttpResponse:
+    """Return just the runs list partial (used by HTMX filter)."""
+    context = _filtered_runs(request)
+    return render(request, "net_maestro/partials/run_list.html", context)
 
 
 def page_view(
