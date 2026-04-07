@@ -57,17 +57,17 @@ dev = [
   # so use this to install "development" extras by default too
   "net-maestro[development]",
   "pre-commit==4.5.1",
-  "tox==4.36.1",
-  "tox-uv==1.29.0",
+  "tox==4.52.0",
+  "tox-uv==1.34.0",
 ]
 lint = [
-  "ruff==0.15.1",
+  "ruff==0.15.9",
 ]
 type = [
-  "mypy==1.19.1",
-  "celery-types==0.24.0",
+  "mypy==1.20.0",
+  "celery-types==0.26.0",
   "django-stubs[compatible-mypy]==6.0.2",
-  "djangorestframework-stubs[compatible-mypy]==3.16.8",
+  "djangorestframework-stubs[compatible-mypy]==3.16.9",
 ]
 test = [
   "factory-boy==3.3.3",
