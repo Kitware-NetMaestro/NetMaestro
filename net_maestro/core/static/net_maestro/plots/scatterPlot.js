@@ -46,8 +46,8 @@ document.addEventListener('alpine:init', () => {
         }
       });
 
-      // Load cached data if available
-      if (this.$store.dataStore.rossDataCache) {
+      // Load data if a run is already selected
+      if (this.$store.dataStore.selectedRunId) {
         this.load();
       }
 

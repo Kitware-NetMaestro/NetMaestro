@@ -1,14 +1,7 @@
 """Django views for the NetMaestro core application.
 
-Provides the main application view that handles:
-- Rendering the main UI template
-- Managing data file selection via session state
-- Providing CSRF tokens for AJAX requests
-
-Note: The home view supports both GET (display) and POST (file selection) requests.
-Currently, the UI uses AJAX POST requests to /api/v1/data/select instead of
-traditional form submissions (POST) to this view. This allows file selection without
-page reloads.
+Provides page views for configuration and analysis.
+Data loading is driven by selecting a Run on the analysis page.
 """
 
 from __future__ import annotations

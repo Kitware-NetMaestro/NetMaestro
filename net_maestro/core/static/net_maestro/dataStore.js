@@ -3,117 +3,40 @@ document.addEventListener('alpine:init', () => {
     // loadTick: incremented to trigger plot updates
     loadTick: 0,
 
-    // Currently selected run ID (null = use file-based endpoints)
+    // Currently selected run ID
     selectedRunId: null,
 
-    // Cache storage for API responses
-    rossDataCache: null,
-    rossDataPromise: null,
-    eventDataCache: null,
-    eventDataPromise: null,
-    modelDataCache: null,
-    modelDataPromise: null,
-
     async fetchRossData() {
-      // Return cached data if available
-      if (this.rossDataCache) {
-        return this.rossDataCache;
+      if (!this.selectedRunId) {
+        return null;
       }
-
-      // Return existing promise if request is in-flight
-      if (this.rossDataPromise) {
-        return this.rossDataPromise;
+      const response = await fetch(`/api/v1/runs/${this.selectedRunId}/ross`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ROSS data: ${response.statusText}`);
       }
-
-      // Make new request — use run-based endpoint if a run is selected
-      const url = this.selectedRunId
-        ? `/api/v1/runs/${this.selectedRunId}/ross`
-        : '/api/v1/data/ross';
-      this.rossDataPromise = fetch(url)
-        .then(async (response) => {
-          if (!response.ok) {
-            throw new Error(`Failed to fetch ROSS data: ${response.statusText}`);
-          }
-          const data = await response.json();
-          this.rossDataCache = data;
-          this.rossDataPromise = null;
-          return data;
-        })
-        .catch((error) => {
-          this.rossDataPromise = null;
-          throw error;
-        });
-      return this.rossDataPromise;
+      return await response.json();
     },
 
     async fetchEventData() {
-      if (this.eventDataCache) {
-        return this.eventDataCache;
+      if (!this.selectedRunId) {
+        return null;
       }
-
-      if (this.eventDataPromise) {
-        return this.eventDataPromise;
+      const response = await fetch(`/api/v1/runs/${this.selectedRunId}/event`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch event data: ${response.statusText}`);
       }
-
-      const eventUrl = this.selectedRunId
-        ? `/api/v1/runs/${this.selectedRunId}/event`
-        : '/api/v1/data/event';
-      this.eventDataPromise = await fetch(eventUrl)
-        .then(async (response) => {
-          if (!response.ok) {
-            throw new Error(`Failed to fetch Event data: ${response.statusText}`);
-          }
-          const data = await response.json();
-          this.eventDataCache = data;
-          this.eventDataPromise = null;
-          return data;
-        })
-        .catch((error) => {
-          this.eventDataPromise = null;
-          throw error;
-        });
-      return this.eventDataPromise;
+      return await response.json();
     },
 
     async fetchModelData() {
-      if (this.modelDataCache) {
-        return this.modelDataCache;
+      if (!this.selectedRunId) {
+        return null;
       }
-
-      if (this.modelDataPromise) {
-        return this.modelDataPromise;
+      const response = await fetch(`/api/v1/runs/${this.selectedRunId}/model`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch model data: ${response.statusText}`);
       }
-
-      const modelUrl = this.selectedRunId
-        ? `/api/v1/runs/${this.selectedRunId}/model`
-        : '/api/v1/data/model';
-      this.modelDataPromise = await fetch(modelUrl)
-        .then(async (response) => {
-          if (!response.ok) {
-            throw new Error(`Failed to fetch Model data: ${response.statusText}`);
-          }
-          const data = await response.json();
-          this.modelDataCache = data;
-          this.modelDataPromise = null;
-          return data;
-        })
-        .catch((error) => {
-          this.modelDataPromise = null;
-          throw error;
-        });
-      return this.modelDataPromise;
-    },
-
-    /**
-     * Clear cached data. Call when new data files are selected.
-     */
-    clearCache() {
-      this.rossDataCache = null;
-      this.rossDataPromise = null;
-      this.eventDataCache = null;
-      this.eventDataPromise = null;
-      this.modelDataCache = null;
-      this.modelDataPromise = null;
+      return await response.json();
     },
 
     /**
@@ -122,7 +45,6 @@ document.addEventListener('alpine:init', () => {
      */
     selectRun(runId) {
       this.selectedRunId = runId;
-      this.clearCache();
       this.loadTick++;
     },
   });

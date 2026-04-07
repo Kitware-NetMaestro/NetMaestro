@@ -8,13 +8,6 @@ from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions, routers
 
-from net_maestro.core.rest.data_api import (
-    DataFilesView,
-    EventDataView,
-    ModelDataView,
-    RossDataView,
-    SelectDataFileView,
-)
 from net_maestro.core.rest.run_api import (
     RunEventDataView,
     RunModelDataView,
@@ -51,12 +44,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/s3-upload/", include("s3_file_field.urls")),
     path("api/v1/", include(router.urls)),
-    # Data endpoints
-    path("api/v1/data/event", EventDataView.as_view(), name="api-data-event"),
-    path("api/v1/data/model", ModelDataView.as_view(), name="api-data-model"),
-    path("api/v1/data/ross", RossDataView.as_view(), name="api-data-ross"),
-    path("api/v1/data/files", DataFilesView.as_view(), name="api-data-files"),
-    path("api/v1/data/select", SelectDataFileView.as_view(), name="api-data-select"),
     # Run-based data endpoints (serve from DB records)
     path("api/v1/runs/<int:run_id>/ross", RunRossDataView.as_view(), name="api-run-ross"),
     path("api/v1/runs/<int:run_id>/event", RunEventDataView.as_view(), name="api-run-event"),
