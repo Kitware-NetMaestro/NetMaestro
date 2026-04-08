@@ -2,6 +2,8 @@
  * Alpine.js component for time plot visualization.
  * Displays ROSS simulation data over time with configurable axes.
  */
+import Plotly from 'plotly';
+
 export const timePlot = () => ({
   records: [],
   columns: [],

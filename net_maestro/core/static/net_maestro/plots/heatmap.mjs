@@ -3,6 +3,7 @@
  * Displays ROSS simulation data as a scatter plot with configurable axes.
  */
 import _ from 'lodash';
+import Plotly from 'plotly';
 
 export const heatmapPlot = () => ({
   heatmapPlotEl: null,

@@ -1,3 +1,5 @@
+import Plotly from 'plotly';
+
 export const networkTimePlot = () => ({
   records: [],
   columns: [],

@@ -2,6 +2,8 @@
  * Alpine.js component for parallel coordinates plot visualization.
  * Displays multi-dimensional ROSS data using Plotly's parallel coordinates chart.
  */
+import Plotly from 'plotly';
+
 export const parallelCoords = () => ({
   parallelPlotEl: null,
   isPlotInitialized: false,

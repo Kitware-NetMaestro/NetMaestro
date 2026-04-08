@@ -2,6 +2,8 @@
  * Alpine.js component for scatter plot visualization.
  * Displays ROSS simulation data as a scatter plot with configurable axes.
  */
+import Plotly from 'plotly';
+
 export const scatterPlot = () => ({
   // Component state
   records: [],
