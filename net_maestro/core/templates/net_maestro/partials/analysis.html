@@ -13,13 +13,15 @@
              hx-swap="innerHTML"
              hx-include="#status-filter">
       <div class="dropdown dropdown-end">
-        <button class="btn btn-ghost btn-sm btn-square" type="button" tabindex="0"
-                aria-label="Filter by status">
+        <button
+          class="btn btn-ghost btn-sm btn-square"
+          type="button"
+          aria-label="Filter by status"
+        >
           <i class="ri-filter-3-line text-lg"></i>
         </button>
         <form id="status-filter"
               class="dropdown-content z-[1] menu bg-base-200 rounded-box shadow w-44 p-2"
-              tabindex="0"
               hx-get="{% url 'run-list' %}"
               hx-trigger="change"
               hx-target="#run-list"
