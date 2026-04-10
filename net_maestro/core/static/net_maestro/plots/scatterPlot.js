@@ -12,6 +12,7 @@ document.addEventListener('alpine:init', () => {
     scatterPlotEl: null,
     isPlotInitialized: false,
     isLoaded: false,
+    noData: false,
 
     get valueList() {
       const excludedColumns = ['PE_ID', 'real_time', 'virtual_time'];
@@ -45,8 +46,8 @@ document.addEventListener('alpine:init', () => {
         }
       });
 
-      // Load cached data if available
-      if (this.$store.dataStore.rossDataCache) {
+      // Load data if a run is already selected
+      if (this.$store.dataStore.selectedRunId) {
         this.load();
       }
 
@@ -114,10 +115,23 @@ document.addEventListener('alpine:init', () => {
 
     async loadRossData() {
       this.isLoaded = false;
+      this.noData = false;
       const payload = await this.$store.dataStore.fetchRossData();
       this.columns = payload.columns ?? [];
       this.records = payload.data ?? [];
+      if (this.records.length === 0) {
+        this.noData = true;
+        this.purge();
+        return;
+      }
       this.updatePlotData();
+    },
+
+    purge() {
+      if (this.scatterPlotEl) {
+        Plotly.purge(this.scatterPlotEl);
+        this.isPlotInitialized = false;
+      }
     },
 
     /**

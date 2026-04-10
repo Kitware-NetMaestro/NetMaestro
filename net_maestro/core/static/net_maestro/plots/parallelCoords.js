@@ -6,6 +6,7 @@ document.addEventListener('alpine:init', () => {
   Alpine.data('parallelCoords', () => ({
     parallelPlotEl: null,
     isPlotInitialized: false,
+    noData: false,
     records: [],
     plotDimensions: [
       { key: 'PE_ID', label: 'PE ID' },
@@ -19,8 +20,8 @@ document.addEventListener('alpine:init', () => {
      * Initialize the component and set up watchers.
      */
     init() {
-      // Load cached data if available
-      if (this.$store.dataStore.rossDataCache) {
+      // Load data if a run is already selected
+      if (this.$store.dataStore.selectedRunId) {
         this.load();
       }
 
@@ -78,9 +79,22 @@ document.addEventListener('alpine:init', () => {
     },
 
     async loadRossData() {
+      this.noData = false;
       const payload = await this.$store.dataStore.fetchRossData();
       this.records = payload.data ?? [];
+      if (this.records.length === 0) {
+        this.noData = true;
+        this.purge();
+        return;
+      }
       this.updatePlotData();
+    },
+
+    purge() {
+      if (this.parallelPlotEl) {
+        Plotly.purge(this.parallelPlotEl);
+        this.isPlotInitialized = false;
+      }
     },
 
     /**
