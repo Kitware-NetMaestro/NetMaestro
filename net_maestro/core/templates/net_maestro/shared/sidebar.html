@@ -1,17 +1,20 @@
 <div class="menu menu-lg bg-neutral min-h-[calc(100vh-64px)] w-16 flex flex-col">
   <!-- Navigation menu items -->
   <ul class="grid h-screen gap-6 content-baseline">
-    <!-- Base Models section (disabled - future feature) -->
+    <!-- Base Models section -->
     <li>
-      <button
-        type="button"
+      <a
+        href="{% url 'configuration-partial' %}"
+        hx-get="{% url 'configuration-partial' %}"
+        hx-target="#main-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
         class="flex items-center justify-center"
-        @click="activeItem = 'baseModels'"
         :class="{ 'menu-active': activeItem === 'baseModels' }"
-        disabled
+        @click="activeItem = 'baseModels'"
       >
         <i class="ri-stack-line" aria-hidden="true"></i>
-      </button>
+      </a>
     </li>
 
     <!-- Components section (disabled - future feature) -->
@@ -42,14 +45,18 @@
 
     <!-- Results (data visualization) section -->
     <li>
-      <button
-        type="button"
+      <a
+        href="{% url 'analysis-partial' %}"
+        hx-get="{% url 'analysis-partial' %}"
+        hx-target="#main-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
         class="flex items-center justify-center"
-        @click="activeItem = 'results'"
         :class="{ 'menu-active': activeItem === 'results' }"
+        @click="activeItem = 'results'"
       >
         <i class="ri-bar-chart-grouped-line" aria-hidden="true"></i>
-      </button>
+      </a>
     </li>
   </ul>
 </div>

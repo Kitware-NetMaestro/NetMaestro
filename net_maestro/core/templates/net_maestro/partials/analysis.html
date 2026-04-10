@@ -1,0 +1,22 @@
+<div class="flex-1 bg-base-300 p-4">
+  <div class="grid grid-cols-2 gap-4 h-full">
+    <div class="bg-base-100 rounded-lg">
+      {% include 'net_maestro/plots/scatterPlot.html' %}
+    </div>
+    <div class="bg-base-100 rounded-lg">
+      {% include 'net_maestro/plots/timePlot.html' %}
+    </div>
+
+    <div class="bg-base-100 rounded-lg">
+      {% include 'net_maestro/plots/parallelCoords.html' %}
+    </div>
+    <div class="bg-base-100 rounded-lg">
+      {% include 'net_maestro/plots/heatmap.html' %}
+    </div>
+
+    <div class="bg-base-100 rounded-lg">
+      {% include 'net_maestro/plots/networkTimePlot.html' %}
+    </div>
+    <div></div>
+  </div>
+</div>

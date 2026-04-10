@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
+from django.views.generic import RedirectView
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions, routers
@@ -37,7 +38,7 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
-    path("", views.home, name="home"),
+    path("", RedirectView.as_view(pattern_name="configuration", permanent=False), name="home"),
     path("accounts/", include("allauth.urls")),
     path("oauth/", include("oauth2_provider.urls")),
     path("admin/", admin.site.urls),
@@ -51,6 +52,19 @@ urlpatterns = [
     path("api/v1/data/select", SelectDataFileView.as_view(), name="api-data-select"),
     path("api/docs/redoc/", schema_view.with_ui("redoc"), name="docs-redoc"),
     path("api/docs/swagger/", schema_view.with_ui("swagger"), name="docs-swagger"),
+    # Page endpoints
+    path(
+        "analysis/",
+        views.page_view,
+        {"partial": "analysis", "active_page": "results"},
+        name="analysis-partial",
+    ),
+    path(
+        "configuration/",
+        views.page_view,
+        {"partial": "configuration", "active_page": "baseModels"},
+        name="configuration-partial",
+    ),
 ]
 
 if settings.DEBUG:

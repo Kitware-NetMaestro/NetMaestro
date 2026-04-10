@@ -7,8 +7,8 @@ document.addEventListener('alpine:init', () => {
   Alpine.data('timePlot', () => ({
     records: [],
     columns: [],
-    selectedXAxis: 'virtual_time',
-    selectedYAxis: 'events_processed',
+    selectedXAxis: null,
+    selectedYAxis: null,
     minTime: null,
     maxTime: null,
     timePlotEl: null,
@@ -38,6 +38,29 @@ document.addEventListener('alpine:init', () => {
      * Called automatically by Alpine.js when component mounts.
      */
     init() {
+      // Restore UI state
+      const savedState = this.$store.uiStateStore.getUIState('timePlot');
+      this.selectedXAxis = savedState.selectedXAxis ?? 'virtual_time';
+      this.selectedYAxis = savedState.selectedYAxis ?? 'events_processed';
+
+      this.$watch('selectedXAxis', (newValue) => {
+        if (newValue) {
+          this.$store.uiStateStore.saveUIState('timePlot', { selectedXAxis: newValue });
+        }
+      });
+
+      this.$watch('selectedYAxis', (newValue) => {
+        if (newValue) {
+          this.$store.uiStateStore.saveUIState('timePlot', { selectedYAxis: newValue });
+        }
+      });
+
+      // Load cached data if available
+      if (this.$store.dataStore.rossDataCache) {
+        this.load();
+      }
+
+      // Watch for new data loads
       this.$watch('$store.dataStore.loadTick', () => {
         this.load();
       });

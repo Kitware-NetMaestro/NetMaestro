@@ -2,8 +2,8 @@ document.addEventListener('alpine:init', () => {
   Alpine.data('networkTimePlot', () => ({
     records: [],
     columns: [],
-    selectedXAxis: 'virtual_time',
-    selectedYAxis: 'send_count',
+    selectedXAxis: null,
+    selectedYAxis: null,
     minTime: null,
     maxTime: null,
     networkTimePlotEl: null,
@@ -32,6 +32,29 @@ document.addEventListener('alpine:init', () => {
      * Called automatically by Alpine.js when component mounts.
      */
     init() {
+      // Restore UI state
+      const savedState = this.$store.uiStateStore.getUIState('networkTimePlot');
+      this.selectedXAxis = savedState.selectedXAxis ?? 'virtual_time';
+      this.selectedYAxis = savedState.selectedYAxis ?? 'send_count';
+
+      this.$watch('selectedXAxis', (newValue) => {
+        if (newValue) {
+          this.$store.uiStateStore.saveUIState('networkTimePlot', { selectedXAxis: newValue });
+        }
+      });
+
+      this.$watch('selectedYAxis', (newValue) => {
+        if (newValue) {
+          this.$store.uiStateStore.saveUIState('networkTimePlot', { selectedYAxis: newValue });
+        }
+      });
+
+      // Load cached data if available
+      if (this.$store.dataStore.modelDataCache) {
+        this.load();
+      }
+
+      // Watch for new data loads
       this.$watch('$store.dataStore.loadTick', () => {
         this.load();
       });

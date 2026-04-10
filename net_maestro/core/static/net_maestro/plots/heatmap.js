@@ -16,12 +16,28 @@ document.addEventListener('alpine:init', () => {
         tooltip: 'Message size data not available in current event trace format',
       },
     ],
-    selectedMetric: 'num_messages',
+    selectedMetric: null,
 
     /**
      * Initialize the component and set up watchers.
      */
     init() {
+      // Restore UI state
+      const savedState = this.$store.uiStateStore.getUIState('heatmapPlot');
+      this.selectedMetric = savedState.selectedMetric ?? 'num_messages';
+
+      this.$watch('selectedMetric', (newValue) => {
+        if (newValue) {
+          this.$store.uiStateStore.saveUIState('heatmapPlot', { selectedMetric: newValue });
+        }
+      });
+
+      // Load cached data if available
+      if (this.$store.dataStore.eventDataCache) {
+        this.load();
+      }
+
+      // Watch for new data loads
       this.$watch('$store.dataStore.loadTick', () => {
         this.load();
       });
