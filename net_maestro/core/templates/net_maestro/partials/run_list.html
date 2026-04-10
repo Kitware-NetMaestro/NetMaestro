@@ -4,7 +4,8 @@
          ? 'bg-neutral text-neutral-content'
          : 'bg-base-300 hover:bg-base-200'"
        @click="$store.dataStore.selectRun({{ run.pk }})">
-    <div class="card-body flex flex-row p-2 items-baseline">
+    <div class="card-body flex flex-row p-2 items-baseline justify-between">
+      <h3>{{ run.name }}</h3>
       {% if run.status == 'completed' %}
         <i class="ri-check-line text-success text-lg"></i>
       {% elif run.status == 'running' %}
@@ -16,7 +17,6 @@
       {% else %}
         <i class="ri-timer-line text-accent text-lg"></i>
       {% endif %}
-      <h3>{{ run.name }}</h3>
     </div>
   </div>
 {% empty %}
