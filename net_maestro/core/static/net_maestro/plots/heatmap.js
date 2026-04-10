@@ -9,8 +9,6 @@ export const heatmapPlot = () => ({
   heatmapPlotEl: null,
   isPlotInitialized: false,
   noData: false,
-  plotId: 'heatmapPlot',
-  isSyncing: false,
   records: [],
   metricList: [
     { key: 'num_messages', label: 'Num Messages', disabled: false },
@@ -47,18 +45,6 @@ export const heatmapPlot = () => ({
       this.load();
     });
 
-    // Reset zoom when another plot triggers a global reset
-    this.$watch('$store.plotSyncStore.resetTick', () => {
-      const sync = this.$store.plotSyncStore;
-      if (sync.lastUpdatedBy === this.plotId || !this.isPlotInitialized) {
-        return;
-      }
-      this.isSyncing = true;
-      Plotly.relayout(this.heatmapPlotEl, {
-        'xaxis.autorange': true,
-        'yaxis.autorange': true,
-      }).finally(() => { this.isSyncing = false; });
-    });
   },
 
   /**
