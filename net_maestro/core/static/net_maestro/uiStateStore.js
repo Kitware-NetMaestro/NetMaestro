@@ -21,6 +21,7 @@ document.addEventListener('alpine:init', () => {
       heatmapPlot: {
         selectedMetric: 'num_messages',
       },
+      activePlotsTab: 'network',
     },
 
     /**

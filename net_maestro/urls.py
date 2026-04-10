@@ -38,7 +38,9 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
-    path("", RedirectView.as_view(pattern_name="configuration", permanent=False), name="home"),
+    path(
+        "", RedirectView.as_view(pattern_name="configuration-partial", permanent=False), name="home"
+    ),
     path("accounts/", include("allauth.urls")),
     path("oauth/", include("oauth2_provider.urls")),
     path("admin/", admin.site.urls),
