@@ -7,3 +7,5 @@ project_slug: net-maestro
 python_package_name: net_maestro
 site_domain: www.net-maestro.test
 use_asgi: false
+
+#copier updated
