@@ -6,8 +6,10 @@ import { networkTimePlot } from './plots/networkTimePlot.mjs';
 import { parallelCoords } from './plots/parallelCoords.mjs';
 import { scatterPlot } from './plots/scatterPlot.mjs';
 import { timePlot } from './plots/timePlot.mjs';
+import { uiStateStore } from './uiStateStore.mjs';
 
 Alpine.store('dataStore', dataStore);
+Alpine.store('uiStateStore', uiStateStore);
 Alpine.data('dataFileSelector', dataFileSelector);
 Alpine.data('heatmapPlot', heatmapPlot);
 Alpine.data('networkTimePlot', networkTimePlot);
