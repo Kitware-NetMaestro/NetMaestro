@@ -37,6 +37,8 @@ export const plotSyncStore = {
 
   /**
    * Batch-update multiple parameter ranges at once.
+   * Triggers only one watcher notification regardless of how many
+   * parameters changed.
    * @param {Array<{ parameter: string, range: { min: number, max: number } | null }>} updates
    * @param {string} plotId - unique id of the originating plot
    */

@@ -134,22 +134,27 @@ export const timePlot = () => ({
       return;
     }
 
-    // Publish X-axis range
+    const updates = this.collectRangeUpdates(eventData);
+    if (updates.length > 0) {
+      sync.updateRanges(updates, this.plotId);
+    }
+  },
+
+  collectRangeUpdates(eventData) {
+    const updates = [];
     if (eventData['xaxis.range[0]'] != null) {
-      sync.updateRange(
-        this.selectedXAxis,
-        { min: eventData['xaxis.range[0]'], max: eventData['xaxis.range[1]'] },
-        this.plotId,
-      );
+      updates.push({
+        parameter: this.selectedXAxis,
+        range: { min: eventData['xaxis.range[0]'], max: eventData['xaxis.range[1]'] },
+      });
     }
-    // Publish Y-axis range
     if (eventData['yaxis.range[0]'] != null) {
-      sync.updateRange(
-        this.selectedYAxis,
-        { min: eventData['yaxis.range[0]'], max: eventData['yaxis.range[1]'] },
-        this.plotId,
-      );
+      updates.push({
+        parameter: this.selectedYAxis,
+        range: { min: eventData['yaxis.range[0]'], max: eventData['yaxis.range[1]'] },
+      });
     }
+    return updates;
   },
 
   /**
