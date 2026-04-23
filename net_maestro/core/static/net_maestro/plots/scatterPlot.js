@@ -246,13 +246,17 @@ export const scatterPlot = () => ({
       {
         xaxis: {
           title: {
-            text: this.valueList.find((item) => item.key === this.selectedXAxis).label,
+            text:
+              this.valueList.find((item) => item.key === this.selectedXAxis)?.label ??
+              this.selectedXAxis,
           },
           color: 'white',
         },
         yaxis: {
           title: {
-            text: this.valueList.find((item) => item.key === this.selectedYAxis).label,
+            text:
+              this.valueList.find((item) => item.key === this.selectedYAxis)?.label ??
+              this.selectedYAxis,
           },
           color: 'white',
         },

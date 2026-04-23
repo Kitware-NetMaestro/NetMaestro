@@ -1,6 +1,6 @@
 /**
- * Alpine.js component for scatter plot visualization.
- * Displays ROSS simulation data as a scatter plot with configurable axes.
+ * Alpine.js component for heatmap visualization.
+ * Displays event communication patterns between LPs as a heatmap.
  */
 import _ from 'lodash';
 import Plotly from 'plotly';

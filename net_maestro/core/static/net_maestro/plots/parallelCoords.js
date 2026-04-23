@@ -120,6 +120,11 @@ export const parallelCoords = () => ({
         range: constraint ? { min: constraint[0], max: constraint[1] } : null,
       };
     });
+
+    if (updates.every((u) => u.range === null)) {
+      sync.resetAll(this.plotId);
+      return;
+    }
     sync.updateRanges(updates, this.plotId);
   },
 

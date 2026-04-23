@@ -268,13 +268,17 @@ export const timePlot = () => ({
       // biome-ignore-start lint/style/useNamingConvention: library interface names
       xaxis: {
         title: {
-          text: this.xAxisValues.find((item) => item.key === this.selectedXAxis).label,
+          text:
+            this.xAxisValues.find((item) => item.key === this.selectedXAxis)?.label ??
+            this.selectedXAxis,
         },
         color: 'white',
       },
       yaxis: {
         title: {
-          text: this.yAxisValues.find((item) => item.key === this.selectedYAxis).label,
+          text:
+            this.yAxisValues.find((item) => item.key === this.selectedYAxis)?.label ??
+            this.selectedYAxis,
         },
         color: 'white',
       },
