@@ -11,6 +11,8 @@ This is the simplest configuration for developers to start with.
 1. Run `docker compose run --rm django ./manage.py migrate`
 2. Run `docker compose run --rm django ./manage.py createsuperuser`
    and follow the prompts to create your own user
+3. Run `docker compose run --rm django ./manage.py seed_example_data`
+   to populate the database with example data
 
 #### Run Application
 1. Run `docker compose up`
@@ -37,6 +39,7 @@ but allows developers to run Python code on their native system.
 3. Run `export UV_ENV_FILE=./dev/.env.docker-compose-native`
 4. Run `./manage.py migrate`
 5. Run `./manage.py createsuperuser` and follow the prompts to create your own user
+6. Run `./manage.py seed_example_data` to populate the database with example data
 
 #### Run Application
 1. Ensure `docker compose -f ./docker-compose.yml up -d` is still active
