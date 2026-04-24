@@ -28,7 +28,7 @@ dependencies = [
   "drf-yasg==1.21.15",
   "pandas==3.0.2",
   "psycopg[binary]==3.3.3",
-  "rich==14.3.4",
+  "rich==15.0.0",
   "whitenoise[brotli]==6.12.0",
   # Production-only
   "django-s3-file-field[s3]==1.1.0",
