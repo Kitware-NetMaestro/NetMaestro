@@ -144,7 +144,6 @@ document.addEventListener('alpine:init', () => {
 
       const xData = this.records.map((record) => record[this.selectedXAxis]);
       const yData = this.records.map((record) => record[this.selectedYAxis]);
-
       // TODO: This could be another choice we allow the user to make.
       const colorRange = this.records.map((record) => record.PE_ID);
 
@@ -163,12 +162,14 @@ document.addEventListener('alpine:init', () => {
             title: {
               text: this.valueList.find((item) => item.key === this.selectedXAxis).label,
             },
+            rangemode: 'tozero',
             color: 'white',
           },
           yaxis: {
             title: {
               text: this.valueList.find((item) => item.key === this.selectedYAxis).label,
             },
+            rangemode: 'tozero',
             color: 'white',
           },
         },
