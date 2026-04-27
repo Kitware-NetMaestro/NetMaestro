@@ -56,7 +56,7 @@ dev = [
   # The "dev" dependency group is installed by default,
   # so use this to install "development" extras by default too
   "net-maestro[development]",
-  "pre-commit==4.5.1",
+  "pre-commit==4.6.0",
   "tox==4.53.0",
   "tox-uv==1.35.1",
 ]
@@ -64,7 +64,7 @@ lint = [
   "ruff==0.15.11",
 ]
 type = [
-  "mypy==1.20.1",
+  "mypy==1.20.2",
   "celery-types==0.26.0",
   "django-stubs[compatible-mypy]==6.0.3",
   "djangorestframework-stubs[compatible-mypy]==3.16.9",
