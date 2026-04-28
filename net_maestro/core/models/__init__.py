@@ -7,6 +7,7 @@ from .model_file import ModelFile
 from .model_record import ModelRecord
 from .node import Node
 from .node_link import NodeLink
+from .results import Result
 from .router_node import RouterNode
 from .run import Run
 from .simulation_base_record import SimulationBaseRecord
@@ -25,6 +26,7 @@ __all__ = [
     "ModelRecord",
     "Node",
     "NodeLink",
+    "Result",
     "RouterNode",
     "Run",
     "SimulationBaseRecord",
