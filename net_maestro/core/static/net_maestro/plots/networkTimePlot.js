@@ -5,8 +5,6 @@ export const networkTimePlot = () => ({
   columns: [],
   selectedXAxis: null,
   selectedYAxis: null,
-  minTime: null,
-  maxTime: null,
   networkTimePlotEl: null,
   isPlotInitialized: false,
   isLoaded: false,
@@ -97,8 +95,8 @@ export const networkTimePlot = () => ({
         rangemode: 'tozero',
         color: 'white',
       },
-      paper_bgcolor: '1d232a',
-      plot_bgcolor: '1d232a',
+      paper_bgcolor: '#1d232a',
+      plot_bgcolor: '#1d232a',
       margin: {
         l: 50,
         r: 50,
@@ -121,8 +119,8 @@ export const networkTimePlot = () => ({
   async loadModelData() {
     this.noData = false;
     const payload = await this.$store.dataStore.fetchModelData();
-    this.columns = payload.columns ?? [];
-    this.records = payload.data ?? [];
+    this.columns = payload?.columns ?? [];
+    this.records = payload?.data ?? [];
     if (this.records.length === 0) {
       this.noData = true;
       this.purge();
@@ -173,18 +171,22 @@ export const networkTimePlot = () => ({
       // biome-ignore-start lint/style/useNamingConvention: library interface names
       xaxis: {
         title: {
-          text: this.xAxisValues.find((item) => item.key === this.selectedXAxis).label,
+          text:
+            this.xAxisValues.find((item) => item.key === this.selectedXAxis)?.label ??
+            this.selectedXAxis,
         },
         color: 'white',
       },
       yaxis: {
         title: {
-          text: this.yAxisValues.find((item) => item.key === this.selectedYAxis).label,
+          text:
+            this.yAxisValues.find((item) => item.key === this.selectedYAxis)?.label ??
+            this.selectedYAxis,
         },
         color: 'white',
       },
-      paper_bgcolor: '1d232a',
-      plot_bgcolor: '1d232a',
+      paper_bgcolor: '#1d232a',
+      plot_bgcolor: '#1d232a',
       margin: {
         l: 50,
         r: 50,

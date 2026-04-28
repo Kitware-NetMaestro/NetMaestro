@@ -9,12 +9,12 @@ export const timePlot = () => ({
   columns: [],
   selectedXAxis: null,
   selectedYAxis: null,
-  minTime: null,
-  maxTime: null,
   timePlotEl: null,
   isPlotInitialized: false,
   isLoaded: false,
   noData: false,
+  plotId: 'timePlot',
+  isSyncing: false,
 
   get xAxisValues() {
     return [
@@ -65,6 +65,98 @@ export const timePlot = () => ({
     this.$watch('$store.dataStore.loadTick', () => {
       this.load();
     });
+
+    this.setupSyncWatchers();
+  },
+
+  setupSyncWatchers() {
+    const sync = this.$store.plotSyncStore;
+
+    // Watch for range changes from other plots
+    this.$watch('$store.plotSyncStore.parameterRanges', (ranges) => {
+      if (sync.lastUpdatedBy === this.plotId) {
+        return;
+      }
+      const xRange = ranges[this.selectedXAxis];
+      const yRange = ranges[this.selectedYAxis];
+      if (!(xRange || yRange)) {
+        return;
+      }
+      this.applySyncedRange(xRange, yRange);
+    });
+
+    // Watch for reset from other plots
+    this.$watch('$store.plotSyncStore.resetTick', async () => {
+      if (sync.lastUpdatedBy === this.plotId || !this.isPlotInitialized) {
+        return;
+      }
+      this.isSyncing = true;
+      try {
+        await Plotly.relayout(this.timePlotEl, {
+          'xaxis.autorange': true,
+          'yaxis.autorange': true,
+        });
+      } finally {
+        this.isSyncing = false;
+      }
+    });
+  },
+
+  async applySyncedRange(xRange, yRange) {
+    if (!(this.timePlotEl && this.isPlotInitialized)) {
+      return;
+    }
+    const update = {};
+    if (xRange) {
+      update['xaxis.range'] = [xRange.min, xRange.max];
+    }
+    if (yRange) {
+      update['yaxis.range'] = [yRange.min, yRange.max];
+    }
+    if (Object.keys(update).length === 0) {
+      return;
+    }
+    this.isSyncing = true;
+    try {
+      await Plotly.relayout(this.timePlotEl, update);
+    } finally {
+      this.isSyncing = false;
+    }
+  },
+
+  onRelayout(eventData) {
+    if (this.isSyncing) {
+      return;
+    }
+    const sync = this.$store.plotSyncStore;
+
+    // Detect double-click reset
+    if (eventData['xaxis.autorange'] || eventData['yaxis.autorange']) {
+      sync.resetAll(this.plotId);
+      return;
+    }
+
+    const updates = this.collectRangeUpdates(eventData);
+    if (updates.length > 0) {
+      sync.updateRanges(updates, this.plotId);
+    }
+  },
+
+  collectRangeUpdates(eventData) {
+    const updates = [];
+    if (eventData['xaxis.range[0]'] != null) {
+      updates.push({
+        parameter: this.selectedXAxis,
+        range: { min: eventData['xaxis.range[0]'], max: eventData['xaxis.range[1]'] },
+      });
+    }
+    if (eventData['yaxis.range[0]'] != null) {
+      updates.push({
+        parameter: this.selectedYAxis,
+        range: { min: eventData['yaxis.range[0]'], max: eventData['yaxis.range[1]'] },
+      });
+    }
+    return updates;
   },
 
   /**
@@ -74,7 +166,6 @@ export const timePlot = () => ({
     if (this.isPlotInitialized) {
       return;
     }
-    this.isPlotInitialized = true;
     this.timePlotEl = document.getElementById('timePlot');
     if (!this.timePlotEl) {
       return;
@@ -103,8 +194,8 @@ export const timePlot = () => ({
         rangemode: 'tozero',
         color: 'white',
       },
-      paper_bgcolor: '1d232a',
-      plot_bgcolor: '1d232a',
+      paper_bgcolor: '#1d232a',
+      plot_bgcolor: '#1d232a',
       margin: {
         l: 50,
         r: 50,
@@ -116,6 +207,11 @@ export const timePlot = () => ({
     };
     const config = { responsive: true };
     Plotly.newPlot(this.timePlotEl, data, layout, config);
+    this.isPlotInitialized = true;
+
+    this.timePlotEl.on('plotly_relayout', (eventData) => {
+      this.onRelayout(eventData);
+    });
   },
 
   async load() {
@@ -128,8 +224,8 @@ export const timePlot = () => ({
     this.isLoaded = false;
     this.noData = false;
     const payload = await this.$store.dataStore.fetchRossData();
-    this.columns = payload.columns ?? [];
-    this.records = payload.data ?? [];
+    this.columns = payload?.columns ?? [];
+    this.records = payload?.data ?? [];
     if (this.records.length === 0) {
       this.noData = true;
       this.purge();
@@ -179,18 +275,22 @@ export const timePlot = () => ({
       // biome-ignore-start lint/style/useNamingConvention: library interface names
       xaxis: {
         title: {
-          text: this.xAxisValues.find((item) => item.key === this.selectedXAxis).label,
+          text:
+            this.xAxisValues.find((item) => item.key === this.selectedXAxis)?.label ??
+            this.selectedXAxis,
         },
         color: 'white',
       },
       yaxis: {
         title: {
-          text: this.yAxisValues.find((item) => item.key === this.selectedYAxis).label,
+          text:
+            this.yAxisValues.find((item) => item.key === this.selectedYAxis)?.label ??
+            this.selectedYAxis,
         },
         color: 'white',
       },
-      paper_bgcolor: '1d232a',
-      plot_bgcolor: '1d232a',
+      paper_bgcolor: '#1d232a',
+      plot_bgcolor: '#1d232a',
       margin: {
         l: 50,
         r: 50,
