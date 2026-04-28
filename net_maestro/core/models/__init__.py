@@ -10,6 +10,7 @@ from .simulation_file import SimulationFile
 from .simulation_kp_record import SimulationKpRecord
 from .simulation_lp_record import SimulationLpRecord
 from .simulation_pe_record import SimulationPeRecord
+from .topology import Topology
 
 __all__ = [
     "EventFile",
@@ -22,4 +23,5 @@ __all__ = [
     "SimulationKpRecord",
     "SimulationLpRecord",
     "SimulationPeRecord",
+    "Topology",
 ]
