@@ -1,198 +1,198 @@
-document.addEventListener('alpine:init', () => {
-  Alpine.data('networkTimePlot', () => ({
-    records: [],
-    columns: [],
-    selectedXAxis: null,
-    selectedYAxis: null,
-    minTime: null,
-    maxTime: null,
-    networkTimePlotEl: null,
-    isPlotInitialized: false,
-    isLoaded: false,
-    noData: false,
+import Plotly from 'plotly';
 
-    get xAxisValues() {
-      return [
-        { key: 'virtual_time', label: 'Virtual Time' },
-        { key: 'real_time', label: 'Real Time' },
-      ];
-    },
-    get yAxisValues() {
-      const excludedColumns = ['lp_id', 'component_id', 'real_time', 'virtual_time'];
-      const filteredColumns = this.columns.filter(
-        (column) => column && !excludedColumns.includes(column),
-      );
-      return filteredColumns.map((value) => ({
-        key: value,
-        label: value.replaceAll('_', ' '),
-      }));
-    },
+export const networkTimePlot = () => ({
+  records: [],
+  columns: [],
+  selectedXAxis: null,
+  selectedYAxis: null,
+  minTime: null,
+  maxTime: null,
+  networkTimePlotEl: null,
+  isPlotInitialized: false,
+  isLoaded: false,
+  noData: false,
 
-    /**
-     * Initialize the component and set up watchers.
-     * Called automatically by Alpine.js when component mounts.
-     */
-    init() {
-      // Restore UI state
-      const savedState = this.$store.uiStateStore.getUIState('networkTimePlot');
-      this.selectedXAxis = savedState.selectedXAxis ?? 'virtual_time';
-      this.selectedYAxis = savedState.selectedYAxis ?? 'send_count';
+  get xAxisValues() {
+    return [
+      { key: 'virtual_time', label: 'Virtual Time' },
+      { key: 'real_time', label: 'Real Time' },
+    ];
+  },
+  get yAxisValues() {
+    const excludedColumns = ['lp_id', 'component_id', 'real_time', 'virtual_time'];
+    const filteredColumns = this.columns.filter(
+      (column) => column && !excludedColumns.includes(column),
+    );
+    return filteredColumns.map((value) => ({
+      key: value,
+      label: value.replaceAll('_', ' '),
+    }));
+  },
 
-      this.$watch('selectedXAxis', (newValue) => {
-        if (newValue) {
-          this.$store.uiStateStore.saveUIState('networkTimePlot', { selectedXAxis: newValue });
-        }
-      });
+  /**
+   * Initialize the component and set up watchers.
+   * Called automatically by Alpine.js when component mounts.
+   */
+  init() {
+    // Restore UI state
+    const savedState = this.$store.uiStateStore.getUIState('networkTimePlot');
+    this.selectedXAxis = savedState.selectedXAxis ?? 'virtual_time';
+    this.selectedYAxis = savedState.selectedYAxis ?? 'send_count';
 
-      this.$watch('selectedYAxis', (newValue) => {
-        if (newValue) {
-          this.$store.uiStateStore.saveUIState('networkTimePlot', { selectedYAxis: newValue });
-        }
-      });
-
-      // Load data if a run is already selected
-      if (this.$store.dataStore.selectedRunId) {
-        this.load();
+    this.$watch('selectedXAxis', (newValue) => {
+      if (newValue) {
+        this.$store.uiStateStore.saveUIState('networkTimePlot', { selectedXAxis: newValue });
       }
+    });
 
-      // Watch for new data loads
-      this.$watch('$store.dataStore.loadTick', () => {
-        this.load();
-      });
-    },
-
-    /**
-     * Initialize the Plotly time plot.
-     */
-    initPlot() {
-      if (this.isPlotInitialized) {
-        return;
+    this.$watch('selectedYAxis', (newValue) => {
+      if (newValue) {
+        this.$store.uiStateStore.saveUIState('networkTimePlot', { selectedYAxis: newValue });
       }
-      this.networkTimePlotEl = document.getElementById('networkTimePlot');
-      if (!this.networkTimePlotEl) {
-        return;
-      }
+    });
 
-      const data = [
-        {
+    // Load data if a run is already selected
+    if (this.$store.dataStore.selectedRunId) {
+      this.load();
+    }
+
+    // Watch for new data loads
+    this.$watch('$store.dataStore.loadTick', () => {
+      this.load();
+    });
+  },
+
+  /**
+   * Initialize the Plotly networkTime plot.
+   */
+  initPlot() {
+    if (this.isPlotInitialized) {
+      return;
+    }
+    this.networkTimePlotEl = document.getElementById('networkTimePlot');
+    if (!this.networkTimePlotEl) {
+      return;
+    }
+
+    const data = [
+      {
+        x: [],
+        y: [],
+        showlegend: true,
+      },
+    ];
+    const layout = {
+      // biome-ignore-start lint/style/useNamingConvention: library interface names
+      xaxis: {
+        title: {
+          text: 'Virtual Time',
+        },
+        rangemode: 'tozero',
+        color: 'white',
+      },
+      yaxis: {
+        title: {
+          text: 'Send Count',
+        },
+        rangemode: 'tozero',
+        color: 'white',
+      },
+      paper_bgcolor: '1d232a',
+      plot_bgcolor: '1d232a',
+      margin: {
+        l: 50,
+        r: 50,
+        b: 50,
+        t: 50,
+        pad: 4,
+      },
+      // biome-ignore-end lint/style/useNamingConvention: library interface names
+    };
+    const config = { responsive: true };
+    Plotly.newPlot(this.networkTimePlotEl, data, layout, config);
+    this.isPlotInitialized = true;
+  },
+
+  async load() {
+    this.initPlot();
+    await this.loadModelData();
+  },
+
+  async loadModelData() {
+    this.noData = false;
+    const payload = await this.$store.dataStore.fetchModelData();
+    this.columns = payload.columns ?? [];
+    this.records = payload.data ?? [];
+    if (this.records.length === 0) {
+      this.noData = true;
+      this.purge();
+      return;
+    }
+    this.updatePlotData();
+  },
+
+  purge() {
+    if (this.networkTimePlotEl) {
+      Plotly.purge(this.networkTimePlotEl);
+      this.isPlotInitialized = false;
+    }
+  },
+
+  /**
+   * Update the plot with current axis selections.
+   * Groups data by lp_id to create separate traces.
+   */
+  updatePlotData() {
+    if (!(this.networkTimePlotEl && this.records.length)) {
+      return;
+    }
+
+    const groupedData = {};
+
+    for (const record of this.records) {
+      const lpId = record.lp_id;
+      if (!groupedData[lpId]) {
+        groupedData[lpId] = {
           x: [],
           y: [],
-          showlegend: true,
-        },
-      ];
-      const layout = {
-        // biome-ignore-start lint/style/useNamingConvention: library interface names
-        xaxis: {
-          title: {
-            text: 'Virtual Time',
-          },
-          rangemode: 'tozero',
-          color: 'white',
-        },
-        yaxis: {
-          title: {
-            text: 'Send Count',
-          },
-          rangemode: 'tozero',
-          color: 'white',
-        },
-        paper_bgcolor: '1d232a',
-        plot_bgcolor: '1d232a',
-        margin: {
-          l: 50,
-          r: 50,
-          b: 50,
-          t: 50,
-          pad: 4,
-        },
-        // biome-ignore-end lint/style/useNamingConvention: library interface names
-      };
-      const config = { responsive: true };
-      Plotly.newPlot(this.networkTimePlotEl, data, layout, config);
-      this.isPlotInitialized = true;
-    },
-
-    async load() {
-      this.initPlot();
-      await this.loadModelData();
-    },
-
-    async loadModelData() {
-      this.noData = false;
-      const payload = await this.$store.dataStore.fetchModelData();
-      this.columns = payload.columns ?? [];
-      this.records = payload.data ?? [];
-      if (this.records.length === 0) {
-        this.noData = true;
-        this.purge();
-        return;
-      }
-      this.updatePlotData();
-    },
-
-    purge() {
-      if (this.networkTimePlotEl) {
-        Plotly.purge(this.networkTimePlotEl);
-        this.isPlotInitialized = false;
-      }
-    },
-
-    /**
-     * Update the plot with current axis selections.
-     * Groups data by lp_id to create separate traces.
-     */
-    updatePlotData() {
-      if (!(this.networkTimePlotEl && this.records.length)) {
-        return;
+          lpId: lpId,
+        };
       }
 
-      const groupedData = {};
+      groupedData[lpId].x.push(record[this.selectedXAxis]);
+      groupedData[lpId].y.push(record[this.selectedYAxis]);
+    }
 
-      for (const record of this.records) {
-        const lpId = record.lp_id;
-        if (!groupedData[lpId]) {
-          groupedData[lpId] = {
-            x: [],
-            y: [],
-            lpId: lpId,
-          };
-        }
+    const traces = Object.values(groupedData).map((lpData) => ({
+      x: lpData.x,
+      y: lpData.y,
+      showlegend: true,
+    }));
 
-        groupedData[lpId].x.push(record[this.selectedXAxis]);
-        groupedData[lpId].y.push(record[this.selectedYAxis]);
-      }
-
-      const traces = Object.values(groupedData).map((lpData) => ({
-        x: lpData.x,
-        y: lpData.y,
-        showlegend: true,
-      }));
-
-      Plotly.react(this.networkTimePlotEl, traces, {
-        // biome-ignore-start lint/style/useNamingConvention: library interface names
-        xaxis: {
-          title: {
-            text: this.xAxisValues.find((item) => item.key === this.selectedXAxis).label,
-          },
-          color: 'white',
+    Plotly.react(this.networkTimePlotEl, traces, {
+      // biome-ignore-start lint/style/useNamingConvention: library interface names
+      xaxis: {
+        title: {
+          text: this.xAxisValues.find((item) => item.key === this.selectedXAxis).label,
         },
-        yaxis: {
-          title: {
-            text: this.yAxisValues.find((item) => item.key === this.selectedYAxis).label,
-          },
-          color: 'white',
+        color: 'white',
+      },
+      yaxis: {
+        title: {
+          text: this.yAxisValues.find((item) => item.key === this.selectedYAxis).label,
         },
-        paper_bgcolor: '1d232a',
-        plot_bgcolor: '1d232a',
-        margin: {
-          l: 50,
-          r: 50,
-          b: 50,
-          t: 50,
-          pad: 4,
-        },
-        // biome-ignore-end lint/style/useNamingConvention: library interface names
-      });
-    },
-  }));
+        color: 'white',
+      },
+      paper_bgcolor: '1d232a',
+      plot_bgcolor: '1d232a',
+      margin: {
+        l: 50,
+        r: 50,
+        b: 50,
+        t: 50,
+        pad: 4,
+      },
+      // biome-ignore-end lint/style/useNamingConvention: library interface names
+    });
+  },
 });

@@ -8,7 +8,13 @@
       "!**/*.html"
     ]
   },
-  "javascript": {
-    "globals": ["_", "Alpine", "Plotly"]
+  // Dependencies are resolved via cdn/esm imports and importmapping, not npm packages
+  // Remove if build/bundling is implemented
+  "linter": {
+    "rules": {
+      "correctness": {
+        "noUndeclaredDependencies": "info"
+      }
+    }
   }
 }
