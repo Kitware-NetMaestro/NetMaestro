@@ -13,7 +13,7 @@ from django.shortcuts import render
 if TYPE_CHECKING:
     from django.http import HttpRequest, HttpResponse
 
-from .constants import RunStatus
+from .constants import ResultStatus
 from .models import Run
 
 
@@ -21,14 +21,14 @@ def _filtered_runs(request: HttpRequest) -> dict[str, object]:
     """Return runs queryset filtered by ?status= and ?q= params."""
     statuses = request.GET.getlist("status")
     search_query = request.GET.get("q", "").strip()
-    runs = Run.objects.all()
+    runs = Run.objects.select_related("result").all()
     if statuses:
-        runs = runs.filter(status__in=statuses)
+        runs = runs.filter(result__status__in=statuses)
     if search_query:
         runs = runs.filter(name__icontains=search_query)
     return {
         "runs": runs,
-        "status_choices": RunStatus.choices,
+        "status_choices": ResultStatus.choices,
         "selected_statuses": statuses,
         "search_query": search_query,
     }

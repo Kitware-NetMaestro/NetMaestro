@@ -6,13 +6,13 @@
        @click="$store.dataStore.selectRun({{ run.pk }})">
     <div class="card-body flex flex-row p-2 items-baseline justify-between">
       <h3>{{ run.name }}</h3>
-      {% if run.status == 'completed' %}
+      {% if run.result.status == 'completed' %}
         <i class="ri-check-line text-success text-lg"></i>
-      {% elif run.status == 'running' %}
+      {% elif run.result.status == 'running' %}
         <i class="ri-run-line text-info text-lg"></i>
-      {% elif run.status == 'failed' %}
+      {% elif run.result.status == 'failed' %}
         <i class="ri-error-warning-line text-error text-lg"></i>
-      {% elif run.status == 'cancelled' %}
+      {% elif run.result.status == 'cancelled' %}
         <i class="ri-forbid-line text-warning text-lg"></i>
       {% else %}
         <i class="ri-timer-line text-accent text-lg"></i>

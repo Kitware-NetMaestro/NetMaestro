@@ -62,7 +62,7 @@ class RunRossDataView(APIView):
             exclude=("id", "simulation_file"),
         )
         queryset = SimulationPeRecord.objects.filter(
-            simulation_file__run=run,
+            simulation_file__result=run.result,
         ).order_by("virtual_time")
         return Response(_queryset_to_response(queryset, columns))
 
@@ -77,7 +77,7 @@ class RunEventDataView(APIView):
             exclude=("id", "event_file"),
         )
         queryset = EventRecord.objects.filter(
-            event_file__run=run,
+            event_file__result=run.result,
         )
         return Response(_queryset_to_response(queryset, columns))
 
@@ -92,6 +92,6 @@ class RunModelDataView(APIView):
             exclude=("id", "model_file"),
         )
         queryset = ModelRecord.objects.filter(
-            model_file__run=run,
+            model_file__result=run.result,
         ).order_by("virtual_time")
         return Response(_queryset_to_response(queryset, columns))
