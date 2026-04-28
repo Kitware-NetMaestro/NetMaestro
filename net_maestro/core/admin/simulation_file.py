@@ -7,6 +7,6 @@ from net_maestro.core.models import SimulationFile
 
 @admin.register(SimulationFile)
 class SimulationFileAdmin(admin.ModelAdmin):
-    list_select_related = ["run"]
-    list_display = ["id", "run__name", "uploaded", "file"]
-    list_filter = ["run", "uploaded"]
+    list_select_related = ["result"]
+    list_display = ["id", "result", "result__status", "uploaded", "file"]
+    list_filter = ["result__status", "uploaded"]

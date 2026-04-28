@@ -10,7 +10,7 @@ class EventRecordAdmin(admin.ModelAdmin):
     list_select_related = ["event_file"]
     list_display = [
         "id",
-        "event_file__file",
+        "event_file",
         "source_lp",
         "dest_lp",
         "time_step",
@@ -18,9 +18,4 @@ class EventRecordAdmin(admin.ModelAdmin):
         "virtual_receive",
         "event_type",
     ]
-    list_filter = [
-        "source_lp",
-        "dest_lp",
-        "time_step",
-        "event_type",
-    ]
+    list_filter = ["event_file"]
