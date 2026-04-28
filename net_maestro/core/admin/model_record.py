@@ -10,18 +10,16 @@ class ModelRecordAdmin(admin.ModelAdmin):
     list_select_related = ["model_file"]
     list_display = [
         "id",
-        "model_file__file",
+        "model_file",
         "lp_id",
         "component_id",
         "virtual_time",
         "real_time",
         "send_count",
         "send_bytes",
+        "send_time",
         "receive_count",
         "receive_bytes",
+        "receive_time",
     ]
-    list_filter = [
-        "model_file__file",
-        "lp_id",
-        "component_id",
-    ]
+    list_filter = ["model_file", "lp_id", "component_id"]

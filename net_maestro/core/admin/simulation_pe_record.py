@@ -10,16 +10,13 @@ class SimulationPeRecordAdmin(admin.ModelAdmin):
     list_select_related = ["simulation_file"]
     list_display = [
         "id",
-        "simulation_file__file",
+        "simulation_file",
         "PE_ID",
+        "virtual_time",
+        "real_time",
         "events_processed",
         "events_rolled_back",
         "total_rollbacks",
+        "efficiency",
     ]
-    list_filter = [
-        "simulation_file__file",
-        "PE_ID",
-        "events_processed",
-        "events_rolled_back",
-        "total_rollbacks",
-    ]
+    list_filter = ["simulation_file", "PE_ID"]
