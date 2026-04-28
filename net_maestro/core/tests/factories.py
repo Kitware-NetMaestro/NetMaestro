@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.contrib.auth.models import User
 import factory.django
 
-from net_maestro.core.constants import RunStatus
+from net_maestro.core.constants import ResultStatus
 from net_maestro.core.models import (
     EventFile,
     EventRecord,
@@ -31,7 +31,7 @@ class RunFactory(factory.django.DjangoModelFactory):
 
     name = factory.Sequence(lambda n: f"TestRun-{n}")
     description = factory.Faker("text", max_nb_chars=200)
-    status = RunStatus.RUNNING
+    status = ResultStatus.RUNNING
 
 
 class EventFileFactory(factory.django.DjangoModelFactory):

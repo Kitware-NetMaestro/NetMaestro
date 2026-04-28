@@ -36,7 +36,7 @@ def _assert_data_response(resp, url: str) -> None:
 def test_run_ross_endpoint(api_client: APIClient) -> None:
     """Smoke test: GET /api/v1/runs/<run_id>/ross returns PE records."""
     run = RunFactory.create()
-    SimulationPeRecordFactory.create(simulation_file__run=run)
+    SimulationPeRecordFactory.create(simulation_file__result=run.result)
     user = UserFactory.create()
     api_client.force_authenticate(user=user)
 
@@ -48,7 +48,7 @@ def test_run_ross_endpoint(api_client: APIClient) -> None:
 def test_run_event_endpoint(api_client: APIClient) -> None:
     """Smoke test: GET /api/v1/runs/<run_id>/event returns event records."""
     run = RunFactory.create()
-    EventRecordFactory.create(event_file__run=run)
+    EventRecordFactory.create(event_file__result=run.result)
     user = UserFactory.create()
     api_client.force_authenticate(user=user)
 
@@ -60,7 +60,7 @@ def test_run_event_endpoint(api_client: APIClient) -> None:
 def test_run_model_endpoint(api_client: APIClient) -> None:
     """Smoke test: GET /api/v1/runs/<run_id>/model returns model records."""
     run = RunFactory.create()
-    ModelRecordFactory.create(model_file__run=run)
+    ModelRecordFactory.create(model_file__result=run.result)
     user = UserFactory.create()
     api_client.force_authenticate(user=user)
 

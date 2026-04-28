@@ -10,8 +10,15 @@ from pathlib import Path
 from django.core.files import File
 import djclick as click
 
-from net_maestro.core.constants import RunStatus
-from net_maestro.core.models import EventFile, ModelFile, Run, SimulationFile
+from net_maestro.core.constants import ResultStatus
+from net_maestro.core.models import (
+    EventFile,
+    ModelFile,
+    Result,
+    Run,
+    SimulationFile,
+    Topology,
+)
 from net_maestro.core.tasks import run_event_task, run_model_task, run_simulation_task
 
 
@@ -64,21 +71,24 @@ def data_ingest(  # noqa: PLR0913
 ) -> None:
     """Create a new Run object in the database."""
     status = (
-        RunStatus.PENDING
+        ResultStatus.PENDING
         if not (event_file and simulation_file and model_file)
-        else RunStatus.COMPLETED
+        else ResultStatus.COMPLETED
     )
 
-    new_run = Run.objects.create(
+    topology = Topology.objects.create(name=name)
+    result = Result.objects.create(status=status)
+    Run.objects.create(
         name=name,
         description=description or "",
-        status=status,
+        topology=topology,
+        result=result,
     )
 
     if event_file:
         with event_file.open("rb") as file_handle:
             event_file_obj = EventFile.objects.create(
-                run=new_run,
+                result=result,
                 file=File(file_handle),
             )
 
@@ -91,7 +101,7 @@ def data_ingest(  # noqa: PLR0913
     if simulation_file:
         with simulation_file.open("rb") as sim_reader:
             simulation_file_obj = SimulationFile.objects.create(
-                run=new_run,
+                result=result,
                 file=File(sim_reader),
             )
 
@@ -104,7 +114,7 @@ def data_ingest(  # noqa: PLR0913
     if model_file:
         with model_file.open("rb") as file_handle:
             model_file_obj = ModelFile.objects.create(
-                run=new_run,
+                result=result,
                 file=File(file_handle),
             )
 
