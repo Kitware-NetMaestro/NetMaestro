@@ -3,15 +3,22 @@ from __future__ import annotations
 from django.contrib.auth.models import User
 import factory.django
 
-from net_maestro.core.constants import ResultStatus
+from net_maestro.core.constants import ModelType, NodeType, ResultStatus, TrafficType
 from net_maestro.core.models import (
     EventFile,
     EventRecord,
+    HostNode,
     ModelFile,
     ModelRecord,
+    Node,
+    NodeLink,
+    Result,
+    RouterNode,
     Run,
     SimulationFile,
     SimulationPeRecord,
+    SwitchNode,
+    Topology,
 )
 
 
@@ -25,20 +32,104 @@ class UserFactory(factory.django.DjangoModelFactory[User]):
     last_name = factory.Faker("last_name")
 
 
+class TopologyFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Topology
+
+    name = factory.Sequence(lambda n: f"TestTopology-{n}")
+
+
+class NodeFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Node
+
+    topology = factory.SubFactory(TopologyFactory)
+    model = ModelType.SIMPLEP2P
+    name = factory.Sequence(lambda n: f"node-{n}")
+    node_type = NodeType.ROUTER
+    ingress_bandwidth = factory.Faker("pyfloat", min_value=0.0)
+    egress_bandwidth = factory.Faker("pyfloat", min_value=0.0)
+    ingress_latency = factory.Faker("pyfloat", min_value=0.0)
+    egress_latency = factory.Faker("pyfloat", min_value=0.0)
+
+
+class HostNodeFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = HostNode
+
+    topology = factory.SubFactory(TopologyFactory)
+    model = ModelType.SIMPLEP2P
+    name = factory.Sequence(lambda n: f"host-{n}")
+    node_type = NodeType.HOST
+    ingress_bandwidth = factory.Faker("pyfloat", min_value=0.0)
+    egress_bandwidth = factory.Faker("pyfloat", min_value=0.0)
+    ingress_latency = factory.Faker("pyfloat", min_value=0.0)
+    egress_latency = factory.Faker("pyfloat", min_value=0.0)
+    traffic = TrafficType.UNIFORM
+    num_messages = factory.Faker("pyint", min_value=0)
+    arrival_time = factory.Faker("pyfloat", min_value=0.0)
+    payload_size = factory.Faker("pyint", min_value=0)
+
+
+class RouterNodeFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = RouterNode
+
+    topology = factory.SubFactory(TopologyFactory)
+    model = ModelType.SIMPLEP2P
+    name = factory.Sequence(lambda n: f"router-{n}")
+    node_type = NodeType.ROUTER
+    ingress_bandwidth = factory.Faker("pyfloat", min_value=0.0)
+    egress_bandwidth = factory.Faker("pyfloat", min_value=0.0)
+    ingress_latency = factory.Faker("pyfloat", min_value=0.0)
+    egress_latency = factory.Faker("pyfloat", min_value=0.0)
+
+
+class SwitchNodeFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = SwitchNode
+
+    topology = factory.SubFactory(TopologyFactory)
+    model = ModelType.SIMPLEP2P
+    name = factory.Sequence(lambda n: f"switch-{n}")
+    node_type = NodeType.SWITCH
+    ingress_bandwidth = factory.Faker("pyfloat", min_value=0.0)
+    egress_bandwidth = factory.Faker("pyfloat", min_value=0.0)
+    ingress_latency = factory.Faker("pyfloat", min_value=0.0)
+    egress_latency = factory.Faker("pyfloat", min_value=0.0)
+
+
+class NodeLinkFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = NodeLink
+
+    topology = factory.SubFactory(TopologyFactory)
+    source = factory.SubFactory(NodeFactory, topology=factory.SelfAttribute("..topology"))
+    target = factory.SubFactory(NodeFactory, topology=factory.SelfAttribute("..topology"))
+
+
+class ResultFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Result
+
+    status = ResultStatus.RUNNING
+
+
 class RunFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Run
 
+    topology = factory.SubFactory(TopologyFactory)
+    result = factory.SubFactory(ResultFactory)
     name = factory.Sequence(lambda n: f"TestRun-{n}")
     description = factory.Faker("text", max_nb_chars=200)
-    status = ResultStatus.RUNNING
 
 
 class EventFileFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = EventFile
 
-    run = factory.SubFactory(RunFactory)
+    result = factory.SubFactory(ResultFactory)
     uploaded = factory.Faker("date_time_this_decade")
     file = factory.django.FileField()
 
@@ -60,7 +151,7 @@ class SimulationFileFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = SimulationFile
 
-    run = factory.SubFactory(RunFactory)
+    result = factory.SubFactory(ResultFactory)
     uploaded = factory.Faker("date_time_this_decade")
     file = factory.django.FileField()
 
@@ -104,7 +195,7 @@ class ModelFileFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = ModelFile
 
-    run = factory.SubFactory(RunFactory)
+    result = factory.SubFactory(ResultFactory)
     uploaded = factory.Faker("date_time_this_decade")
     file = factory.django.FileField()
 
