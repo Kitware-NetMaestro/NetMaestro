@@ -150,8 +150,8 @@ export const parallelCoords = () => ({
     ];
     const layout = {
       // biome-ignore-start lint/style/useNamingConvention: library interface names
-      paper_bgcolor: '1d232a',
-      plot_bgcolor: '1d232a',
+      paper_bgcolor: '#1d232a',
+      plot_bgcolor: '#1d232a',
       font: {
         color: 'white',
       },
@@ -181,7 +181,7 @@ export const parallelCoords = () => ({
   async loadRossData() {
     this.noData = false;
     const payload = await this.$store.dataStore.fetchRossData();
-    this.records = payload.data ?? [];
+    this.records = payload?.data ?? [];
     if (this.records.length === 0) {
       this.noData = true;
       this.purge();
@@ -220,8 +220,8 @@ export const parallelCoords = () => ({
 
     const layout = {
       // biome-ignore-start lint/style/useNamingConvention: library interface names
-      paper_bgcolor: '1d232a',
-      plot_bgcolor: '1d232a',
+      paper_bgcolor: '#1d232a',
+      plot_bgcolor: '#1d232a',
       font: {
         color: 'white',
       },

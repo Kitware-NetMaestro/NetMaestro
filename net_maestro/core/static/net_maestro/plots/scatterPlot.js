@@ -71,26 +71,30 @@ export const scatterPlot = () => ({
       }
       const xRange = ranges[this.selectedXAxis];
       const yRange = ranges[this.selectedYAxis];
-      if (!xRange && !yRange) {
+      if (!(xRange || yRange)) {
         return;
       }
       this.applySyncedRange(xRange, yRange);
     });
 
-    this.$watch('$store.plotSyncStore.resetTick', () => {
+    this.$watch('$store.plotSyncStore.resetTick', async () => {
       if (sync.lastUpdatedBy === this.plotId || !this.isPlotInitialized) {
         return;
       }
       this.isSyncing = true;
-      Plotly.relayout(this.scatterPlotEl, {
-        'xaxis.autorange': true,
-        'yaxis.autorange': true,
-      }).finally(() => { this.isSyncing = false; });
+      try {
+        await Plotly.relayout(this.scatterPlotEl, {
+          'xaxis.autorange': true,
+          'yaxis.autorange': true,
+        });
+      } finally {
+        this.isSyncing = false;
+      }
     });
   },
 
   async applySyncedRange(xRange, yRange) {
-    if (!this.scatterPlotEl || !this.isPlotInitialized) {
+    if (!(this.scatterPlotEl && this.isPlotInitialized)) {
       return;
     }
     const update = {};
@@ -152,8 +156,10 @@ export const scatterPlot = () => ({
     if (this.isPlotInitialized) {
       return;
     }
-    this.isPlotInitialized = true;
     this.scatterPlotEl = document.getElementById('scatterPlot');
+    if (!this.scatterPlotEl) {
+      return;
+    }
 
     const data = [
       {
@@ -180,8 +186,8 @@ export const scatterPlot = () => ({
         rangemode: 'tozero',
         color: 'white',
       },
-      paper_bgcolor: '1d232a',
-      plot_bgcolor: '1d232a',
+      paper_bgcolor: '#1d232a',
+      plot_bgcolor: '#1d232a',
       margin: {
         l: 50,
         r: 50,
@@ -193,6 +199,7 @@ export const scatterPlot = () => ({
     };
     const config = { responsive: true };
     Plotly.newPlot(this.scatterPlotEl, data, layout, config);
+    this.isPlotInitialized = true;
 
     this.scatterPlotEl.on('plotly_relayout', (eventData) => {
       this.onRelayout(eventData);
@@ -209,8 +216,8 @@ export const scatterPlot = () => ({
     this.isLoaded = false;
     this.noData = false;
     const payload = await this.$store.dataStore.fetchRossData();
-    this.columns = payload.columns ?? [];
-    this.records = payload.data ?? [];
+    this.columns = payload?.columns ?? [];
+    this.records = payload?.data ?? [];
     if (this.records.length === 0) {
       this.noData = true;
       this.purge();

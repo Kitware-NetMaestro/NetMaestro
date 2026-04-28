@@ -56,14 +56,6 @@ export const plotSyncStore = {
   },
 
   /**
-   * @param {string} parameter
-   * @returns {{ min: number, max: number } | null}
-   */
-  getRange(parameter) {
-    return this.parameterRanges[parameter] ?? null;
-  },
-
-  /**
    * Broadcast a full reset (double-click) from the given plot.
    */
   resetAll(plotId) {

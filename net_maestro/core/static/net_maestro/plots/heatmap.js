@@ -44,11 +44,10 @@ export const heatmapPlot = () => ({
     this.$watch('$store.dataStore.loadTick', () => {
       this.load();
     });
-
   },
 
   /**
-   * Initialize the Plotly scatter plot.
+   * Initialize the Plotly heatmap plot.
    */
   initPlot() {
     if (this.isPlotInitialized) {
@@ -67,8 +66,8 @@ export const heatmapPlot = () => ({
     ];
     const layout = {
       // biome-ignore-start lint/style/useNamingConvention: library interface names
-      paper_bgcolor: '1d232a',
-      plot_bgcolor: '1d232a',
+      paper_bgcolor: '#1d232a',
+      plot_bgcolor: '#1d232a',
       font: {
         color: 'white',
       },
@@ -89,18 +88,18 @@ export const heatmapPlot = () => ({
     };
     const config = { responsive: true };
     Plotly.newPlot(this.heatmapPlotEl, data, layout, config);
+    this.isPlotInitialized = true;
   },
 
   async load() {
     this.initPlot();
     await this.loadEventData();
-    this.isPlotInitialized = true;
   },
 
   async loadEventData() {
     this.noData = false;
     const payload = await this.$store.dataStore.fetchEventData();
-    this.records = payload.data ?? [];
+    this.records = payload?.data ?? [];
     if (this.records.length === 0) {
       this.noData = true;
       this.purge();
@@ -171,8 +170,8 @@ export const heatmapPlot = () => ({
       ],
       {
         // biome-ignore-start lint/style/useNamingConvention: library interface names
-        paper_bgcolor: '1d232a',
-        plot_bgcolor: '1d232a',
+        paper_bgcolor: '#1d232a',
+        plot_bgcolor: '#1d232a',
         font: {
           color: 'white',
         },
