@@ -1,51 +1,116 @@
-document.addEventListener('alpine:init', () => {
-  Alpine.store('dataStore', {
-    // loadTick: incremented to trigger plot updates
-    loadTick: 0,
+/**
+ * Coordinates zoom/pan across plots that share the same axis parameter.
+ *
+ * Each plot publishes its current axis ranges keyed by parameter name
+ * (e.g. 'virtual_time', 'events_processed'). Other plots watching
+ * the same parameter apply the range, preventing circular updates
+ * via the lastUpdatedBy / isSyncing guard pattern.
+ */
+export const plotSyncStore = {
+  // { parameterName: { min, max } }
+  parameterRanges: {},
+  // Which plot last wrote a range (used to skip self-sync)
+  lastUpdatedBy: null,
+  // Incremented on double-click reset so watchers can react
+  resetTick: 0,
 
-    // Currently selected run ID
-    selectedRunId: null,
+  /**
+   * Called by the plot that the user interacted with.
+   * @param {string} parameter - axis parameter name
+   * @param {{ min: number, max: number } | null} range - null = autorange
+   * @param {string} plotId - unique id of the originating plot
+   */
+  updateRange(parameter, range, plotId) {
+    this.lastUpdatedBy = plotId;
+    if (range) {
+      this.parameterRanges = {
+        ...this.parameterRanges,
+        [parameter]: { min: range.min, max: range.max },
+      };
+    } else {
+      // Remove the constraint (autorange)
+      const next = { ...this.parameterRanges };
+      delete next[parameter];
+      this.parameterRanges = next;
+    }
+  },
 
-    async fetchRossData() {
-      if (!this.selectedRunId) {
-        return null;
+  /**
+   * Batch-update multiple parameter ranges at once.
+   * Triggers only one watcher notification regardless of how many
+   * parameters changed.
+   * @param {Array<{ parameter: string, range: { min: number, max: number } | null }>} updates
+   * @param {string} plotId - unique id of the originating plot
+   */
+  updateRanges(updates, plotId) {
+    this.lastUpdatedBy = plotId;
+    const next = { ...this.parameterRanges };
+    for (const { parameter, range } of updates) {
+      if (range) {
+        next[parameter] = { min: range.min, max: range.max };
+      } else {
+        delete next[parameter];
       }
-      const response = await fetch(`/api/v1/runs/${this.selectedRunId}/ross`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ROSS data: ${response.statusText}`);
-      }
-      return await response.json();
-    },
+    }
+    this.parameterRanges = next;
+  },
 
-    async fetchEventData() {
-      if (!this.selectedRunId) {
-        return null;
-      }
-      const response = await fetch(`/api/v1/runs/${this.selectedRunId}/event`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch event data: ${response.statusText}`);
-      }
-      return await response.json();
-    },
+  /**
+   * Broadcast a full reset (double-click) from the given plot.
+   */
+  resetAll(plotId) {
+    this.lastUpdatedBy = plotId;
+    this.parameterRanges = {};
+    this.resetTick++;
+  },
+};
 
-    async fetchModelData() {
-      if (!this.selectedRunId) {
-        return null;
-      }
-      const response = await fetch(`/api/v1/runs/${this.selectedRunId}/model`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch model data: ${response.statusText}`);
-      }
-      return await response.json();
-    },
+export const dataStore = {
+  // loadTick: incremented when "Load Data" is clicked to trigger plot updates
+  loadTick: 0,
 
-    /**
-     * Select a run and trigger data reload from DB records.
-     * @param {number} runId - The run primary key
-     */
-    selectRun(runId) {
-      this.selectedRunId = runId;
-      this.loadTick++;
-    },
-  });
-});
+  // Currently selected run ID
+  selectedRunId: null,
+
+  async fetchRossData() {
+    if (!this.selectedRunId) {
+      return null;
+    }
+    const response = await fetch(`/api/v1/runs/${this.selectedRunId}/ross`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ROSS data: ${response.statusText}`);
+    }
+    return await response.json();
+  },
+
+  async fetchEventData() {
+    if (!this.selectedRunId) {
+      return null;
+    }
+    const response = await fetch(`/api/v1/runs/${this.selectedRunId}/event`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch event data: ${response.statusText}`);
+    }
+    return await response.json();
+  },
+
+  async fetchModelData() {
+    if (!this.selectedRunId) {
+      return null;
+    }
+    const response = await fetch(`/api/v1/runs/${this.selectedRunId}/model`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch model data: ${response.statusText}`);
+    }
+    return await response.json();
+  },
+
+  /**
+   * Select a run and trigger data reload from DB records.
+   * @param {number} runId - The run primary key
+   */
+  selectRun(runId) {
+    this.selectedRunId = runId;
+    this.loadTick++;
+  },
+};

@@ -36,7 +36,11 @@
           @change="updatePlotData()"
         >
           <template x-for="value in valueList" :key="value.key">
-            <option :value="value.key" x-text="value.label"></option>
+            <option
+            :value="value.key"
+            x-text="value.label"
+            :selected="value.key === selectedYAxis"
+            ></option>
           </template>
         </select>
       </fieldset>
