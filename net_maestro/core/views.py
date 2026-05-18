@@ -141,6 +141,39 @@ def _new_component_form_context() -> dict[str, object]:
     }
 
 
+def _component_to_form_context(component: dict[str, object]) -> dict[str, object]:
+    """Convert a component dict to the form_sections format expected by the form template.
+
+    TODO: Replace this with model-backed lookups when custom components are persisted.
+    TODO: Split detail_fields into type-specific sections (Network Defaults vs Host Traffic
+    Defaults) based on component type instead of assuming a flat list.
+    """
+    # Infer engine from base model for demo purposes
+    base_model = component.get("base_model", "")
+    engine = "PDES (ROSS)" if isinstance(base_model, str) and "ESNet" in base_model else "Unknown"
+
+    return {
+        "component_type": component.get("type"),
+        "base_model": component.get("base_model"),
+        "engine": engine,
+        "form_sections": [
+            {
+                "title": "Component",
+                "fields": [
+                    {"label": "Name", "value": component.get("name")},
+                    {"label": "Type", "value": component.get("type")},
+                    {"label": "Base Model", "value": component.get("base_model")},
+                    {"label": "Engine", "value": engine},
+                ],
+            },
+            {
+                "title": "Network Defaults",
+                "fields": component.get("detail_fields", []),
+            },
+        ],
+    }
+
+
 def _filtered_runs(request: HttpRequest) -> dict[str, object]:
     """Return runs queryset filtered by ?status= and ?q= params."""
     statuses = request.GET.getlist("status")
@@ -213,15 +246,28 @@ def custom_component_detail(_request: HttpRequest, component_id: int) -> HttpRes
     return _custom_component_not_implemented(f"detail for component {component_id}")
 
 
-def custom_component_edit(_request: HttpRequest, component_id: int) -> HttpResponse:
-    """Edit an existing custom component.
+def custom_component_edit(request: HttpRequest, component_id: int) -> HttpResponse:
+    """Render the demonstration form for editing an existing custom component.
 
     TODO: Fetch the custom component by ID, scoped to the current user/project.
-    TODO: Render and process a form initialized with the existing component values.
+    TODO: Render and process a real form initialized with the existing component values.
     TODO: Re-run type-specific validation when the base model or component type changes.
     TODO: Refresh the list or component card after save without losing the user's place in the UI.
     """
-    return _custom_component_not_implemented(f"edit for component {component_id}")
+    context = _custom_component_context()
+    components = context.get("custom_components", [])
+    if not isinstance(components, list):
+        components = []
+    component = next((c for c in components if c.get("id") == component_id), None)
+    if not component:
+        return HttpResponse(f"Component {component_id} not found.", status=404)
+    form_context = _component_to_form_context(component)
+    form_context["is_edit"] = True
+    partial_template = "net_maestro/partials/custom_component_form.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, form_context)
+    form_context.update({"active_page": "customComponents", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", form_context)
 
 
 def custom_component_duplicate(_request: HttpRequest, component_id: int) -> HttpResponse:

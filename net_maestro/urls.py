@@ -68,6 +68,11 @@ urlpatterns = [
         views.custom_component_create,
         name="custom-component-create",
     ),
+    path(
+        "configuration/edit/<int:component_id>",
+        views.custom_component_edit,
+        name="custom-component-edit",
+    ),
 ]
 
 if settings.DEBUG:

@@ -87,15 +87,19 @@
 
           <div class="card-actions justify-end mt-4">
             <button class="btn btn-sm btn-ghost">Duplicate</button>
-            <button class="btn btn-sm btn-outline">Edit</button>
+            <a
+              href="{% url 'custom-component-edit' component.id %}"
+              hx-get="{% url 'custom-component-edit' component.id %}"
+              hx-target="#main-content"
+              hx-swap="innerHTML"
+              hx-push-url="true"
+              class="btn btn-sm btn-outline"
+            >
+              Edit
+            </a>
             {% comment %}
-              TODO: Wire card actions to custom_component_duplicate() and
-              custom_component_edit().
-
-              Future view/template behavior:
-              - Duplicate should clone this component and refresh the list.
-              - Edit should open the component form populated with this component's values.
-              - Delete may be added later, with confirmation to avoid accidental removal.
+              TODO: Wire Duplicate to custom_component_duplicate().
+              Delete may be added later, with confirmation to avoid accidental removal.
             {% endcomment %}
           </div>
         </div>
