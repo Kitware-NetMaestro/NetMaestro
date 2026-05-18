@@ -23,8 +23,6 @@ def _custom_component_context() -> dict[str, object]:
 
     TODO: Replace this hard-coded wireframe data with database-backed queries once custom
     component and base model persistence exists.
-    TODO: Keep the returned data template-friendly so the configuration partial can stay
-    focused on presentation instead of field formatting or type-specific branching.
     """
     return {
         "base_models": [
@@ -62,7 +60,6 @@ def _custom_component_context() -> dict[str, object]:
                     {"label": "Ingress Latency", "value": "0.75 ms"},
                     {"label": "Egress Latency", "value": "0.75 ms"},
                     {"label": "Traffic", "value": "Synthetic Workload"},
-                    {"label": "Payload Size", "value": "4 KiB"},
                 ],
             },
             {
@@ -103,6 +100,47 @@ def _custom_component_context() -> dict[str, object]:
     }
 
 
+def _new_component_form_context() -> dict[str, object]:
+    """Return read-only demo context for the new custom component form.
+
+    TODO: Replace this static host example with a real Django form bound to model-backed
+    base component choices and custom component defaults.
+    TODO: Keep field metadata in the view so the template can render form sections without
+    knowing which fields belong to hosts, routers, or switches.
+    """
+    return {
+        "component_type": "Host",
+        "base_model": "ESNet Host",
+        "engine": "PDES (ROSS)",
+        "form_sections": [
+            {
+                "title": "Component",
+                "fields": [
+                    {"label": "Name", "value": "New Host Component"},
+                    {"label": "Type", "value": "Host"},
+                    {"label": "Base Model", "value": "ESNet Host"},
+                    {"label": "Engine", "value": "PDES (ROSS)"},
+                ],
+            },
+            {
+                "title": "Network Defaults",
+                "fields": [
+                    {"label": "Ingress Bandwidth", "value": "100 Gbps"},
+                    {"label": "Egress Bandwidth", "value": "100 Gbps"},
+                    {"label": "Ingress Latency", "value": "0.75 ms"},
+                    {"label": "Egress Latency", "value": "0.75 ms"},
+                ],
+            },
+            {
+                "title": "Host Traffic Defaults",
+                "fields": [
+                    {"label": "Traffic", "value": "Synthetic Workload"},
+                ],
+            },
+        ],
+    }
+
+
 def _filtered_runs(request: HttpRequest) -> dict[str, object]:
     """Return runs queryset filtered by ?status= and ?q= params."""
     statuses = request.GET.getlist("status")
@@ -134,7 +172,7 @@ def _custom_component_not_implemented(action: str) -> HttpResponse:
 def custom_component_list(request: HttpRequest) -> HttpResponse:
     """Render the custom component list.
 
-    TODO: Replace _custom_component_context() with user/project-scoped database queries.
+    TODO: Replace _custom_component_context() with database queries.
     TODO: Build absolute action URLs for create, edit, duplicate, and delete once those
     routes are implemented.
     TODO: Decide whether this list should support server-side filtering/search before topology
@@ -148,16 +186,21 @@ def custom_component_list(request: HttpRequest) -> HttpResponse:
     return render(request, "net_maestro/index.html", context)
 
 
-def custom_component_create(_request: HttpRequest) -> HttpResponse:
-    """Create a new custom component.
+def custom_component_create(request: HttpRequest) -> HttpResponse:
+    """Render the demonstration form for creating a new custom component.
 
-    TODO: Render and process a form for creating a custom component from a base model.
+    TODO: Render and process a real form for creating a custom component from a base model.
     TODO: Load base model choices from the same source used by _custom_component_context().
     TODO: Validate component fields by type, especially host-only traffic fields.
     TODO: Persist shared network defaults such as bandwidth and latency.
     TODO: Return either a full-page redirect or an HTMX partial update after successful create.
     """
-    return _custom_component_not_implemented("create")
+    context = _new_component_form_context()
+    partial_template = "net_maestro/partials/new_component.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": "customComponents", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
 
 
 def custom_component_detail(_request: HttpRequest, component_id: int) -> HttpResponse:

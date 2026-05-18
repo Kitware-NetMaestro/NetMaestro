@@ -63,6 +63,11 @@ urlpatterns = [
         views.custom_component_list,
         name="configuration-partial",
     ),
+    path(
+        "configuration/new-component",
+        views.custom_component_create,
+        name="custom-component-create",
+    ),
 ]
 
 if settings.DEBUG:

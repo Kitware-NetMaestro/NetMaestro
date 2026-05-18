@@ -56,12 +56,20 @@
         <div>
           <h1 class="text-3xl font-semibold">Custom Components</h1>
         </div>
-        <button class="btn btn-primary">
+        <a
+          href="{% url 'custom-component-create' %}"
+          hx-get="{% url 'custom-component-create' %}"
+          hx-target="#main-content"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+          class="btn btn-primary"
+        >
           <i class="ri-add-line" aria-hidden="true"></i>
           New Component
-        </button>
+        </a>
         {% comment %}
-          TODO: Link this button to custom_component_create().
+          TODO: This currently navigates to a demonstration-only create form.
+          Wire this route to a real custom component creation flow when models/forms exist.
 
           Future view/template behavior:
           - Open a modal, navigate to a create page, or trigger an HTMX partial swap
@@ -138,7 +146,16 @@
               <p class="text-base-content/60 max-w-sm">
                 Create a reusable host, router, or switch preset to start building topologies.
               </p>
-              <button class="btn btn-primary mt-2">New Component</button>
+              <a
+                href="{% url 'custom-component-create' %}"
+                hx-get="{% url 'custom-component-create' %}"
+                hx-target="#main-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                class="btn btn-primary mt-2"
+              >
+                New Component
+              </a>
             </div>
           </div>
         {% endfor %}
@@ -146,3 +163,8 @@
     </div>
   </div>
 </div>
+
+<!-- Lets refactor @configuration.html to be three templates:
+1. favorite_models.html: The sidebar that lists the favorited models
+2. custom_components.html: The main section of the page (`my componenets")
+3. customComponentForm.html: The "create new" form (at /configuration/new-component) -->
