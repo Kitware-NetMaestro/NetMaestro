@@ -1,0 +1,126 @@
+<div class="col-span-5 bg-base-300 overflow-y-auto" style="height: calc(100vh - 64px);">
+  <div class="p-8">
+    {% comment %}
+      custom_components is supplied by custom_component_list() via
+      _custom_component_context(). It is hard-coded for the current wireframe, but this
+      template now renders it as dynamic context so future database work can stay
+      concentrated in the view layer.
+
+      Future view responsibility:
+      - User/project-scoped custom component presets
+      - Base model metadata for source model chips
+      - Type metadata for icon classes and badge color classes
+      - Preformatted detail fields with labels and display-ready values
+      - Form/action URLs for create, edit, duplicate, and delete
+      - Permission flags, if user/project permissions become relevant
+    {% endcomment %}
+    <div class="flex flex-row items-start justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-semibold">Custom Components</h1>
+      </div>
+      <a
+        href="{% url 'custom-component-create' %}"
+        hx-get="{% url 'custom-component-create' %}"
+        hx-target="#main-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        class="btn btn-primary"
+      >
+        <i class="ri-add-line" aria-hidden="true"></i>
+        New Component
+      </a>
+      {% comment %}
+        TODO: This currently navigates to a demonstration-only create form.
+        Wire this route to a real custom component creation flow when models/forms exist.
+
+        Future view/template behavior:
+        - Open a modal, navigate to a create page, or trigger an HTMX partial swap
+        - Allow the user to select a base model and enter component-specific defaults
+        - Refresh this list after a successful create action
+      {% endcomment %}
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-8">
+      {% for component in custom_components %}
+      <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+          {% comment %}
+            Each card renders one item from custom_components. The current values are
+            hard-coded in the view, but the template should continue to receive
+            template-friendly objects or dictionaries with this same shape.
+
+            Special handling:
+            - Only include detail_fields that apply to the component type.
+            - Format units in the view/service layer before rendering.
+            - Keep details collapsed by default so the component list remains scannable.
+            - Use stable component IDs for collapsible controls and future HTMX actions.
+          {% endcomment %}
+          <div class="flex flex-row items-start justify-between gap-4">
+            <div class="flex flex-row items-center gap-3">
+              <i class="{{ component.icon_class }} text-xl {{ component.color_class }}" aria-hidden="true"></i>
+              <div>
+                <h2 class="card-title">{{ component.name }}</h2>
+              </div>
+            </div>
+            <div class="flex flex-row gap-2">
+              <div class="badge {{ component.badge_class }} badge-outline">
+                {{ component.type }}
+              </div>
+              <div class="badge badge-outline">{{ component.base_model }}</div>
+            </div>
+          </div>
+
+          <div class="collapse collapse-arrow bg-base-200 mt-4">
+            <input type="checkbox" aria-label="Toggle {{ component.name }} details">
+            <div class="collapse-title text-sm font-medium">View details</div>
+            <div class="collapse-content">
+              <div class="grid grid-cols-2 gap-4 text-sm">
+                {% for field in component.detail_fields %}
+                  <div>
+                    <div class="text-base-content/60">{{ field.label }}</div>
+                    <div class="font-medium">{{ field.value }}</div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="card-actions justify-end mt-4">
+            <button class="btn btn-sm btn-ghost">Duplicate</button>
+            <button class="btn btn-sm btn-outline">Edit</button>
+            {% comment %}
+              TODO: Wire card actions to custom_component_duplicate() and
+              custom_component_edit().
+
+              Future view/template behavior:
+              - Duplicate should clone this component and refresh the list.
+              - Edit should open the component form populated with this component's values.
+              - Delete may be added later, with confirmation to avoid accidental removal.
+            {% endcomment %}
+          </div>
+        </div>
+      </div>
+      {% empty %}
+        <div class="card bg-base-100 shadow-sm border border-dashed border-base-content/20 xl:col-span-2">
+          <div class="card-body items-center justify-center text-center min-h-72">
+            <i class="ri-stack-line text-4xl text-base-content/50" aria-hidden="true"></i>
+            <h2 class="card-title mt-4">No custom components yet</h2>
+            <p class="text-base-content/60 max-w-sm">
+              Create a reusable host, router, or switch preset to start building topologies.
+            </p>
+            <a
+              href="{% url 'custom-component-create' %}"
+              hx-get="{% url 'custom-component-create' %}"
+              hx-target="#main-content"
+              hx-swap="innerHTML"
+              hx-push-url="true"
+              class="btn btn-primary mt-2"
+            >
+              New Component
+            </a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>

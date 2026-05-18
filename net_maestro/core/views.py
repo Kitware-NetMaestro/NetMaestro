@@ -196,7 +196,7 @@ def custom_component_create(request: HttpRequest) -> HttpResponse:
     TODO: Return either a full-page redirect or an HTMX partial update after successful create.
     """
     context = _new_component_form_context()
-    partial_template = "net_maestro/partials/new_component.html"
+    partial_template = "net_maestro/partials/custom_component_form.html"
     if request.headers.get("HX-Request"):
         return render(request, partial_template, context)
     context.update({"active_page": "customComponents", "partial_template": partial_template})

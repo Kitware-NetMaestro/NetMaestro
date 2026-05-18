@@ -1,0 +1,36 @@
+<div class="col-span-1 border-1 border-slate-700 bg-neutral pl-4 overflow-y-auto" style="height: calc(100vh - 64px);">
+  <div class="p-2 mt-4">
+    <h2>Base Models</h2>
+    <div class="py-2">
+      <div class="font-light text-sm pb-4 pt-2">Built-in Models</div>
+      {% comment %}
+        base_models is supplied by custom_component_list() via _custom_component_context().
+        It is hard-coded for the current wireframe, but the template already treats it as
+        dynamic context.
+
+        Future view responsibility:
+        - Fetch supported base component models for the selected simulator/model family
+        - Provide display name, component type, simulator/model family label, and icon class
+        - Include metadata needed to pre-fill the custom component creation form
+      {% endcomment %}
+      <div class="grid gap-y-4">
+        {% for base_model in base_models %}
+          <div class="card bg-base-100 card-sm shadow-sm">
+            <div class="card-body flex p-2 ">
+              <div class="flex flex-row">
+                <i class="{{ base_model.icon_class }}" aria-hidden="true"></i>
+                <div class="card-title pl-2">{{ base_model.name }}</div>
+              </div>
+              <div class="flex flex-row items-baseline justify-between p-2">
+                <div class="font-light text-sm pb-4 pt-2">{{ base_model.type }}</div>
+                <div class="badge badge-outline badge-primary">{{ base_model.engine }}</div>
+              </div>
+            </div>
+          </div>
+        {% empty %}
+          <div class="text-sm text-base-content/60">No base models available.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
