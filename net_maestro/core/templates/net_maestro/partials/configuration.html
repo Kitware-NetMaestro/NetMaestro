@@ -5,6 +5,20 @@
       <div class="py-2">
         {% comment %} List of pre-defined component models that users can click on to create a new component with some pre-loaded config {% endcomment %}
         <div class="font-light text-sm pb-4 pt-2">Built-in Models</div>
+        {% comment %}
+          TODO: Replace these hard-coded built-in model cards with a dynamic list of base
+          component models supported by the selected simulator/model family.
+
+          Expected future data:
+          - Display name, such as "ESNet Switch", "ESNet Host", or "ESNet Router"
+          - Component type, such as "Switch", "Host", or "Router"
+          - Simulator/model family label, such as "PDES (ROSS)"
+          - Icon and theme color derived from component type
+
+          Special handling:
+          - This sidebar should remain available even when the user has no custom components.
+          - Later, selecting a base model may pre-fill the "New Component" form.
+        {% endcomment %}
         <div class="grid gap-y-4">
           <div class="card bg-base-100 card-sm shadow-sm">
             <div class="card-body flex p-2 ">
@@ -51,6 +65,18 @@
   </div>
   <div class="col-span-5 bg-base-300 overflow-y-auto" style="height: calc(100vh - 64px);">
     <div class="p-8">
+      {% comment %}
+        TODO: This page will list the user's custom components for the configuration flow.
+
+        Expected future data:
+        - A queryset/list of custom component presets scoped to the current user or project
+        - Optional empty-state context when the user has not created any components
+        - Permission flags for create/edit/duplicate/delete actions, if needed
+
+        Special handling:
+        - Keep this route as the entry point for `/configuration/my-components/`.
+        - The current cards below are hard-coded UI wireframe examples only.
+      {% endcomment %}
       <div class="flex flex-row items-start justify-between gap-4">
         <div>
           <h1 class="text-3xl font-semibold">Custom Components</h1>
@@ -59,11 +85,52 @@
           <i class="ri-add-line" aria-hidden="true"></i>
           New Component
         </button>
+        {% comment %}
+          TODO: Link this button to the custom component creation flow.
+
+          Expected future behavior:
+          - Open a modal, navigate to a create page, or trigger an HTMX partial swap
+          - Allow the user to select a base model and enter component-specific defaults
+          - Refresh this list after a successful create action
+        {% endcomment %}
       </div>
 
+      {% comment %}
+        TODO: Replace the hard-coded cards below with a loop over custom components.
+
+        Expected future structure:
+        {% for component in custom_components %}
+          Render one card per user-created custom component.
+        {% empty %}
+          Render an empty state with a create button.
+        {% endfor %}
+
+        Each component should provide:
+        - Name, such as "High Traffic Host"
+        - Component type, such as "Host", "Router", or "Switch"
+        - Base model name, such as "ESNet Host"
+        - Base model family/engine, such as "PDES (ROSS)"
+        - Icon/color mapping derived from component type
+        - Editable default network settings
+        - Optional type-specific settings, such as host traffic fields
+
+        Special handling:
+        - Only show fields that apply to the component's type.
+        - Use stable IDs in collapse inputs if multiple cards become interactive.
+        - Keep details collapsed by default to make the list scannable.
+      {% endcomment %}
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-8">
         <div class="card bg-base-100 shadow-sm">
           <div class="card-body">
+            {% comment %}
+              TODO: This card represents one custom component object.
+
+              Dynamic replacements:
+              - Icon and icon color should come from component type metadata.
+              - Card title should use the custom component's user-provided name.
+              - Type chip should use the component type.
+              - Base model chip should use the component's source/base model.
+            {% endcomment %}
             <div class="flex flex-row items-start justify-between gap-4">
               <div class="flex flex-row items-center gap-3">
                 <i class="ri-server-line text-xl text-primary" aria-hidden="true"></i>
@@ -81,6 +148,19 @@
               <input type="checkbox" aria-label="Toggle High Traffic Host details">
               <div class="collapse-title text-sm font-medium">View details</div>
               <div class="collapse-content">
+                {% comment %}
+                  TODO: Populate this details section from the component's stored defaults.
+
+                  Expected future data:
+                  - Network defaults shared by all component types:
+                    ingress_bandwidth, egress_bandwidth, ingress_latency, egress_latency
+                  - Host-only defaults:
+                    traffic, num_messages, arrival_time, payload_size
+
+                  Special handling:
+                  - Avoid rendering host-only fields for router/switch components.
+                  - Format units consistently in the view/template layer.
+                {% endcomment %}
                 <div class="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <div class="text-base-content/60">Ingress Bandwidth</div>
@@ -113,12 +193,29 @@
             <div class="card-actions justify-end mt-4">
               <button class="btn btn-sm btn-ghost">Duplicate</button>
               <button class="btn btn-sm btn-outline">Edit</button>
+              {% comment %}
+                TODO: Wire card actions to component-specific URLs/actions.
+
+                Expected future behavior:
+                - Duplicate should clone this component and refresh the list.
+                - Edit should open the component form populated with this component's values.
+                - Delete may be added later, with confirmation to avoid accidental removal.
+              {% endcomment %}
             </div>
           </div>
         </div>
 
         <div class="card bg-base-100 shadow-sm">
           <div class="card-body">
+            {% comment %}
+              TODO: This second example card should be removed once cards render in a loop.
+
+              It documents the router-shaped data case:
+              - Router type chip
+              - ESNet Router base model chip
+              - Shared network defaults
+              - No host-only traffic/payload fields unless router-specific fields are added
+            {% endcomment %}
             <div class="flex flex-row items-start justify-between gap-4">
               <div class="flex flex-row items-center gap-3">
                 <i class="ri-router-fill text-xl text-secondary" aria-hidden="true"></i>
@@ -174,6 +271,15 @@
 
         <div class="card bg-base-100 shadow-sm">
           <div class="card-body">
+            {% comment %}
+              TODO: This third example card should be removed once cards render in a loop.
+
+              It documents the switch-shaped data case:
+              - Switch type chip
+              - ESNet Switch base model chip
+              - Shared network defaults
+              - No host-only traffic/payload fields unless switch-specific fields are added
+            {% endcomment %}
             <div class="flex flex-row items-start justify-between gap-4">
               <div class="flex flex-row items-center gap-3">
                 <i class="ri-organization-chart text-xl text-accent" aria-hidden="true"></i>
