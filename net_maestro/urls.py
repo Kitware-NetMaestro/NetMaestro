@@ -60,8 +60,7 @@ urlpatterns = [
     path("analysis/runs/", views.run_list, name="run-list"),
     path(
         "configuration/my-components/",
-        views.page_view,
-        {"partial": "configuration", "active_page": "customComponents"},
+        views.custom_component_list,
         name="configuration-partial",
     ),
 ]

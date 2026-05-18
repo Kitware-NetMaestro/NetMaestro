@@ -18,6 +18,91 @@ from .constants import RunStatus
 from .models import Run
 
 
+def _custom_component_context() -> dict[str, object]:
+    """Return custom component context for the configuration page.
+
+    TODO: Replace this hard-coded wireframe data with database-backed queries once custom
+    component and base model persistence exists.
+    TODO: Keep the returned data template-friendly so the configuration partial can stay
+    focused on presentation instead of field formatting or type-specific branching.
+    """
+    return {
+        "base_models": [
+            {
+                "name": "ESNet Switch",
+                "type": "Switch",
+                "engine": "PDES (ROSS)",
+                "icon_class": "ri-organization-chart",
+            },
+            {
+                "name": "ESNet Host",
+                "type": "Host",
+                "engine": "PDES (ROSS)",
+                "icon_class": "ri-server-line",
+            },
+            {
+                "name": "ESNet Router",
+                "type": "Router",
+                "engine": "PDES (ROSS)",
+                "icon_class": "ri-router-fill",
+            },
+        ],
+        "custom_components": [
+            {
+                "id": 1,
+                "name": "High Traffic Host",
+                "type": "Host",
+                "base_model": "ESNet Host",
+                "icon_class": "ri-server-line",
+                "color_class": "text-primary",
+                "badge_class": "badge-primary",
+                "detail_fields": [
+                    {"label": "Ingress Bandwidth", "value": "100 Gbps"},
+                    {"label": "Egress Bandwidth", "value": "100 Gbps"},
+                    {"label": "Ingress Latency", "value": "0.75 ms"},
+                    {"label": "Egress Latency", "value": "0.75 ms"},
+                    {"label": "Traffic", "value": "Synthetic Workload"},
+                    {"label": "Payload Size", "value": "4 KiB"},
+                ],
+            },
+            {
+                "id": 2,
+                "name": "Regional Backbone Router",
+                "type": "Router",
+                "base_model": "ESNet Router",
+                "icon_class": "ri-router-fill",
+                "color_class": "text-secondary",
+                "badge_class": "badge-secondary",
+                "detail_fields": [
+                    {"label": "Ingress Bandwidth", "value": "400 Gbps"},
+                    {"label": "Egress Bandwidth", "value": "400 Gbps"},
+                    {"label": "Ingress Latency", "value": "1.25 ms"},
+                    {"label": "Egress Latency", "value": "1.25 ms"},
+                    {"label": "Engine", "value": "PDES (ROSS)"},
+                    {"label": "Role", "value": "Backbone Transit"},
+                ],
+            },
+            {
+                "id": 3,
+                "name": "Edge Aggregation Switch",
+                "type": "Switch",
+                "base_model": "ESNet Switch",
+                "icon_class": "ri-organization-chart",
+                "color_class": "text-accent",
+                "badge_class": "badge-accent",
+                "detail_fields": [
+                    {"label": "Ingress Bandwidth", "value": "200 Gbps"},
+                    {"label": "Egress Bandwidth", "value": "200 Gbps"},
+                    {"label": "Ingress Latency", "value": "0.50 ms"},
+                    {"label": "Egress Latency", "value": "0.50 ms"},
+                    {"label": "Engine", "value": "PDES (ROSS)"},
+                    {"label": "Role", "value": "Edge Aggregation"},
+                ],
+            },
+        ],
+    }
+
+
 def _filtered_runs(request: HttpRequest) -> dict[str, object]:
     """Return runs queryset filtered by ?status= and ?q= params."""
     statuses = request.GET.getlist("status")
@@ -42,28 +127,32 @@ def run_list(request: HttpRequest) -> HttpResponse:
 
 
 def _custom_component_not_implemented(action: str) -> HttpResponse:
-    """Return a placeholder response for planned custom component views."""
+    """Return a temporary 501 response for planned custom component views."""
     return HttpResponse(f"TODO: Implement custom component {action}.", status=501)
 
 
 def custom_component_list(request: HttpRequest) -> HttpResponse:
-    """Render the custom component list placeholder.
+    """Render the custom component list.
 
-    TODO: Replace the hard-coded component cards with a queryset of user/project-scoped
-    custom components.
-    TODO: Include any base model metadata needed to render type chips, source model chips,
-    icons, and detail fields.
-    TODO: Add an empty state when the user has not created any custom components.
+    TODO: Replace _custom_component_context() with user/project-scoped database queries.
+    TODO: Build absolute action URLs for create, edit, duplicate, and delete once those
+    routes are implemented.
     TODO: Decide whether this list should support server-side filtering/search before topology
     design needs it.
     """
-    return page_view(request, "configuration", "customComponents")
+    context = _custom_component_context()
+    partial_template = "net_maestro/partials/configuration.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": "customComponents", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
 
 
 def custom_component_create(_request: HttpRequest) -> HttpResponse:
     """Create a new custom component.
 
     TODO: Render and process a form for creating a custom component from a base model.
+    TODO: Load base model choices from the same source used by _custom_component_context().
     TODO: Validate component fields by type, especially host-only traffic fields.
     TODO: Persist shared network defaults such as bandwidth and latency.
     TODO: Return either a full-page redirect or an HTMX partial update after successful create.
@@ -75,7 +164,7 @@ def custom_component_detail(_request: HttpRequest, component_id: int) -> HttpRes
     """Show one custom component.
 
     TODO: Fetch the custom component by ID, scoped to the current user/project.
-    TODO: Render a detail view or reusable card partial for HTMX updates.
+    TODO: Reuse the same context shape as the list view for detail/card partial rendering.
     TODO: Include related base model metadata and formatted default values.
     """
     return _custom_component_not_implemented(f"detail for component {component_id}")
@@ -87,7 +176,7 @@ def custom_component_edit(_request: HttpRequest, component_id: int) -> HttpRespo
     TODO: Fetch the custom component by ID, scoped to the current user/project.
     TODO: Render and process a form initialized with the existing component values.
     TODO: Re-run type-specific validation when the base model or component type changes.
-    TODO: Refresh the list/card after save without losing the user's place in the UI.
+    TODO: Refresh the list or component card after save without losing the user's place in the UI.
     """
     return _custom_component_not_implemented(f"edit for component {component_id}")
 
@@ -128,7 +217,8 @@ def page_view(
     context: dict[str, object] = {}
     if partial == "analysis":
         context.update(_filtered_runs(request))
-    # TODO: Add custom component context for the configuration page.
+    if partial == "configuration":
+        context.update(_custom_component_context())
     if request.headers.get("HX-Request"):
         return render(request, partial_template, context)
     context.update({"active_page": active_page, "partial_template": partial_template})
