@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling==1.29.0"]
+requires = ["hatchling==1.30.1"]
 build-backend = "hatchling.build"
 
 [project]
@@ -13,27 +13,27 @@ dependencies = [
   # Runtime dependencies, always needed
   "celery==5.6.3",
   "django[argon2]==6.0.5",
-  "django-allauth==65.16.1",
+  "django-allauth==65.18.0",
   "django-auth-style==0.15.0",
   "django-click==2.5.0",
   "django-cors-headers==4.9.0",
   "django-environ==0.13.0",
   "django-extensions==4.1",
   "django-filter==25.2",
-  "django-oauth-toolkit==3.2.0",
-  "django-resonant-settings[allauth,celery]==0.50.5",
+  "django-oauth-toolkit==3.3.0",
+  "django-resonant-settings[allauth,celery]==0.51.1",
   "django-resonant-utils[allauth,s3_storage]==0.19.0",
   "django-stubs-ext==6.0.5",
   "djangorestframework==3.17.1",
   "drf-yasg==1.21.15",
-  "pandas==3.0.2",
+  "pandas==3.0.3",
   "psycopg[binary]==3.3.4",
   "rich==15.0.0",
   "whitenoise[brotli]==6.12.0",
   # Production-only
   "django-s3-file-field[s3]==1.1.0",
   "django-storages[s3]==1.14.6",
-  "sentry-sdk[celery,django,pure_eval]==2.59.0",
+  "sentry-sdk[celery,django,pure_eval]==2.61.1",
   "gunicorn==25.3.0",
 ]
 
@@ -45,7 +45,7 @@ development = [
   "django-minio-storage==0.5.9",
   "django-resonant-utils[minio_storage]==0.19.0",
   "django-s3-file-field[minio]==1.1.0",
-  "ipython==9.13.0",
+  "ipython==9.14.0",
   "watchdog==6.0.0",
   "werkzeug==3.1.8",
 ]
