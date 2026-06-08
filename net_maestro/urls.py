@@ -59,10 +59,19 @@ urlpatterns = [
     ),
     path("analysis/runs/", views.run_list, name="run-list"),
     path(
-        "configuration/",
-        views.page_view,
-        {"partial": "configuration", "active_page": "baseModels"},
+        "configuration/my-components/",
+        views.custom_component_list,
         name="configuration-partial",
+    ),
+    path(
+        "configuration/new-component",
+        views.custom_component_create,
+        name="custom-component-create",
+    ),
+    path(
+        "configuration/edit/<int:component_id>",
+        views.custom_component_edit,
+        name="custom-component-edit",
     ),
 ]
 
