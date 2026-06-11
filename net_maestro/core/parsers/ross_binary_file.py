@@ -85,9 +85,12 @@ KP_FIELDS = (
 )
 
 # More explicit name for "LP"
-LP_FORMAT = f"{ENDIAN}8If"
-LP_STRUCT = Struct(LP_FORMAT)
-LP_FIELDS = (
+# PHOLD uses 48-byte format with s_process_event, esnet uses 36-byte format
+LP_FORMAT_ESNET = f"{ENDIAN}8If"
+LP_FORMAT_PHOLD = f"{ENDIAN}12I"  # 48 bytes: 12 integers
+LP_STRUCT_ESNET = Struct(LP_FORMAT_ESNET)
+LP_STRUCT_PHOLD = Struct(LP_FORMAT_PHOLD)
+LP_FIELDS_ESNET = (
     "PE_ID",
     "KP_ID",
     "LP_ID",
@@ -98,11 +101,28 @@ LP_FIELDS = (
     "network_reads",
     "efficiency",
 )
+LP_FIELDS_PHOLD = (
+    "PE_ID",
+    "KP_ID",
+    "LP_ID",
+    "events_processed",
+    "events_abort",
+    "events_rolled_back",
+    "network_sends",
+    "network_reads",
+    "s_process_event",
+    "efficiency",
+    # The PHOLD binary format includes 2 padding integers (8 bytes) for C struct alignment.
+    # These ensure the struct is 48 bytes total and properly aligned in memory.
+    "padding_1",  # Alignment padding
+    "padding_2",  # Alignment padding
+)
 
 PAYLOAD_MAP: dict[int, tuple[RecordType, Struct, tuple[str, ...]]] = {
     PE_STRUCT.size: (RecordType.PE, PE_STRUCT, PE_FIELDS),
     KP_STRUCT.size: (RecordType.KP, KP_STRUCT, KP_FIELDS),
-    LP_STRUCT.size: (RecordType.LP, LP_STRUCT, LP_FIELDS),
+    LP_STRUCT_ESNET.size: (RecordType.LP, LP_STRUCT_ESNET, LP_FIELDS_ESNET),
+    LP_STRUCT_PHOLD.size: (RecordType.LP, LP_STRUCT_PHOLD, LP_FIELDS_PHOLD),
 }
 
 
@@ -161,6 +181,13 @@ class ROSSFile:
             record_data = dict(zip(fields, values, strict=False))
             record_data["virtual_time"] = metadata["virtual_time"]
             record_data["real_time"] = metadata["real_time"]
+
+            # Add metadata about which LP format this is
+            if record_type == RecordType.LP:
+                record_data["_format"] = (
+                    "phold" if payload_size == LP_STRUCT_PHOLD.size else "esnet"
+                )
+
             byte_pos += struct.size
 
             yield record_type, record_data
@@ -169,7 +196,9 @@ class ROSSFile:
         record_lists: dict[RecordType, list[pd.DataFrame]] = defaultdict(list)
 
         for record_type, record_data in self.parse_simulation_records():
-            record_dataframe = pd.DataFrame([record_data])
+            # Remove internal metadata fields before creating DataFrame
+            display_data = {k: v for k, v in record_data.items() if not k.startswith("_")}
+            record_dataframe = pd.DataFrame([display_data])
 
             record_lists[record_type].append(record_dataframe)
 
