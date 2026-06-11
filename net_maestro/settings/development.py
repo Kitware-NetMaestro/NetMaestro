@@ -59,3 +59,10 @@ SHELL_PLUS_IMPORTS = [
 ]
 
 REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = ["rest_framework.permissions.AllowAny"]
+
+# PHOLD simulation configuration
+PHOLD_BINARY_PATH = env.str(
+    "DJANGO_PHOLD_BINARY_PATH", default="/home/vscode/ross/build/models/phold/phold"
+)
+PHOLD_OUTPUT_DIR = env.str("DJANGO_PHOLD_OUTPUT_DIR", default="/tmp/phold_output")  # noqa: S108
+PHOLD_MPI_PROCESSES = env.int("DJANGO_PHOLD_MPI_PROCESSES", default=2)
