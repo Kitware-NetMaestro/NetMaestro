@@ -16,3 +16,14 @@ class SimulationLpRecord(SimulationBaseRecord):
 
     def __str__(self) -> str:
         return f"LpRecord {self.id}"
+
+
+class PHOLDSimulationLpRecord(SimulationLpRecord):
+    s_process_event = models.IntegerField()
+
+    class Meta:
+        verbose_name = "PHOLD Simulation LP Record"
+        verbose_name_plural = "PHOLD Simulation LP Records"
+
+    def __str__(self) -> str:
+        return f"PHOLDLpRecord {self.id}"
