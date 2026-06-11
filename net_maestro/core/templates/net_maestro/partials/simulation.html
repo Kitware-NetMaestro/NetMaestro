@@ -1,0 +1,158 @@
+<div class="bg-base-300 overflow-y-auto" style="height: calc(100vh - 64px);">
+  <div class="p-8 max-w-5xl mx-auto">
+    {% comment %}
+      Simulation configuration form for PHOLD model.
+      Currently demonstration-only with hard-coded default values.
+      TODO: Replace with real Django form when simulation models exist.
+      TODO: Add support for other simulation models (Ping Pong, Custom CODES).
+      TODO: Implement save action to persist simulation configuration.
+    {% endcomment %}
+    <div class="flex flex-row items-start justify-between gap-4">
+      <div>
+        <div class="flex flex-row items-center gap-2 text-sm text-base-content/60">
+          <a
+            href="{% url 'simulation-config' %}"
+            hx-get="{% url 'simulation-config' %}"
+            hx-target="#main-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="link link-hover"
+          >
+            Simulations
+          </a>
+          <i class="ri-arrow-right-s-line" aria-hidden="true"></i>
+          <span>New Simulation</span>
+        </div>
+        <h1 class="text-3xl font-semibold mt-2">New Simulation</h1>
+      </div>
+      <div class="flex flex-row gap-2">
+        <a
+          href="{% url 'analysis-partial' %}"
+          hx-get="{% url 'analysis-partial' %}"
+          hx-target="#main-content"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+          class="btn btn-ghost"
+        >
+          Cancel
+        </a>
+        <button type="submit" form="simulation-form" class="btn btn-primary">Run</button>
+      </div>
+    </div>
+
+    <form id="simulation-form" method="post">
+      {% csrf_token %}
+      <div class="grid grid-cols-1 gap-6 mt-8">
+      <!-- Simulation Model Selection -->
+      <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+          <h2 class="card-title mb-4">Simulation Model</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label class="form-control w-full">
+              <div class="label">
+                <span class="label-text">Model Type</span>
+              </div>
+              <input
+                type="text"
+                value="PHOLD"
+                class="input input-bordered w-full"
+                readonly
+              >
+            </label>
+            <label class="form-control w-full">
+              <div class="label">
+                <span class="label-text">Run Identifier</span>
+              </div>
+              {{ form.run_identifier }}
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Engine Parameters -->
+      <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+          <div class="flex flex-row items-center gap-3 mb-4">
+            <i class="ri-cpu-line text-2xl text-primary" aria-hidden="true"></i>
+            <h2 class="card-title">Engine Parameters</h2>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label class="form-control w-full">
+              <div class="label">
+                <span class="label-text">Synchronization Protocol</span>
+              </div>
+              {{ form.synch }}
+            </label>
+            <label class="form-control w-full">
+              <div class="label">
+                <span class="label-text">AVL Tree Size</span>
+              </div>
+              {{ form.avl_size }}
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Model Parameters -->
+      <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+          <div class="flex flex-row items-center gap-3 mb-4">
+            <i class="ri-bar-chart-line text-2xl text-secondary" aria-hidden="true"></i>
+            <h2 class="card-title">Model Parameters</h2>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label class="form-control w-full">
+              <div class="label">
+                <span class="label-text">LPs per Processor</span>
+              </div>
+              {{ form.nlp }}
+            </label>
+            <label class="form-control w-full">
+              <div class="label">
+                <span class="label-text">Remote Event Rate (0-1)</span>
+              </div>
+              {{ form.remote }}
+            </label>
+            <label class="form-control w-full">
+              <div class="label">
+                <span class="label-text">Mean Timestamp</span>
+              </div>
+              {{ form.mean }}
+            </label>
+            <label class="form-control w-full">
+              <div class="label">
+                <span class="label-text">Lookahead</span>
+              </div>
+              {{ form.lookahead }}
+            </label>
+            <label class="form-control w-full">
+              <div class="label">
+                <span class="label-text">Start Events per LP</span>
+              </div>
+              {{ form.start_events }}
+            </label>
+            <label class="form-control w-full">
+              <div class="label">
+                <span class="label-text">Memory Multiplier</span>
+              </div>
+              {{ form.mult }}
+            </label>
+            <label class="form-control w-full">
+              <div class="label">
+                <span class="label-text">Additional Memory Buffers</span>
+              </div>
+              {{ form.memory }}
+            </label>
+            <label class="form-control w-full">
+              <div class="label">
+                <span class="label-text">Stagger Events</span>
+              </div>
+              {{ form.stagger }}
+            </label>
+          </div>
+        </div>
+      </div>
+      </div>
+    </form>
+  </div>
+</div>
