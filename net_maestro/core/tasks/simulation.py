@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 def mark_run_completed(run_id: int) -> None:
     """Mark a run as completed after all ingestion tasks finish.
 
-    This task is meant to be used as a chord callback to ensure the run
-    is only marked as completed after all data ingestion is done.
+    This task is the final link in the ingestion chain, ensuring the run is only
+    marked as completed once all data ingestion is done and available in the database.
     """
     try:
         run = Run.objects.get(pk=run_id)
@@ -36,6 +36,30 @@ def mark_run_completed(run_id: int) -> None:
         logger.info("Marked run %s as completed", run_id)
     except Run.DoesNotExist:
         logger.exception("Run %s not found when trying to mark as completed", run_id)
+
+
+@shared_task
+def mark_run_failed(request: object, exc: Exception, traceback: object, *, run_id: int) -> None:
+    """Mark a run as failed when an ingestion task in the chain errors.
+
+    Attached as an error callback (``link_error``) to each task in the ingestion
+    chain so that a failure anywhere transitions the run to FAILED rather than
+    leaving it stuck in RUNNING. Celery invokes error callbacks with the failed
+    task's ``request``, the raised ``exc``, and its ``traceback``; ``run_id`` is
+    bound as a keyword argument when the callback is attached.
+    """
+    logger.error(
+        "Run %s ingestion task %s failed: %r",
+        run_id,
+        getattr(request, "id", "unknown"),
+        exc,
+    )
+    try:
+        run = Run.objects.get(pk=run_id)
+        run.status = RunStatus.FAILED
+        run.save()
+    except Run.DoesNotExist:
+        logger.exception("Run %s not found when trying to mark as failed", run_id)
 
 
 @shared_task
@@ -162,7 +186,6 @@ def run_phold_simulation(  # noqa: PLR0913
         str(output_dir),
         "--run-id",
         str(run_id),
-        "--immediate",
     ]
 
     if stagger:
@@ -180,14 +203,14 @@ def run_phold_simulation(  # noqa: PLR0913
             text=True,
             cwd=settings.BASE_DIR,
         )
-        logger.info("PHOLD completed successfully for run %s", run_id)
+        logger.info("PHOLD simulation finished for run %s; ingestion queued", run_id)
         logger.debug("STDOUT: %s", result.stdout)
         if result.stderr:
             logger.debug("STDERR: %s", result.stderr)
 
-        # Update status to COMPLETED
-        run.status = RunStatus.COMPLETED
-        run.save()
+        # Status stays RUNNING. The management command queues a chain of ingestion
+        # tasks ending in mark_run_completed, which sets COMPLETED once the data is
+        # actually available in the database.
 
     except subprocess.CalledProcessError as e:
         logger.exception(

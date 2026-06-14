@@ -9,13 +9,19 @@ from dataclasses import dataclass
 from pathlib import Path
 import subprocess
 import tempfile
+from typing import TYPE_CHECKING
 
+from celery import chain
 from django.core.files import File
 import djclick as click
+
+if TYPE_CHECKING:
+    from celery.canvas import Signature
 
 from net_maestro.core.constants import RunStatus
 from net_maestro.core.models import EventFile, ModelFile, Run, SimulationFile
 from net_maestro.core.tasks import run_event_task, run_model_task, run_simulation_task
+from net_maestro.core.tasks.simulation import mark_run_completed, mark_run_failed
 
 
 @dataclass
@@ -38,8 +44,19 @@ class PHOLDConfig:
     stagger: bool
 
 
-def _ingest_output_file(file_type: str, file_path: Path, run: Run, *, immediate: bool) -> None:
-    """Create the file record for a PHOLD output file and trigger its ingestion task.
+@dataclass
+class OutputFileContext:
+    """Context for processing output files."""
+
+    output_dir: Path
+    stats_prefix: str
+    run: Run
+
+
+def _ingest_output_file(
+    file_type: str, file_path: Path, run: Run, *, immediate: bool
+) -> Signature | None:
+    """Create the file record for a PHOLD output file and prepare its ingestion task.
 
     Args:
         file_type: Type identifier for the file (evtrace, model, gvt, rt, or unknown)
@@ -47,19 +64,24 @@ def _ingest_output_file(file_type: str, file_path: Path, run: Run, *, immediate:
         run: Run object to associate the file with
         immediate: Whether to run the task immediately (True) or queue it (False)
 
+    Returns:
+        Task signature if the file type is recognized, None otherwise
+
     Note:
         Unknown file types will be logged as warnings and skipped.
     """
     with file_path.open("rb") as file_handle:
+        # Use immutable signatures (.si) so chained tasks don't pass their return
+        # value as a positional argument to the next task in the chain.
         if file_type == "evtrace":
             file_obj = EventFile.objects.create(run=run, file=File(file_handle))
-            signature = run_event_task.s(event_file_pk=file_obj.pk)
+            signature = run_event_task.si(event_file_pk=file_obj.pk)
         elif file_type == "model":
             file_obj = ModelFile.objects.create(run=run, file=File(file_handle))
-            signature = run_model_task.s(model_file_pk=file_obj.pk)
+            signature = run_model_task.si(model_file_pk=file_obj.pk)
         elif file_type in ("gvt", "rt"):  # Explicit ROSS engine stats files
             file_obj = SimulationFile.objects.create(run=run, file=File(file_handle))
-            signature = run_simulation_task.s(simulation_file_pk=file_obj.pk)
+            signature = run_simulation_task.si(simulation_file_pk=file_obj.pk)
         else:
             # Unknown file type - log warning but don't fail the entire ingestion
             click.echo(
@@ -67,12 +89,12 @@ def _ingest_output_file(file_type: str, file_path: Path, run: Run, *, immediate:
                 f"This file type is not currently supported and will be skipped.",
                 err=True,
             )
-            return
+            return None
 
     if immediate:
         signature.apply()
-    else:
-        signature.delay()
+
+    return signature
 
 
 def _prepare_ross_csv(phold_path: Path) -> None:
@@ -195,7 +217,7 @@ def _create_or_update_run(
     description: str | None,
     run_id: int | None,
 ) -> Run:
-    """Create a new Run object or update an existing one.
+    """Create a new Run object or update an existing one's metadata.
 
     Args:
         name: Run identifier
@@ -209,7 +231,6 @@ def _create_or_update_run(
         run = Run.objects.get(id=run_id)
         run.name = name
         run.description = description or ""
-        run.status = RunStatus.RUNNING
         run.save()
     else:
         run = Run.objects.create(
@@ -218,6 +239,66 @@ def _create_or_update_run(
             status=RunStatus.RUNNING,
         )
     return run
+
+
+def _process_known_files(
+    context: OutputFileContext,
+    task_signatures: list[Signature],
+    *,
+    immediate: bool,
+) -> set[str]:
+    """Process known PHOLD output file types.
+
+    Returns:
+        Set of processed filenames
+    """
+    supported_output_files = {
+        "gvt": f"{context.stats_prefix}-gvt.bin",
+        "rt": f"{context.stats_prefix}-rt.bin",
+        "evtrace": f"{context.stats_prefix}-evtrace.bin",
+        "model": f"{context.stats_prefix}-model.bin",
+    }
+
+    processed_files = set()
+
+    for file_type, filename in supported_output_files.items():
+        file_path = context.output_dir / filename
+        if file_path.exists():
+            click.echo(f"Ingesting {filename} (type: {file_type})...")
+            signature = _ingest_output_file(file_type, file_path, context.run, immediate=immediate)
+            if signature and not immediate:
+                task_signatures.append(signature)
+            processed_files.add(filename)
+        else:
+            click.echo(f"Info: {filename} not found.")
+
+    return processed_files
+
+
+def _process_additional_files(
+    context: OutputFileContext,
+    processed_files: set[str],
+    task_signatures: list[Signature],
+    *,
+    immediate: bool,
+) -> None:
+    """Process any additional output files not in the known list."""
+    additional_files_found = False
+
+    for file_path in context.output_dir.glob(f"{context.stats_prefix}-*.bin"):
+        if file_path.name not in processed_files:
+            if not additional_files_found:
+                click.echo("\nAdditional output files found:")
+                additional_files_found = True
+
+            # Try to infer type from filename
+            file_suffix = file_path.stem.replace(f"{context.stats_prefix}-", "")
+            click.echo(f"  - {file_path.name} (type: {file_suffix})")
+            signature = _ingest_output_file(
+                file_suffix, file_path, context.run, immediate=immediate
+            )
+            if signature and not immediate:
+                task_signatures.append(signature)
 
 
 def _ingest_output_files(
@@ -235,37 +316,32 @@ def _ingest_output_files(
         run: The Run object to associate files with
         immediate: Whether to run ingestion tasks immediately
     """
-    supported_output_files = {
-        "gvt": f"{stats_prefix}-gvt.bin",
-        "rt": f"{stats_prefix}-rt.bin",
-        "evtrace": f"{stats_prefix}-evtrace.bin",
-        "model": f"{stats_prefix}-model.bin",
-    }
+    task_signatures: list[Signature] = []
+    context = OutputFileContext(actual_output_dir, stats_prefix, run)
 
-    processed_files = set()
+    # Process known file types
+    processed_files = _process_known_files(context, task_signatures, immediate=immediate)
 
-    # First, process known file types
-    for file_type, filename in supported_output_files.items():
-        file_path = actual_output_dir / filename
-        if file_path.exists():
-            click.echo(f"Ingesting {filename} (type: {file_type})...")
-            _ingest_output_file(file_type, file_path, run, immediate=immediate)
-            processed_files.add(filename)
-        else:
-            click.echo(f"Info: {filename} not found.")
+    # Process any additional files
+    _process_additional_files(context, processed_files, task_signatures, immediate=immediate)
 
-    # Check for additional output files that we might not know about
-    additional_files_found = False
-    for file_path in actual_output_dir.glob(f"{stats_prefix}-*.bin"):
-        if file_path.name not in processed_files:
-            if not additional_files_found:
-                click.echo("\nAdditional output files found:")
-                additional_files_found = True
-
-            # Try to infer type from filename
-            file_suffix = file_path.stem.replace(f"{stats_prefix}-", "")
-            click.echo(f"  - {file_path.name} (type: {file_suffix})")
-            _ingest_output_file(file_suffix, file_path, run, immediate=immediate)
+    # Mark the run as completed once ingestion is done.
+    if immediate:
+        # Ingestion already ran synchronously inside _ingest_output_file; mark now.
+        mark_run_completed(run.id)
+    elif task_signatures:
+        # Run ingestion tasks sequentially, then mark the run completed as the final
+        # link. A chain (unlike a chord) needs only the broker, no result backend.
+        click.echo(f"\nQueuing {len(task_signatures)} ingestion tasks...")
+        workflow_tasks = [*task_signatures, mark_run_completed.si(run.id)]
+        # Attach the error callback to every task so a failure anywhere in the chain
+        # transitions the run to FAILED instead of leaving it stuck in RUNNING.
+        for task in workflow_tasks:
+            task.link_error(mark_run_failed.s(run_id=run.id))
+        chain(*workflow_tasks).apply_async()
+    else:
+        # No ingestion tasks to run, but still need to mark as completed.
+        mark_run_completed.delay(run.id)
 
 
 @click.command()
