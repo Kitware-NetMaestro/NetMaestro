@@ -99,7 +99,7 @@ class TestRunPHOLDSimulation:
         self, mock_call_command: mock.Mock, settings: object
     ) -> None:
         """Test successful PHOLD simulation execution."""
-        settings.PHOLD_BINARY_PATH = "/path/to/phold"
+        setattr(settings, "PHOLD_BINARY_PATH", "/path/to/phold")  # noqa: B010
         run = RunFactory.create(status=RunStatus.PENDING)
 
         run_phold_simulation(
@@ -130,7 +130,7 @@ class TestRunPHOLDSimulation:
         self, mock_call_command: mock.Mock, settings: object
     ) -> None:
         """Test PHOLD simulation failure updates status correctly."""
-        settings.PHOLD_BINARY_PATH = "/path/to/phold"
+        setattr(settings, "PHOLD_BINARY_PATH", "/path/to/phold")  # noqa: B010
         mock_call_command.side_effect = Exception("Command failed")
 
         run = RunFactory.create(status=RunStatus.PENDING)

@@ -106,19 +106,19 @@ def run_simulation_task(simulation_file_pk: int) -> None:
                     | PHOLDSimulationLpRecord
                 ] = PHOLDSimulationLpRecord
             else:
-                model = models[record_type]
+                model_class = models[record_type]
 
-            record = model(simulation_file=simulation_file, **filtered_data)
-            record_batches[model].append(record)
+            record = model_class(simulation_file=simulation_file, **filtered_data)
+            record_batches[model_class].append(record)
 
-        # Bulk create batches for each model type
-        for model, batch in record_batches.items():
+        # Create batches for each model type
+        for batch_model, batch in record_batches.items():
             # PHOLDSimulationLpRecord uses multi-table inheritance and can't use bulk_create
-            if model == PHOLDSimulationLpRecord:
+            if batch_model == PHOLDSimulationLpRecord:
                 for record in batch:
                     record.save()
             else:
-                model.objects.bulk_create(batch)  # type: ignore[arg-type]
+                batch_model.objects.bulk_create(batch)  # type: ignore[attr-defined]
 
 
 @shared_task

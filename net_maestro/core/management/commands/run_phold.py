@@ -74,6 +74,7 @@ def _ingest_output_file(
     with file_path.open("rb") as file_handle:
         # Use immutable signatures (.si) so chained tasks don't pass their return
         # value as a positional argument to the next task in the chain.
+        file_obj: EventFile | ModelFile | SimulationFile
         if file_type == "evtrace":
             file_obj = EventFile.objects.create(run=run, file=File(file_handle))
             signature = run_event_task.si(event_file_pk=file_obj.pk)
@@ -94,6 +95,7 @@ def _ingest_output_file(
 
     if immediate:
         signature.apply()
+        return None
 
     return signature
 
@@ -225,6 +227,9 @@ def _create_or_update_run(
 
     Returns:
         The Run object
+
+    Raises:
+        Run.DoesNotExist: If run_id is provided but no matching Run exists
     """
     if run_id:
         run = Run.objects.get(id=run_id)
