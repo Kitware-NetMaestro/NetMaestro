@@ -3,11 +3,11 @@ from __future__ import annotations
 from collections import defaultdict
 import logging
 from pathlib import Path
-import subprocess
 import tempfile
 
 from celery import shared_task
 from django.conf import settings
+from django.core.management import call_command
 from django.db import transaction
 
 from net_maestro.core.constants import RunStatus
@@ -99,7 +99,12 @@ def run_simulation_task(simulation_file_pk: int) -> None:
             # For LP records, choose the appropriate model based on format metadata.
             # The parser determines the format from binary payload size (36 vs 48 bytes).
             if record_type == RecordType.LP and format_type == "phold":
-                model = PHOLDSimulationLpRecord
+                model_class: type[
+                    SimulationKpRecord
+                    | SimulationLpRecord
+                    | SimulationPeRecord
+                    | PHOLDSimulationLpRecord
+                ] = PHOLDSimulationLpRecord
             else:
                 model = models[record_type]
 
@@ -153,11 +158,9 @@ def run_phold_simulation(  # noqa: PLR0913
     # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Build PHOLD command
-    cmd = [
-        "python",
-        "manage.py",
-        "run_phold",
+    # Build arguments for call_command
+    # For djclick commands, we need to pass options as positional arguments
+    command_args = [
         "--name",
         run.name,
         "--synch",
@@ -181,7 +184,7 @@ def run_phold_simulation(  # noqa: PLR0913
         "--np",
         str(np),
         "--phold-path",
-        phold_path,
+        str(Path(phold_path)) if phold_path else "",
         "--output-dir",
         str(output_dir),
         "--run-id",
@@ -189,36 +192,23 @@ def run_phold_simulation(  # noqa: PLR0913
     ]
 
     if stagger:
-        cmd.append("--stagger")
+        command_args.extend(["--stagger", "True"])
 
-    logger.info("Running PHOLD simulation for run %s: %s", run_id, " ".join(cmd))
+    logger.info("Running PHOLD simulation for run %s", run_id)
 
     try:
-        # Execute the management command. cmd is a fixed argv list (no shell), so the
-        # validated run name is passed as a single argument, not interpreted by a shell.
-        result = subprocess.run(  # noqa: S603
-            cmd,
-            check=True,
-            capture_output=True,
-            text=True,
-            cwd=settings.BASE_DIR,
-        )
+        # Execute the management command using Django's call_command
+        call_command("run_phold", *command_args)
         logger.info("PHOLD simulation finished for run %s; ingestion queued", run_id)
-        logger.debug("STDOUT: %s", result.stdout)
-        if result.stderr:
-            logger.debug("STDERR: %s", result.stderr)
 
         # Status stays RUNNING. The management command queues a chain of ingestion
         # tasks ending in mark_run_completed, which sets COMPLETED once the data is
         # actually available in the database.
 
-    except subprocess.CalledProcessError as e:
+    except Exception:
         logger.exception(
-            "PHOLD failed for run %s with exit code %s\nSTDOUT: %s\nSTDERR: %s",
+            "PHOLD failed for run %s",
             run_id,
-            e.returncode,
-            e.stdout,
-            e.stderr,
         )
 
         # Update status to FAILED

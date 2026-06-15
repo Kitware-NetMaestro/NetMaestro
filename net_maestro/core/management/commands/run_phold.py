@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 from typing import TYPE_CHECKING
@@ -103,8 +104,6 @@ def _prepare_ross_csv(phold_path: Path) -> None:
     Args:
         phold_path: Path to the PHOLD binary (ross.csv is in the same directory)
     """
-    import shutil
-
     ross_csv_source = phold_path.parent / "ross.csv"
     ross_csv_target = Path("/tmp/ross.csv")  # noqa: S108
     if ross_csv_source.exists():
