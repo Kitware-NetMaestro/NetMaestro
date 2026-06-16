@@ -73,6 +73,11 @@ urlpatterns = [
         views.custom_component_edit,
         name="custom-component-edit",
     ),
+    path(
+        "simulation/config",
+        views.simulation_config,
+        name="simulation-config",
+    ),
 ]
 
 if settings.DEBUG:

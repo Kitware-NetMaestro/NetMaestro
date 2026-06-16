@@ -30,17 +30,20 @@
       </button>
     </li>
 
-    <!-- Simulation section (disabled - future feature) -->
+    <!-- Simulation section -->
     <li>
-      <button
-        type="button"
+      <a
+        href="{% url 'simulation-config' %}"
+        hx-get="{% url 'simulation-config' %}"
+        hx-target="#main-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
         class="flex items-center justify-center"
-        @click="activeItem = 'simulation'"
         :class="{ 'menu-active': activeItem === 'simulation' }"
-        disabled
+        @click="activeItem = 'simulation'"
       >
         <i class="ri-play-large-line" aria-hidden="true"></i>
-      </button>
+      </a>
     </li>
 
     <!-- Results (data visualization) section -->

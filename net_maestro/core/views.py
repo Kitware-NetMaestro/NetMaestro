@@ -9,13 +9,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from django.http import HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 if TYPE_CHECKING:
     from django.http import HttpRequest
 
 from .constants import RunStatus
+from .forms import PHOLDSimulationForm
 from .models import Run
+from .tasks import run_phold_simulation
 
 
 def _custom_component_context() -> dict[str, object]:
@@ -290,6 +292,49 @@ def custom_component_delete(_request: HttpRequest, component_id: int) -> HttpRes
     TODO: Refresh the custom component list or return an empty-state partial after deletion.
     """
     return _custom_component_not_implemented(f"delete for component {component_id}")
+
+
+def simulation_config(request: HttpRequest) -> HttpResponse:
+    """Render the simulation configuration form and handle submission.
+
+    GET: Display the form with PHOLD parameters.
+    POST: Create a Run and trigger the simulation task.
+    """
+    if request.method == "POST":
+        form = PHOLDSimulationForm(request.POST)
+        if form.is_valid():
+            # Create Run with PENDING status
+            run = Run.objects.create(
+                name=form.cleaned_data["run_identifier"],
+                status=RunStatus.PENDING,
+            )
+
+            # Trigger Celery task to run PHOLD simulation
+            run_phold_simulation.delay(
+                run_id=run.id,
+                synch=int(form.cleaned_data["synch"]),
+                avl_size=form.cleaned_data["avl_size"],
+                nlp=form.cleaned_data["nlp"],
+                remote=form.cleaned_data["remote"],
+                mean=form.cleaned_data["mean"],
+                mult=form.cleaned_data["mult"],
+                lookahead=form.cleaned_data["lookahead"],
+                start_events=form.cleaned_data["start_events"],
+                memory=form.cleaned_data["memory"],
+                stagger=bool(int(form.cleaned_data["stagger"])),
+            )
+
+            # Redirect to analysis page
+            return redirect("analysis-partial")
+    else:
+        form = PHOLDSimulationForm()
+
+    context: dict[str, object] = {"form": form}
+    partial_template = "net_maestro/partials/simulation.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": "simulation", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
 
 
 def page_view(

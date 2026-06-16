@@ -47,7 +47,11 @@
       </div>
     </div>
     <!-- Run cards (swapped by HTMX filter) -->
-    <div id="run-list">
+    <div id="run-list"
+         hx-get="{% url 'run-list' %}"
+         hx-trigger="every 2s, load from:body"
+         hx-swap="innerHTML"
+         hx-include="#status-filter,#run-search">
       {% include 'net_maestro/partials/run_list.html' %}
     </div>
   </div>

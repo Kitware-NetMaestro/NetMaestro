@@ -3,6 +3,7 @@
 An alternative to the recommended [dev container](../README.md) workflow.
 
 ## Setup
+1. **Configure simulation paths**: Set `ROSS_PATH` and PHOLD settings in `dev/.env.docker-compose`
 1. `docker compose run --rm django ./manage.py migrate`
 1. `docker compose run --rm django ./manage.py createsuperuser`
 

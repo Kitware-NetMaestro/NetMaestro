@@ -59,3 +59,9 @@ SHELL_PLUS_IMPORTS = [
 ]
 
 REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = ["rest_framework.permissions.AllowAny"]
+
+# PHOLD simulation configuration
+# The PHOLD binary path must be set via environment variable.
+PHOLD_BINARY_PATH = env.str("DJANGO_PHOLD_BINARY_PATH", default="")
+PHOLD_OUTPUT_DIR = env.str("DJANGO_PHOLD_OUTPUT_DIR", default="/tmp/phold_output")  # noqa: S108
+PHOLD_MPI_PROCESSES = env.int("DJANGO_PHOLD_MPI_PROCESSES", default=2)
