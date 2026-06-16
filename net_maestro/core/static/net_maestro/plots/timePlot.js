@@ -3,6 +3,18 @@
  * Displays ROSS simulation data over time with configurable axes.
  */
 import Plotly from 'plotly';
+import {
+  axisConfig,
+  createValueList,
+  DARK_LAYOUT,
+  getLabel,
+  handleRelayout,
+  initPlot,
+  purgePlot,
+  setupAxisState,
+  setupLoadWatcher,
+  setupXYSyncWatchers,
+} from './plotUtils.js';
 
 export const timePlot = () => ({
   records: [],
@@ -23,15 +35,7 @@ export const timePlot = () => ({
     ];
   },
   get yAxisValues() {
-    const excludedColumns = ['PE_ID', 'real_time', 'virtual_time'];
-    const filteredColumns = this.columns.filter(
-      (column) => column && !excludedColumns.includes(column),
-    );
-
-    return filteredColumns.map((value) => ({
-      key: value,
-      label: value.replaceAll('_', ' '),
-    }));
+    return createValueList(this.columns, ['PE_ID', 'real_time', 'virtual_time']);
   },
 
   /**
@@ -39,178 +43,47 @@ export const timePlot = () => ({
    * Called automatically by Alpine.js when component mounts.
    */
   init() {
-    // Restore UI state
-    const savedState = this.$store.uiStateStore.getUIState('timePlot');
-    this.selectedXAxis = savedState.selectedXAxis ?? 'virtual_time';
-    this.selectedYAxis = savedState.selectedYAxis ?? 'events_processed';
-
-    this.$watch('selectedXAxis', (newValue) => {
-      if (newValue) {
-        this.$store.uiStateStore.saveUIState('timePlot', { selectedXAxis: newValue });
-      }
-    });
-
-    this.$watch('selectedYAxis', (newValue) => {
-      if (newValue) {
-        this.$store.uiStateStore.saveUIState('timePlot', { selectedYAxis: newValue });
-      }
-    });
-
-    // Load data if a run is already selected
-    if (this.$store.dataStore.selectedRunId) {
-      this.load();
-    }
-
-    // Watch for new data loads
-    this.$watch('$store.dataStore.loadTick', () => {
-      this.load();
-    });
-
-    this.setupSyncWatchers();
-  },
-
-  setupSyncWatchers() {
-    const sync = this.$store.plotSyncStore;
-
-    // Watch for range changes from other plots
-    this.$watch('$store.plotSyncStore.parameterRanges', (ranges) => {
-      if (sync.lastUpdatedBy === this.plotId) {
-        return;
-      }
-      const xRange = ranges[this.selectedXAxis];
-      const yRange = ranges[this.selectedYAxis];
-      if (!(xRange || yRange)) {
-        return;
-      }
-      this.applySyncedRange(xRange, yRange);
-    });
-
-    // Watch for reset from other plots
-    this.$watch('$store.plotSyncStore.resetTick', async () => {
-      if (sync.lastUpdatedBy === this.plotId || !this.isPlotInitialized) {
-        return;
-      }
-      this.isSyncing = true;
-      try {
-        await Plotly.relayout(this.timePlotEl, {
-          'xaxis.autorange': true,
-          'yaxis.autorange': true,
-        });
-      } finally {
-        this.isSyncing = false;
-      }
-    });
-  },
-
-  async applySyncedRange(xRange, yRange) {
-    if (!(this.timePlotEl && this.isPlotInitialized)) {
-      return;
-    }
-    const update = {};
-    if (xRange) {
-      update['xaxis.range'] = [xRange.min, xRange.max];
-    }
-    if (yRange) {
-      update['yaxis.range'] = [yRange.min, yRange.max];
-    }
-    if (Object.keys(update).length === 0) {
-      return;
-    }
-    this.isSyncing = true;
-    try {
-      await Plotly.relayout(this.timePlotEl, update);
-    } finally {
-      this.isSyncing = false;
-    }
-  },
-
-  onRelayout(eventData) {
-    if (this.isSyncing) {
-      return;
-    }
-    const sync = this.$store.plotSyncStore;
-
-    // Detect double-click reset
-    if (eventData['xaxis.autorange'] || eventData['yaxis.autorange']) {
-      sync.resetAll(this.plotId);
-      return;
-    }
-
-    const updates = this.collectRangeUpdates(eventData);
-    if (updates.length > 0) {
-      sync.updateRanges(updates, this.plotId);
-    }
-  },
-
-  collectRangeUpdates(eventData) {
-    const updates = [];
-    if (eventData['xaxis.range[0]'] != null) {
-      updates.push({
-        parameter: this.selectedXAxis,
-        range: { min: eventData['xaxis.range[0]'], max: eventData['xaxis.range[1]'] },
-      });
-    }
-    if (eventData['yaxis.range[0]'] != null) {
-      updates.push({
-        parameter: this.selectedYAxis,
-        range: { min: eventData['yaxis.range[0]'], max: eventData['yaxis.range[1]'] },
-      });
-    }
-    return updates;
+    setupAxisState(this, 'timePlot', [
+      { prop: 'selectedXAxis', default: 'virtual_time' },
+      { prop: 'selectedYAxis', default: 'events_processed' },
+    ]);
+    setupLoadWatcher(this, () => this.load());
+    setupXYSyncWatchers(
+      this,
+      'timePlotEl',
+      () => this.selectedXAxis,
+      () => this.selectedYAxis,
+    );
   },
 
   /**
    * Initialize the Plotly time plot.
    */
   initPlot() {
-    if (this.isPlotInitialized) {
-      return;
-    }
-    this.timePlotEl = document.getElementById('timePlot');
-    if (!this.timePlotEl) {
-      return;
-    }
-
-    const data = [
-      {
-        x: [],
-        y: [],
-        showlegend: true,
-      },
-    ];
     const layout = {
-      // biome-ignore-start lint/style/useNamingConvention: library interface names
-      xaxis: {
-        title: {
-          text: 'Virtual Time',
-        },
-        rangemode: 'tozero',
-        color: 'white',
-      },
-      yaxis: {
-        title: {
-          text: 'Events Processed',
-        },
-        rangemode: 'tozero',
-        color: 'white',
-      },
-      paper_bgcolor: '#1d232a',
-      plot_bgcolor: '#1d232a',
-      margin: {
-        l: 50,
-        r: 50,
-        b: 50,
-        t: 50,
-        pad: 4,
-      },
-      // biome-ignore-end lint/style/useNamingConvention: library interface names
+      ...DARK_LAYOUT,
+      xaxis: axisConfig('Virtual Time', { rangemode: 'tozero' }),
+      yaxis: axisConfig('Events Processed', { rangemode: 'tozero' }),
     };
-    const config = { responsive: true };
-    Plotly.newPlot(this.timePlotEl, data, layout, config);
-    this.isPlotInitialized = true;
-
-    this.timePlotEl.on('plotly_relayout', (eventData) => {
-      this.onRelayout(eventData);
+    const data = [{ x: [], y: [], showlegend: true }];
+    initPlot({
+      component: this,
+      elementId: 'timePlot',
+      elementProp: 'timePlotEl',
+      data,
+      layout,
+      eventHandlers: [
+        {
+          event: 'plotly_relayout',
+          handler: (eventData) =>
+            handleRelayout(
+              this,
+              eventData,
+              () => this.selectedXAxis,
+              () => this.selectedYAxis,
+            ),
+        },
+      ],
     });
   },
 
@@ -235,10 +108,7 @@ export const timePlot = () => ({
   },
 
   purge() {
-    if (this.timePlotEl) {
-      Plotly.purge(this.timePlotEl);
-      this.isPlotInitialized = false;
-    }
+    purgePlot(this, 'timePlotEl');
   },
 
   /**
@@ -272,33 +142,9 @@ export const timePlot = () => ({
     }));
 
     Plotly.react(this.timePlotEl, traces, {
-      // biome-ignore-start lint/style/useNamingConvention: library interface names
-      xaxis: {
-        title: {
-          text:
-            this.xAxisValues.find((item) => item.key === this.selectedXAxis)?.label ??
-            this.selectedXAxis,
-        },
-        color: 'white',
-      },
-      yaxis: {
-        title: {
-          text:
-            this.yAxisValues.find((item) => item.key === this.selectedYAxis)?.label ??
-            this.selectedYAxis,
-        },
-        color: 'white',
-      },
-      paper_bgcolor: '#1d232a',
-      plot_bgcolor: '#1d232a',
-      margin: {
-        l: 50,
-        r: 50,
-        b: 50,
-        t: 50,
-        pad: 4,
-      },
-      // biome-ignore-end lint/style/useNamingConvention: library interface names
+      ...DARK_LAYOUT,
+      xaxis: axisConfig(getLabel(this.xAxisValues, this.selectedXAxis, this.selectedXAxis)),
+      yaxis: axisConfig(getLabel(this.yAxisValues, this.selectedYAxis, this.selectedYAxis)),
     });
   },
 });
