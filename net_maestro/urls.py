@@ -78,6 +78,11 @@ urlpatterns = [
         views.simulation_config,
         name="simulation-config",
     ),
+    path(
+        "models/",
+        views.models_list,
+        name="models-list-partial",
+    ),
 ]
 
 if settings.DEBUG:

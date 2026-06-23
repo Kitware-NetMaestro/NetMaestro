@@ -20,6 +20,50 @@ from .models import Run
 from .tasks import run_phold_simulation
 
 
+def _avail_models_context() -> dict[str, object]:
+    """Return available models context for the configuration page."""
+    return {
+        "models": [
+            {
+                "name": "ESNet Switch",
+                "type": "Switch",
+                "engine": "PDES (ROSS)",
+                "icon_class": "ri-organization-chart",
+            },
+            {
+                "name": "ESNet Host",
+                "type": "Host",
+                "engine": "PDES (ROSS)",
+                "icon_class": "ri-server-line",
+            },
+            {
+                "name": "ESNet Router",
+                "type": "Router",
+                "engine": "PDES (ROSS)",
+                "icon_class": "ri-router-fill",
+            },
+            {
+                "name": "Mug Host",
+                "type": "Host",
+                "engine": "PDES (ROSS)",
+                "icon_class": "ri-server-line",
+            },
+            {
+                "name": "Acorn Router",
+                "type": "Router",
+                "engine": "PDES (ROSS)",
+                "icon_class": "ri-router-fill",
+            },
+            {
+                "name": "Cube Switch",
+                "type": "Switch",
+                "engine": "PDES (ROSS)",
+                "icon_class": "ri-organization-chart",
+            },
+        ],
+    }
+
+
 def _custom_component_context() -> dict[str, object]:
     """Return custom component context for the configuration page.
 
@@ -334,6 +378,21 @@ def simulation_config(request: HttpRequest) -> HttpResponse:
     if request.headers.get("HX-Request"):
         return render(request, partial_template, context)
     context.update({"active_page": "simulation", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
+
+
+def models_list(request: HttpRequest) -> HttpResponse:
+    """Render the custom component list.
+
+    TODO: Replace models_context() with database queries.
+    TODO: Build absolute action URLs for create, edit, duplicate, and delete once those
+    routes are implemented.
+    """
+    context = _avail_models_context()
+    partial_template = "net_maestro/partials/models_list.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": "modelsList", "partial_template": partial_template})
     return render(request, "net_maestro/index.html", context)
 
 
