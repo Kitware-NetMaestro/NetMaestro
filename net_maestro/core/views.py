@@ -20,6 +20,32 @@ from .models import Run
 from .tasks import run_phold_simulation
 
 
+def _avail_component_models_context() -> dict[str, object]:
+    """Return available models context for the configuration page."""
+    return {
+        "models": [
+            {
+                "name": "nw-lp",
+                "type": "host",
+                "description": """Network LP for compute-node endpoints.
+                                Carries an inline workload: block — traffic pattern, message count,
+                                timing, payload size.""",
+                "parameters": ["traffic", "num_messages", "arrival_time", "payload_size"],
+                "icon_class": "ri-organization-chart",
+                "usage_count": 3,
+            },
+            {
+                "name": "simplep2p",
+                "type": "router",
+                "description": "Simple point-to-point router.",
+                "parameters": ["routing", "latency", "bandwidth", "chunk_size", "vc_size"],
+                "icon_class": "ri-server-line",
+                "usage_count": 2,
+            },
+        ],
+    }
+
+
 def _custom_component_context() -> dict[str, object]:
     """Return custom component context for the configuration page.
 
@@ -334,6 +360,21 @@ def simulation_config(request: HttpRequest) -> HttpResponse:
     if request.headers.get("HX-Request"):
         return render(request, partial_template, context)
     context.update({"active_page": "simulation", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
+
+
+def models_list(request: HttpRequest) -> HttpResponse:
+    """Render the custom component list.
+
+    TODO: Replace models_context() with database queries.
+    TODO: Build absolute action URLs for create, edit, duplicate, and delete once those
+    routes are implemented.
+    """
+    context = _avail_component_models_context()
+    partial_template = "net_maestro/partials/models_list.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": "modelsList", "partial_template": partial_template})
     return render(request, "net_maestro/index.html", context)
 
 

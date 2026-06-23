@@ -1,6 +1,21 @@
 <div class="menu menu-lg bg-neutral h-[calc(100vh-64px)] w-16 flex flex-col">
   <!-- Navigation menu items -->
   <ul class="grid h-screen gap-6 content-baseline">
+    <!-- Models List Section -->
+    <li>
+      <a
+        href="{% url 'models-list-partial' %}"
+        hx-get="{% url 'models-list-partial' %}"
+        hx-target="#main-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        class="flex items-center justify-center"
+        :class="{ 'menu-active': activeItem === 'modelsList' }"
+        @click="activeItem = 'modelsList'"
+      >
+        <i class="ri-layout-grid-2-fill" aria-hidden="true"></i>
+      </a>
+    </li>
     <!-- Base Models section -->
     <li>
       <a
