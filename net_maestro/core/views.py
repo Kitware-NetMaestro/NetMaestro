@@ -6,8 +6,11 @@ Data loading is driven by selecting a Run on the analysis page.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
+from django.contrib import messages
+from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -19,6 +22,8 @@ from .constants import RunStatus
 from .forms import PHOLDSimulationForm
 from .models import PHOLDSimulationConfig, Run
 from .tasks import run_phold_simulation
+
+logger = logging.getLogger(__name__)
 
 
 def _avail_component_models_context() -> dict[str, object]:
@@ -364,6 +369,30 @@ def _run_phold_from_form(run: Run, form: PHOLDSimulationForm) -> None:
     )
 
 
+def _create_run_and_config(form: PHOLDSimulationForm, run_status: RunStatus) -> Run:
+    """Create a Run and its PHOLDSimulationConfig atomically from validated form data."""
+    with transaction.atomic():
+        run = Run.objects.create(
+            name=form.cleaned_data["run_identifier"],
+            status=run_status,
+        )
+
+        PHOLDSimulationConfig.objects.create(
+            run=run,
+            synch=int(form.cleaned_data["synch"]),
+            avl_size=form.cleaned_data["avl_size"],
+            nlp=form.cleaned_data["nlp"],
+            remote=form.cleaned_data["remote"],
+            mean=form.cleaned_data["mean"],
+            mult=form.cleaned_data["mult"],
+            lookahead=form.cleaned_data["lookahead"],
+            start_events=form.cleaned_data["start_events"],
+            memory=form.cleaned_data["memory"],
+            stagger=bool(int(form.cleaned_data["stagger"])),
+        )
+    return run
+
+
 def simulation_config(request: HttpRequest) -> HttpResponse:
     """Render the simulation configuration form and handle submission.
 
@@ -377,27 +406,7 @@ def simulation_config(request: HttpRequest) -> HttpResponse:
             should_run = request.POST.get("action") == "save_and_run"
 
             run_status = RunStatus.PENDING if should_run else RunStatus.SAVED
-
-            # Create Run with appropriate status
-            run = Run.objects.create(
-                name=form.cleaned_data["run_identifier"],
-                status=run_status,
-            )
-
-            # Persist the submitted simulation configuration for this run
-            PHOLDSimulationConfig.objects.create(
-                run=run,
-                synch=int(form.cleaned_data["synch"]),
-                avl_size=form.cleaned_data["avl_size"],
-                nlp=form.cleaned_data["nlp"],
-                remote=form.cleaned_data["remote"],
-                mean=form.cleaned_data["mean"],
-                mult=form.cleaned_data["mult"],
-                lookahead=form.cleaned_data["lookahead"],
-                start_events=form.cleaned_data["start_events"],
-                memory=form.cleaned_data["memory"],
-                stagger=bool(int(form.cleaned_data["stagger"])),
-            )
+            run = _create_run_and_config(form, run_status)
 
             if should_run:
                 _run_phold_from_form(run, form)
@@ -430,24 +439,7 @@ def edit_simulation_config(request: HttpRequest, run_id: int) -> HttpResponse:
         if form.is_valid():
             should_run = request.POST.get("action") == "save_and_run"
             run_status = RunStatus.PENDING if should_run else RunStatus.SAVED
-            run = Run.objects.create(
-                name=form.cleaned_data["run_identifier"],
-                status=run_status,
-            )
-
-            PHOLDSimulationConfig.objects.create(
-                run=run,
-                synch=int(form.cleaned_data["synch"]),
-                avl_size=form.cleaned_data["avl_size"],
-                nlp=form.cleaned_data["nlp"],
-                remote=form.cleaned_data["remote"],
-                mean=form.cleaned_data["mean"],
-                mult=form.cleaned_data["mult"],
-                lookahead=form.cleaned_data["lookahead"],
-                start_events=form.cleaned_data["start_events"],
-                memory=form.cleaned_data["memory"],
-                stagger=bool(int(form.cleaned_data["stagger"])),
-            )
+            run = _create_run_and_config(form, run_status)
 
             if should_run:
                 _run_phold_from_form(run, form)
@@ -477,6 +469,12 @@ def run_saved_simulation(request: HttpRequest, run_id: int) -> HttpResponse:
 
     form = _phold_form_from_config(config)
     if not form.is_valid():
+        logger.warning(
+            "Saved config for run %s failed re-validation and could not be run: %s",
+            run_id,
+            form.errors.as_text(),
+        )
+        messages.error(request, f'Unable to run "{run.name}": saved configuration is invalid.')
         return redirect("simulation-config")
     run.status = RunStatus.PENDING
     run.save(update_fields=["status"])
