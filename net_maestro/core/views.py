@@ -206,9 +206,11 @@ def _filtered_runs(request: HttpRequest) -> dict[str, object]:
     """Return runs queryset filtered by ?status= and ?q= params."""
     statuses = request.GET.getlist("status")
     search_query = request.GET.get("q", "").strip()
-    runs = Run.objects.all()
-    if statuses:
-        runs = runs.filter(status__in=statuses)
+    runs = (
+        Run.objects.filter(status__in=statuses)
+        if statuses
+        else Run.objects.exclude(status=RunStatus.SAVED)
+    )
     if search_query:
         runs = runs.filter(name__icontains=search_query)
     return {
@@ -373,10 +375,12 @@ def simulation_config(request: HttpRequest) -> HttpResponse:
         if form.is_valid():
             should_run = request.POST.get("action") == "save_and_run"
 
-            # Create Run with PENDING status
+            run_status = RunStatus.PENDING if should_run else RunStatus.SAVED
+
+            # Create Run with appropriate status
             run = Run.objects.create(
                 name=form.cleaned_data["run_identifier"],
-                status=RunStatus.PENDING,
+                status=run_status,
             )
 
             # Persist the submitted simulation configuration for this run

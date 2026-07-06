@@ -4,6 +4,7 @@ from django.db import models
 
 
 class RunStatus(models.TextChoices):
+    SAVED = "saved"
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
