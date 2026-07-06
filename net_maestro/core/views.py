@@ -320,6 +320,47 @@ def custom_component_delete(_request: HttpRequest, component_id: int) -> HttpRes
     return _custom_component_not_implemented(f"delete for component {component_id}")
 
 
+def _phold_form_initial_from_config(config: PHOLDSimulationConfig) -> dict[str, object]:
+    return {
+        "run_identifier": config.run.name,
+        "synch": config.synch,
+        "avl_size": config.avl_size,
+        "nlp": config.nlp,
+        "remote": config.remote,
+        "mean": config.mean,
+        "mult": config.mult,
+        "lookahead": config.lookahead,
+        "start_events": config.start_events,
+        "memory": config.memory,
+        "stagger": int(config.stagger),
+    }
+
+
+def _phold_form_data_from_config(config: PHOLDSimulationConfig) -> dict[str, str]:
+    initial = _phold_form_initial_from_config(config)
+    return {key: str(value) for key, value in initial.items()}
+
+
+def _phold_form_from_config(config: PHOLDSimulationConfig) -> PHOLDSimulationForm:
+    return PHOLDSimulationForm(_phold_form_data_from_config(config))
+
+
+def _run_phold_from_form(run: Run, form: PHOLDSimulationForm) -> None:
+    run_phold_simulation.delay(
+        run_id=run.id,
+        synch=int(form.cleaned_data["synch"]),
+        avl_size=form.cleaned_data["avl_size"],
+        nlp=form.cleaned_data["nlp"],
+        remote=form.cleaned_data["remote"],
+        mean=form.cleaned_data["mean"],
+        mult=form.cleaned_data["mult"],
+        lookahead=form.cleaned_data["lookahead"],
+        start_events=form.cleaned_data["start_events"],
+        memory=form.cleaned_data["memory"],
+        stagger=bool(int(form.cleaned_data["stagger"])),
+    )
+
+
 def simulation_config(request: HttpRequest) -> HttpResponse:
     """Render the simulation configuration form and handle submission.
 
@@ -368,14 +409,92 @@ def simulation_config(request: HttpRequest) -> HttpResponse:
                     memory=form.cleaned_data["memory"],
                     stagger=bool(int(form.cleaned_data["stagger"])),
                 )
+                # Redirect to the analysis page so the user can watch the run
+                return redirect("analysis-partial")
 
-            # Redirect to analysis page
-            return redirect("analysis-partial")
+            # Redirect to the saved simulations list
+            return redirect("simulation-config")
     else:
         form = PHOLDSimulationForm()
 
     context: dict[str, object] = {"form": form}
-    partial_template = "net_maestro/partials/simulation.html"
+    partial_template = "net_maestro/partials/new_simulation.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": "simulation", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
+
+
+def edit_simulation_config(request: HttpRequest, run_id: int) -> HttpResponse:
+    config = get_object_or_404(PHOLDSimulationConfig.objects.select_related("run"), run_id=run_id)
+
+    if request.method == "POST":
+        form = PHOLDSimulationForm(request.POST)
+        if form.is_valid():
+            should_run = request.POST.get("action") == "save_and_run"
+            run_status = RunStatus.PENDING if should_run else RunStatus.SAVED
+            run = Run.objects.create(
+                name=form.cleaned_data["run_identifier"],
+                status=run_status,
+            )
+
+            PHOLDSimulationConfig.objects.create(
+                run=run,
+                synch=int(form.cleaned_data["synch"]),
+                avl_size=form.cleaned_data["avl_size"],
+                nlp=form.cleaned_data["nlp"],
+                remote=form.cleaned_data["remote"],
+                mean=form.cleaned_data["mean"],
+                mult=form.cleaned_data["mult"],
+                lookahead=form.cleaned_data["lookahead"],
+                start_events=form.cleaned_data["start_events"],
+                memory=form.cleaned_data["memory"],
+                stagger=bool(int(form.cleaned_data["stagger"])),
+            )
+
+            if should_run:
+                _run_phold_from_form(run, form)
+                return redirect("analysis-partial")
+
+            return redirect("simulation-config")
+    else:
+        form = PHOLDSimulationForm(initial=_phold_form_initial_from_config(config))
+
+    context: dict[str, object] = {
+        "form": form,
+        "form_action": request.path,
+        "page_heading": "Edit Simulation",
+        "breadcrumb_label": "Edit Simulation",
+    }
+    partial_template = "net_maestro/partials/new_simulation.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": "simulation", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
+
+
+@require_POST
+def run_saved_simulation(request: HttpRequest, run_id: int) -> HttpResponse:
+    run = get_object_or_404(Run.objects.select_related("phold_config"), pk=run_id)
+    config = run.phold_config
+
+    form = _phold_form_from_config(config)
+    if not form.is_valid():
+        return redirect("simulation-config")
+    run.status = RunStatus.PENDING
+    run.save(update_fields=["status"])
+    _run_phold_from_form(run, form)
+    return redirect("analysis-partial")
+
+
+def saved_simulations(request: HttpRequest) -> HttpResponse:
+    """Render the list of saved PHOLD simulation configurations.
+
+    GET: Display all saved simulation configurations, most recently created first.
+    """
+    configs = PHOLDSimulationConfig.objects.select_related("run").order_by("-run__created")
+    context: dict[str, object] = {"configs": configs}
+    partial_template = "net_maestro/partials/saved_simulations.html"
     if request.headers.get("HX-Request"):
         return render(request, partial_template, context)
     context.update({"active_page": "simulation", "partial_template": partial_template})
