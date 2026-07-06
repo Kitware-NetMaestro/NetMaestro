@@ -19,9 +19,9 @@
             Simulations
           </a>
           <i class="ri-arrow-right-s-line" aria-hidden="true"></i>
-          <span>New Simulation</span>
+          <span>{{ breadcrumb_label|default:"New Simulation" }}</span>
         </div>
-        <h1 class="text-3xl font-semibold mt-2">New Simulation</h1>
+        <h1 class="text-3xl font-semibold mt-2">{{ page_heading|default:"New Simulation" }}</h1>
       </div>
       <div class="flex flex-row gap-2">
         <a
@@ -55,7 +55,7 @@
       </div>
     </div>
 
-    <form id="simulation-form" method="post">
+    <form id="simulation-form" method="post" action="{{ form_action|default:request.path }}">
       {% csrf_token %}
       <div class="grid grid-cols-1 gap-6 mt-8">
       <!-- Simulation Model Selection -->

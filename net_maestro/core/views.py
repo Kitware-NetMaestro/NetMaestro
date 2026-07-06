@@ -9,7 +9,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from django.http import HttpResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 if TYPE_CHECKING:
     from django.http import HttpRequest
@@ -399,20 +400,7 @@ def simulation_config(request: HttpRequest) -> HttpResponse:
             )
 
             if should_run:
-                # Trigger Celery task to run PHOLD simulation
-                run_phold_simulation.delay(
-                    run_id=run.id,
-                    synch=int(form.cleaned_data["synch"]),
-                    avl_size=form.cleaned_data["avl_size"],
-                    nlp=form.cleaned_data["nlp"],
-                    remote=form.cleaned_data["remote"],
-                    mean=form.cleaned_data["mean"],
-                    mult=form.cleaned_data["mult"],
-                    lookahead=form.cleaned_data["lookahead"],
-                    start_events=form.cleaned_data["start_events"],
-                    memory=form.cleaned_data["memory"],
-                    stagger=bool(int(form.cleaned_data["stagger"])),
-                )
+                _run_phold_from_form(run, form)
                 # Redirect to the analysis page so the user can watch the run
                 return redirect("analysis-partial")
 
@@ -421,7 +409,12 @@ def simulation_config(request: HttpRequest) -> HttpResponse:
     else:
         form = PHOLDSimulationForm()
 
-    context: dict[str, object] = {"form": form}
+    context: dict[str, object] = {
+        "form": form,
+        "form_action": request.path,
+        "page_heading": "New Simulation",
+        "breadcrumb_label": "New Simulation",
+    }
     partial_template = "net_maestro/partials/new_simulation.html"
     if request.headers.get("HX-Request"):
         return render(request, partial_template, context)

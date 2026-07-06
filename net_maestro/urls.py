@@ -93,6 +93,16 @@ urlpatterns = [
         views.simulation_config,
         name="new-simulation-config",
     ),
+    path(
+        "simulation/edit-config/<int:run_id>",
+        views.edit_simulation_config,
+        name="edit-simulation-config",
+    ),
+    path(
+        "simulation/run/<int:run_id>",
+        views.run_saved_simulation,
+        name="run-saved-simulation",
+    ),
 ]
 
 if settings.DEBUG:

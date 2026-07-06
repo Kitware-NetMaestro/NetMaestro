@@ -17,7 +17,7 @@
       </a>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-8">
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-8">
       {% for config in configs %}
       <div class="card bg-base-100 shadow-sm">
         <div class="card-body">
@@ -29,19 +29,30 @@
                 <p class="text-sm text-base-content/60">{{ config.run.created }}</p>
               </div>
             </div>
-            <div class="flex flex-row gap-2">
-              {% if config.run.status == 'completed' %}
-                <div class="badge badge-success badge-outline">Completed</div>
-              {% elif config.run.status == 'running' %}
-                <div class="badge badge-info badge-outline">Running</div>
-              {% elif config.run.status == 'failed' %}
-                <div class="badge badge-error badge-outline">Failed</div>
-              {% elif config.run.status == 'cancelled' %}
-                <div class="badge badge-warning badge-outline">Cancelled</div>
-              {% else %}
-                <div class="badge badge-accent badge-outline">Pending</div>
-              {% endif %}
+            <div class="flex flex-row gap-2 items-center">
               <div class="badge badge-outline">PHOLD</div>
+              <form
+                method="post"
+                action="{% url 'run-saved-simulation' config.run.id %}"
+                class="inline-flex"
+              >
+                {% csrf_token %}
+                <button type="submit" class="btn btn-xs btn-primary">
+                  <i class="ri-play-line" aria-hidden="true"></i>
+                  <span class="ml-1">Run</span>
+                </button>
+              </form>
+              <a
+                href="{% url 'edit-simulation-config' config.run.id %}"
+                hx-get="{% url 'edit-simulation-config' config.run.id %}"
+                hx-target="#main-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                class="btn btn-xs btn-ghost"
+              >
+                <i class="ri-edit-line" aria-hidden="true"></i>
+                <span class="ml-1">Edit</span>
+              </a>
             </div>
           </div>
 
@@ -96,7 +107,7 @@
         </div>
       </div>
       {% empty %}
-        <div class="card bg-base-100 shadow-sm border border-dashed border-base-content/20 xl:col-span-2">
+        <div class="card bg-base-100 shadow-sm border border-dashed border-base-content/20 xl:col-span-3">
           <div class="card-body items-center justify-center text-center min-h-72">
             <i class="ri-play-large-line text-4xl text-base-content/50" aria-hidden="true"></i>
             <h2 class="card-title mt-4">No saved simulations yet</h2>
