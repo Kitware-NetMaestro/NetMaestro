@@ -5,6 +5,7 @@ from .event_file import EventFileAdmin
 from .event_record import EventRecordAdmin
 from .model_file import ModelFileAdmin
 from .model_record import ModelRecordAdmin
+from .phold_simulation_config import PHOLDSimulationConfigAdmin
 from .phold_simulation_lp_record import PHOLDSimulationLpRecordAdmin
 from .run import RunAdmin
 from .simulation_file import SimulationFileAdmin
@@ -18,6 +19,7 @@ __all__ = [
     "EventRecordAdmin",
     "ModelFileAdmin",
     "ModelRecordAdmin",
+    "PHOLDSimulationConfigAdmin",
     "PHOLDSimulationLpRecordAdmin",
     "RunAdmin",
     "SimulationFileAdmin",

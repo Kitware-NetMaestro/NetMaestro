@@ -5,6 +5,7 @@ from .event_file import EventFile
 from .event_record import EventRecord
 from .model_file import ModelFile
 from .model_record import ModelRecord
+from .phold_simulation_config import PHOLDSimulationConfig
 from .run import Run
 from .simulation_base_record import SimulationBaseRecord
 from .simulation_file import SimulationFile
@@ -18,6 +19,7 @@ __all__ = [
     "EventRecord",
     "ModelFile",
     "ModelRecord",
+    "PHOLDSimulationConfig",
     "PHOLDSimulationLpRecord",
     "Run",
     "SimulationBaseRecord",
