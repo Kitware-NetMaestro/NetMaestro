@@ -378,6 +378,48 @@ def models_list(request: HttpRequest) -> HttpResponse:
     return render(request, "net_maestro/index.html", context)
 
 
+def _new_model_form_context() -> dict[str, object]:
+    """Return read-only demo context for the new custom component form.
+
+    TODO: Replace this static host example with a real Django form bound to model-backed
+    base component choices and custom component defaults.
+    TODO: Keep field metadata in the view so the template can render form sections without
+    knowing which fields belong to hosts, routers, or switches.
+    """
+    return {
+        "form_sections": [
+            {
+                "title": "Model",
+                "fields": [
+                    {"label": "Name", "value": "New Model"},
+                    {"label": "Component Type", "value": "Router"},
+                    {"label": "Engine", "value": "PDES (CODES)"},
+                    {"label": "Description", "value": "Simple point-to-point router."},
+                    {
+                        "label": "Parameters",
+                        "value": "routing, latency, bandwidth, chunk_size, vc_size",
+                    },
+                ],
+            },
+        ],
+    }
+
+
+def model_create(request: HttpRequest) -> HttpResponse:
+    """Render the demonstration form for creating a new model component.
+
+    TODO: Render and process a real form for creating a new model.
+    TODO: Validate component fields by type, especially host-only traffic fields.
+    TODO: Return either a full-page redirect or an HTMX partial update after successful create.
+    """
+    context = _new_model_form_context()
+    partial_template = "net_maestro/partials/model_form.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": "modelsList", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
+
+
 def page_view(
     request: HttpRequest,
     partial: str,

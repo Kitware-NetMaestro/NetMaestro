@@ -83,6 +83,11 @@ urlpatterns = [
         views.models_list,
         name="models-list-partial",
     ),
+    path(
+        "models/new-model",
+        views.model_create,
+        name="model-create",
+    ),
 ]
 
 if settings.DEBUG:

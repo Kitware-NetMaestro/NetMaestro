@@ -4,6 +4,17 @@
       <div>
         <h1 class="text-3xl font-semibold">Available Component Models</h1>
       </div>
+       <a
+        href="{% url 'model-create' %}"
+        hx-get="{% url 'model-create' %}"
+        hx-target="#main-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        class="btn btn-primary"
+      >
+        <i class="ri-add-line" aria-hidden="true"></i>
+        New Component Model
+      </a>
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-8">
