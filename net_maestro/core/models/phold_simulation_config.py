@@ -8,7 +8,12 @@ from net_maestro.core.models.run import Run
 
 
 class PHOLDSimulationConfig(models.Model):
-    """PHOLD simulation configuration parameters submitted for a Run."""
+    """PHOLD simulation configuration parameters submitted for a Run.
+
+    NOTE: This model currently handles the single PHOLD scenario. As we support more
+    simulation types, this should be generalized so we can store various parameter sets
+    without duplicating schema for each model.
+    """
 
     run = models.OneToOneField(Run, on_delete=models.CASCADE, related_name="phold_config")
 
