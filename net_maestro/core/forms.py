@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from django import forms
-from django.core.validators import MaxValueValidator, MinValueValidator
+
+from .models import PHOLDSimulationConfig
 
 
-class PHOLDSimulationForm(forms.Form):
-    """Form for PHOLD simulation parameters."""
+class PHOLDSimulationForm(forms.ModelForm):
+    """Form for PHOLD simulation parameters.
 
-    # Simulation Model section
+    A ModelForm bound to PHOLDSimulationConfig so field validators are not duplicated
+    between the model and a plain Form.
+    """
+
+    # run_identifier maps to Run.name, not a PHOLDSimulationConfig field,
+    # so it must be declared explicitly.
     run_identifier = forms.CharField(
         label="Run Identifier",
         max_length=200,
@@ -17,81 +25,62 @@ class PHOLDSimulationForm(forms.Form):
         widget=forms.TextInput(attrs={"class": "input input-bordered w-full"}),
     )
 
-    # Engine Parameters
-    synch = forms.ChoiceField(
-        label="Synchronization Protocol",
-        choices=[
-            (1, "Sequential"),
-            (2, "Conservative"),
-            (3, "Optimistic"),
-            (4, "Optimistic Debug"),
-            (5, "Optimistic Realtime"),
-            (6, "Reverse Handler Check"),
-        ],
-        initial=3,
-        widget=forms.Select(attrs={"class": "select select-bordered w-full"}),
-    )
-
-    avl_size = forms.IntegerField(
-        label="AVL Tree Size",
-        initial=18,
-        validators=[MinValueValidator(10), MaxValueValidator(24)],
-        widget=forms.NumberInput(attrs={"class": "input input-bordered w-full"}),
-    )
-
-    # Model Parameters
-    nlp = forms.IntegerField(
-        label="LPs per Processor",
-        initial=8,
-        validators=[MinValueValidator(1)],
-        widget=forms.NumberInput(attrs={"class": "input input-bordered w-full"}),
-    )
-
-    remote = forms.FloatField(
-        label="Remote Event Rate",
-        initial=0.25,
-        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
-        widget=forms.NumberInput(attrs={"class": "input input-bordered w-full", "step": "0.01"}),
-    )
-
-    mean = forms.FloatField(
-        label="Mean Timestamp",
-        initial=1.0,
-        validators=[MinValueValidator(0.1)],
-        widget=forms.NumberInput(attrs={"class": "input input-bordered w-full", "step": "0.1"}),
-    )
-
-    mult = forms.FloatField(
-        label="Memory Multiplier",
-        initial=1.4,
-        validators=[MinValueValidator(1.0)],
-        widget=forms.NumberInput(attrs={"class": "input input-bordered w-full", "step": "0.1"}),
-    )
-
-    lookahead = forms.FloatField(
-        label="Lookahead",
-        initial=1.0,
-        validators=[MinValueValidator(0.1)],
-        widget=forms.NumberInput(attrs={"class": "input input-bordered w-full", "step": "0.1"}),
-    )
-
-    start_events = forms.IntegerField(
-        label="Start Events per LP",
-        initial=1,
-        validators=[MinValueValidator(1)],
-        widget=forms.NumberInput(attrs={"class": "input input-bordered w-full"}),
-    )
-
-    memory = forms.IntegerField(
-        label="Additional Memory Buffers",
-        initial=100,
-        validators=[MinValueValidator(0)],
-        widget=forms.NumberInput(attrs={"class": "input input-bordered w-full"}),
-    )
-
-    stagger = forms.ChoiceField(
+    # Rendered as a Select (Yes/No) rather than the default checkbox widget.
+    stagger = forms.TypedChoiceField(
         label="Stagger Events",
         choices=[(0, "No"), (1, "Yes")],
+        coerce=lambda value: str(value) == "1",
         initial=0,
         widget=forms.Select(attrs={"class": "select select-bordered w-full"}),
     )
+
+    class Meta:
+        model = PHOLDSimulationConfig
+        fields = [
+            "synch",
+            "avl_size",
+            "nlp",
+            "remote",
+            "mean",
+            "mult",
+            "lookahead",
+            "start_events",
+            "memory",
+            "stagger",
+        ]
+        labels = {
+            "synch": "Synchronization Protocol",
+            "avl_size": "AVL Tree Size",
+            "nlp": "LPs per Processor",
+            "remote": "Remote Event Rate",
+            "mean": "Mean Timestamp",
+            "mult": "Memory Multiplier",
+            "start_events": "Start Events per LP",
+            "memory": "Additional Memory Buffers",
+        }
+        widgets = {
+            "synch": forms.Select(attrs={"class": "select select-bordered w-full"}),
+            "avl_size": forms.NumberInput(attrs={"class": "input input-bordered w-full"}),
+            "nlp": forms.NumberInput(attrs={"class": "input input-bordered w-full"}),
+            "remote": forms.NumberInput(
+                attrs={"class": "input input-bordered w-full", "step": "0.01"}
+            ),
+            "mean": forms.NumberInput(
+                attrs={"class": "input input-bordered w-full", "step": "0.1"}
+            ),
+            "mult": forms.NumberInput(
+                attrs={"class": "input input-bordered w-full", "step": "0.1"}
+            ),
+            "lookahead": forms.NumberInput(
+                attrs={"class": "input input-bordered w-full", "step": "0.1"}
+            ),
+            "start_events": forms.NumberInput(attrs={"class": "input input-bordered w-full"}),
+            "memory": forms.NumberInput(attrs={"class": "input input-bordered w-full"}),
+        }
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # model_to_dict() surfaces the model's boolean value for stagger,
+        # but the widget's choices are keyed by 0/1.
+        if "stagger" in self.initial:
+            self.initial["stagger"] = int(bool(self.initial["stagger"]))
