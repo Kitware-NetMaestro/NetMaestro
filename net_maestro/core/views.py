@@ -410,6 +410,9 @@ def edit_simulation_config(request: HttpRequest, run_id: int) -> HttpResponse:
         if form.is_valid():
             should_run = request.POST.get("action") == "save_and_run"
             run_status = RunStatus.PENDING if should_run else RunStatus.SAVED
+            # NOTE: The cloned run/config currently has no explicit linkage to the source run.
+            # Consider associating them (e.g., self-referential FK or audit metadata) so users
+            # can trace edit history or re-clone without guesswork.
             run, new_config = _create_run_and_config(form, run_status)
 
             if should_run:
