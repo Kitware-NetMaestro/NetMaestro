@@ -6,7 +6,7 @@
     "format": "biome check --fix --error-on-warnings"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.16",
-    "@resonant/biome-config": "0.3.2"
+    "@biomejs/biome": "2.5.2",
+    "@resonant/biome-config": "0.4.0"
   }
 }
