@@ -95,11 +95,9 @@ class TestRunPHOLDSimulation:
         assert run.status == RunStatus.FAILED
 
     @mock.patch("net_maestro.core.tasks.simulation.call_command")
-    def test_run_phold_simulation_success(
-        self, mock_call_command: mock.Mock, settings: object
-    ) -> None:
+    def test_run_phold_simulation_success(self, mock_call_command: mock.Mock, settings) -> None:
         """Test successful PHOLD simulation execution."""
-        setattr(settings, "PHOLD_BINARY_PATH", "/path/to/phold")  # noqa: B010
+        settings.PHOLD_BINARY_PATH = "/path/to/phold"
         run = RunFactory.create(status=RunStatus.PENDING)
 
         run_phold_simulation(
@@ -126,11 +124,9 @@ class TestRunPHOLDSimulation:
         assert call_args[0][0] == "run_phold"
 
     @mock.patch("net_maestro.core.tasks.simulation.call_command")
-    def test_run_phold_simulation_failure(
-        self, mock_call_command: mock.Mock, settings: object
-    ) -> None:
+    def test_run_phold_simulation_failure(self, mock_call_command: mock.Mock, settings) -> None:
         """Test PHOLD simulation failure updates status correctly."""
-        setattr(settings, "PHOLD_BINARY_PATH", "/path/to/phold")  # noqa: B010
+        settings.PHOLD_BINARY_PATH = "/path/to/phold"
         mock_call_command.side_effect = Exception("Command failed")
 
         run = RunFactory.create(status=RunStatus.PENDING)
