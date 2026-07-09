@@ -285,7 +285,7 @@ class TestEditSimulationView:
         config.refresh_from_db()
         new_run = Run.objects.get(name="Updated Run")
         assert new_run.status == RunStatus.SAVED
-        new_config = new_run.phold_config
+        new_config = PHOLDSimulationConfig.objects.get(run=new_run)
         assert new_config.avl_size == 20
         assert new_config.stagger is True
         # Original config remains unchanged

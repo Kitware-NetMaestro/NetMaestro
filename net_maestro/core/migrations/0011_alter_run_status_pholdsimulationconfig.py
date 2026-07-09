@@ -123,9 +123,9 @@ class Migration(migrations.Migration):
                 ("stagger", models.BooleanField(default=False)),
                 (
                     "run",
-                    models.OneToOneField(
+                    models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name="phold_config",
+                        related_name="phold_configs",
                         to="core.run",
                     ),
                 ),
