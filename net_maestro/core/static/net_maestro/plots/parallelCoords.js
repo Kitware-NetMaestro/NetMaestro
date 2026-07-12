@@ -5,10 +5,10 @@
 import Plotly from 'plotly';
 import {
   DARK_LAYOUT,
-  initPlot,
   purgePlot,
   setupLoadWatcher,
   setupParallelSyncWatchers,
+  setupPlot,
 } from './plotUtils.js';
 
 export const parallelCoords = () => ({
@@ -79,7 +79,7 @@ export const parallelCoords = () => ({
       },
     ];
     const layout = DARK_LAYOUT;
-    initPlot({
+    setupPlot({
       component: this,
       elementId: 'parallelCoords',
       elementProp: 'parallelPlotEl',

@@ -9,10 +9,10 @@ import {
   DARK_LAYOUT,
   getLabel,
   handleRelayout,
-  initPlot,
   purgePlot,
   setupAxisState,
   setupLoadWatcher,
+  setupPlot,
   setupXYSyncWatchers,
 } from './plotUtils.js';
 
@@ -60,7 +60,7 @@ export const scatterPlot = () => ({
       yaxis: axisConfig('Events Rolled Back'),
     };
     const data = [{ x: [], y: [], mode: 'markers', type: 'scatter', showlegend: true }];
-    initPlot({
+    setupPlot({
       component: this,
       elementId: 'scatterPlot',
       elementProp: 'scatterPlotEl',

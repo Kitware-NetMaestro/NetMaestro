@@ -9,10 +9,10 @@ import {
   DARK_LAYOUT,
   getLabel,
   handleRelayout,
-  initPlot,
   purgePlot,
   setupAxisState,
   setupLoadWatcher,
+  setupPlot,
   setupXYSyncWatchers,
 } from './plotUtils.js';
 
@@ -66,7 +66,7 @@ export const timePlot = () => ({
       yaxis: axisConfig('Events Processed', { rangemode: 'tozero' }),
     };
     const data = [{ x: [], y: [], showlegend: true }];
-    initPlot({
+    setupPlot({
       component: this,
       elementId: 'timePlot',
       elementProp: 'timePlotEl',

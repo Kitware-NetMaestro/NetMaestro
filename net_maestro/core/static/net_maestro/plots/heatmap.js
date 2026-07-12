@@ -4,7 +4,13 @@
  */
 import _ from 'lodash';
 import Plotly from 'plotly';
-import { DARK_LAYOUT, initPlot, purgePlot, setupAxisState, setupLoadWatcher } from './plotUtils.js';
+import {
+  DARK_LAYOUT,
+  purgePlot,
+  setupAxisState,
+  setupLoadWatcher,
+  setupPlot,
+} from './plotUtils.js';
 
 export const heatmapPlot = () => ({
   heatmapPlotEl: null,
@@ -52,7 +58,7 @@ export const heatmapPlot = () => ({
         title: 'Sending LP ID',
       },
     };
-    initPlot({
+    setupPlot({
       component: this,
       elementId: 'heatmapPlot',
       elementProp: 'heatmapPlotEl',

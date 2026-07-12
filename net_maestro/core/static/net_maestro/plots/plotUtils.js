@@ -46,7 +46,7 @@ export function axisConfig(title, options = {}) {
 }
 
 /**
- * Initializes a plot with standard configuration.
+ * Sets up a plot with standard configuration.
  * @param {Object} options - Configuration options
  * @param {Object} options.component - Component instance
  * @param {string} options.elementId - DOM element ID for the plot
@@ -55,7 +55,7 @@ export function axisConfig(title, options = {}) {
  * @param {Object} options.layout - Plotly layout configuration
  * @param {Array} options.eventHandlers - Array of {event, handler} objects
  */
-export function initPlot({ component, elementId, elementProp, data, layout, eventHandlers = [] }) {
+export function setupPlot({ component, elementId, elementProp, data, layout, eventHandlers = [] }) {
   if (component.isPlotInitialized) {
     return;
   }

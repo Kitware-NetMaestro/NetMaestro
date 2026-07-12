@@ -4,10 +4,10 @@ import {
   createValueList,
   DARK_LAYOUT,
   getLabel,
-  initPlot,
   purgePlot,
   setupAxisState,
   setupLoadWatcher,
+  setupPlot,
 } from './plotUtils.js';
 
 export const networkTimePlot = () => ({
@@ -52,7 +52,7 @@ export const networkTimePlot = () => ({
       yaxis: axisConfig('Send Count', { rangemode: 'tozero' }),
     };
     const data = [{ x: [], y: [], showlegend: true }];
-    initPlot({
+    setupPlot({
       component: this,
       elementId: 'networkTimePlot',
       elementProp: 'networkTimePlotEl',
