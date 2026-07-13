@@ -4,6 +4,13 @@
  */
 import _ from 'lodash';
 import Plotly from 'plotly';
+import {
+  DARK_LAYOUT,
+  purgePlot,
+  setupAxisState,
+  setupLoadWatcher,
+  setupPlot,
+} from './plotUtils.js';
 
 export const heatmapPlot = () => ({
   heatmapPlotEl: null,
@@ -25,36 +32,14 @@ export const heatmapPlot = () => ({
    * Initialize the component and set up watchers.
    */
   init() {
-    // Restore UI state
-    const savedState = this.$store.uiStateStore.getUIState('heatmapPlot');
-    this.selectedMetric = savedState.selectedMetric ?? 'num_messages';
-
-    this.$watch('selectedMetric', (newValue) => {
-      if (newValue) {
-        this.$store.uiStateStore.saveUIState('heatmapPlot', { selectedMetric: newValue });
-      }
-    });
-
-    // Load data if a run is already selected
-    if (this.$store.dataStore.selectedRunId) {
-      this.load();
-    }
-
-    // Watch for new data loads
-    this.$watch('$store.dataStore.loadTick', () => {
-      this.load();
-    });
+    setupAxisState(this, 'heatmapPlot', [{ prop: 'selectedMetric', default: 'num_messages' }]);
+    setupLoadWatcher(this, () => this.load());
   },
 
   /**
    * Initialize the Plotly heatmap plot.
    */
   initPlot() {
-    if (this.isPlotInitialized) {
-      return;
-    }
-    this.heatmapPlotEl = document.getElementById('heatmapPlot');
-
     const data = [
       {
         type: 'heatmap',
@@ -65,30 +50,21 @@ export const heatmapPlot = () => ({
       },
     ];
     const layout = {
-      // biome-ignore-start lint/style/useNamingConvention: library interface names
-      paper_bgcolor: '#1d232a',
-      plot_bgcolor: '#1d232a',
-      font: {
-        color: 'white',
-      },
-      margin: {
-        t: 50,
-        b: 50,
-        l: 50,
-        r: 50,
-        pad: 4,
-      },
+      ...DARK_LAYOUT,
       xaxis: {
         title: 'Receiving LP ID',
       },
       yaxis: {
         title: 'Sending LP ID',
       },
-      // biome-ignore-end lint/style/useNamingConvention: library interface names
     };
-    const config = { responsive: true };
-    Plotly.newPlot(this.heatmapPlotEl, data, layout, config);
-    this.isPlotInitialized = true;
+    setupPlot({
+      component: this,
+      elementId: 'heatmapPlot',
+      elementProp: 'heatmapPlotEl',
+      data,
+      layout,
+    });
   },
 
   async load() {
@@ -109,10 +85,7 @@ export const heatmapPlot = () => ({
   },
 
   purge() {
-    if (this.heatmapPlotEl) {
-      Plotly.purge(this.heatmapPlotEl);
-      this.isPlotInitialized = false;
-    }
+    purgePlot(this, 'heatmapPlotEl');
   },
 
   createHeatmapMatrix() {
@@ -169,19 +142,7 @@ export const heatmapPlot = () => ({
         },
       ],
       {
-        // biome-ignore-start lint/style/useNamingConvention: library interface names
-        paper_bgcolor: '#1d232a',
-        plot_bgcolor: '#1d232a',
-        font: {
-          color: 'white',
-        },
-        margin: {
-          t: 50,
-          b: 50,
-          l: 50,
-          r: 50,
-          pad: 4,
-        },
+        ...DARK_LAYOUT,
         xaxis: {
           title: 'Receiving LP ID',
         },
@@ -191,7 +152,6 @@ export const heatmapPlot = () => ({
         coloraxis: {
           colorbar: { title: title },
         },
-        // biome-ignore-end lint/style/useNamingConvention: library interface names
       },
     );
   },

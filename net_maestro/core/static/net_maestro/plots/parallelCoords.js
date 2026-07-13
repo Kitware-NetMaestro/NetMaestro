@@ -3,6 +3,13 @@
  * Displays multi-dimensional ROSS data using Plotly's parallel coordinates chart.
  */
 import Plotly from 'plotly';
+import {
+  DARK_LAYOUT,
+  purgePlot,
+  setupLoadWatcher,
+  setupParallelSyncWatchers,
+  setupPlot,
+} from './plotUtils.js';
 
 export const parallelCoords = () => ({
   parallelPlotEl: null,
@@ -23,80 +30,8 @@ export const parallelCoords = () => ({
    * Initialize the component and set up watchers.
    */
   init() {
-    // Load data if a run is already selected
-    if (this.$store.dataStore.selectedRunId) {
-      this.load();
-    }
-
-    // Watch for new data loads
-    this.$watch('$store.dataStore.loadTick', () => {
-      this.load();
-    });
-
-    this.setupSyncWatchers();
-  },
-
-  setupSyncWatchers() {
-    const sync = this.$store.plotSyncStore;
-
-    this.$watch('$store.plotSyncStore.parameterRanges', (ranges) => {
-      if (sync.lastUpdatedBy === this.plotId || !this.isPlotInitialized) {
-        return;
-      }
-      for (let i = 0; i < this.plotDimensions.length; i++) {
-        const dimKey = this.plotDimensions[i].key;
-        const range = ranges[dimKey];
-        if (range) {
-          this.applySyncedDimension(i, [range.min, range.max]);
-        }
-      }
-    });
-
-    this.$watch('$store.plotSyncStore.resetTick', () => {
-      if (sync.lastUpdatedBy === this.plotId || !this.isPlotInitialized) {
-        return;
-      }
-      this.resetAllDimensions();
-    });
-  },
-
-  async applySyncedDimension(index, constraintRange) {
-    if (!this.parallelPlotEl) {
-      return;
-    }
-    this.isSyncing = true;
-    const dimensions = this.parallelPlotEl.data[0]?.dimensions;
-    if (dimensions?.[index]) {
-      dimensions[index].constraintrange = constraintRange;
-      try {
-        await Plotly.restyle(this.parallelPlotEl, { dimensions: [dimensions] });
-      } finally {
-        this.isSyncing = false;
-      }
-    } else {
-      this.isSyncing = false;
-    }
-  },
-
-  async resetAllDimensions() {
-    if (!this.parallelPlotEl) {
-      return;
-    }
-    this.isSyncing = true;
-    const dimensions = this.parallelPlotEl.data[0]?.dimensions;
-    if (dimensions) {
-      for (const dim of dimensions) {
-        dim.constraintrange = undefined;
-        dim.range = undefined;
-      }
-      try {
-        await Plotly.restyle(this.parallelPlotEl, { dimensions: [dimensions] });
-      } finally {
-        this.isSyncing = false;
-      }
-    } else {
-      this.isSyncing = false;
-    }
+    setupLoadWatcher(this, () => this.load());
+    setupParallelSyncWatchers(this, 'parallelPlotEl', this.plotDimensions);
   },
 
   /**
@@ -132,11 +67,6 @@ export const parallelCoords = () => ({
    * Initialize the Plotly parallel coordinates plot.
    */
   initPlot() {
-    if (this.isPlotInitialized) {
-      return;
-    }
-    this.parallelPlotEl = document.getElementById('parallelCoords');
-
     const data = [
       {
         type: 'parcoords',
@@ -148,28 +78,19 @@ export const parallelCoords = () => ({
         dimensions: [{}],
       },
     ];
-    const layout = {
-      // biome-ignore-start lint/style/useNamingConvention: library interface names
-      paper_bgcolor: '#1d232a',
-      plot_bgcolor: '#1d232a',
-      font: {
-        color: 'white',
-      },
-      margin: {
-        t: 50,
-        b: 50,
-        l: 50,
-        r: 50,
-        pad: 4,
-      },
-      // biome-ignore-end lint/style/useNamingConvention: library interface names
-    };
-    const config = { responsive: true };
-    Plotly.newPlot(this.parallelPlotEl, data, layout, config);
-    this.isPlotInitialized = true;
-
-    this.parallelPlotEl.on('plotly_restyle', () => {
-      this.onRestyle();
+    const layout = DARK_LAYOUT;
+    setupPlot({
+      component: this,
+      elementId: 'parallelCoords',
+      elementProp: 'parallelPlotEl',
+      data,
+      layout,
+      eventHandlers: [
+        {
+          event: 'plotly_restyle',
+          handler: () => this.onRestyle(),
+        },
+      ],
     });
   },
 
@@ -191,10 +112,7 @@ export const parallelCoords = () => ({
   },
 
   purge() {
-    if (this.parallelPlotEl) {
-      Plotly.purge(this.parallelPlotEl);
-      this.isPlotInitialized = false;
-    }
+    purgePlot(this, 'parallelPlotEl');
   },
 
   /**
@@ -218,23 +136,6 @@ export const parallelCoords = () => ({
       })),
     };
 
-    const layout = {
-      // biome-ignore-start lint/style/useNamingConvention: library interface names
-      paper_bgcolor: '#1d232a',
-      plot_bgcolor: '#1d232a',
-      font: {
-        color: 'white',
-      },
-      margin: {
-        t: 50,
-        b: 50,
-        l: 50,
-        r: 50,
-        pad: 4,
-      },
-      // biome-ignore-end lint/style/useNamingConvention: library interface names
-    };
-
-    Plotly.react(this.parallelPlotEl, [trace], layout);
+    Plotly.react(this.parallelPlotEl, [trace], DARK_LAYOUT);
   },
 });

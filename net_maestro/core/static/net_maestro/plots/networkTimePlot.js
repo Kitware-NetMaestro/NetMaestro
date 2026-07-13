@@ -1,4 +1,14 @@
 import Plotly from 'plotly';
+import {
+  axisConfig,
+  createValueList,
+  DARK_LAYOUT,
+  getLabel,
+  purgePlot,
+  setupAxisState,
+  setupLoadWatcher,
+  setupPlot,
+} from './plotUtils.js';
 
 export const networkTimePlot = () => ({
   records: [],
@@ -17,14 +27,7 @@ export const networkTimePlot = () => ({
     ];
   },
   get yAxisValues() {
-    const excludedColumns = ['lp_id', 'component_id', 'real_time', 'virtual_time'];
-    const filteredColumns = this.columns.filter(
-      (column) => column && !excludedColumns.includes(column),
-    );
-    return filteredColumns.map((value) => ({
-      key: value,
-      label: value.replaceAll('_', ' '),
-    }));
+    return createValueList(this.columns, ['lp_id', 'component_id', 'real_time', 'virtual_time']);
   },
 
   /**
@@ -32,83 +35,30 @@ export const networkTimePlot = () => ({
    * Called automatically by Alpine.js when component mounts.
    */
   init() {
-    // Restore UI state
-    const savedState = this.$store.uiStateStore.getUIState('networkTimePlot');
-    this.selectedXAxis = savedState.selectedXAxis ?? 'virtual_time';
-    this.selectedYAxis = savedState.selectedYAxis ?? 'send_count';
-
-    this.$watch('selectedXAxis', (newValue) => {
-      if (newValue) {
-        this.$store.uiStateStore.saveUIState('networkTimePlot', { selectedXAxis: newValue });
-      }
-    });
-
-    this.$watch('selectedYAxis', (newValue) => {
-      if (newValue) {
-        this.$store.uiStateStore.saveUIState('networkTimePlot', { selectedYAxis: newValue });
-      }
-    });
-
-    // Load data if a run is already selected
-    if (this.$store.dataStore.selectedRunId) {
-      this.load();
-    }
-
-    // Watch for new data loads
-    this.$watch('$store.dataStore.loadTick', () => {
-      this.load();
-    });
+    setupAxisState(this, 'networkTimePlot', [
+      { prop: 'selectedXAxis', default: 'virtual_time' },
+      { prop: 'selectedYAxis', default: 'send_count' },
+    ]);
+    setupLoadWatcher(this, () => this.load());
   },
 
   /**
    * Initialize the Plotly networkTime plot.
    */
   initPlot() {
-    if (this.isPlotInitialized) {
-      return;
-    }
-    this.networkTimePlotEl = document.getElementById('networkTimePlot');
-    if (!this.networkTimePlotEl) {
-      return;
-    }
-
-    const data = [
-      {
-        x: [],
-        y: [],
-        showlegend: true,
-      },
-    ];
     const layout = {
-      // biome-ignore-start lint/style/useNamingConvention: library interface names
-      xaxis: {
-        title: {
-          text: 'Virtual Time',
-        },
-        rangemode: 'tozero',
-        color: 'white',
-      },
-      yaxis: {
-        title: {
-          text: 'Send Count',
-        },
-        rangemode: 'tozero',
-        color: 'white',
-      },
-      paper_bgcolor: '#1d232a',
-      plot_bgcolor: '#1d232a',
-      margin: {
-        l: 50,
-        r: 50,
-        b: 50,
-        t: 50,
-        pad: 4,
-      },
-      // biome-ignore-end lint/style/useNamingConvention: library interface names
+      ...DARK_LAYOUT,
+      xaxis: axisConfig('Virtual Time', { rangemode: 'tozero' }),
+      yaxis: axisConfig('Send Count', { rangemode: 'tozero' }),
     };
-    const config = { responsive: true };
-    Plotly.newPlot(this.networkTimePlotEl, data, layout, config);
-    this.isPlotInitialized = true;
+    const data = [{ x: [], y: [], showlegend: true }];
+    setupPlot({
+      component: this,
+      elementId: 'networkTimePlot',
+      elementProp: 'networkTimePlotEl',
+      data,
+      layout,
+    });
   },
 
   async load() {
@@ -130,10 +80,7 @@ export const networkTimePlot = () => ({
   },
 
   purge() {
-    if (this.networkTimePlotEl) {
-      Plotly.purge(this.networkTimePlotEl);
-      this.isPlotInitialized = false;
-    }
+    purgePlot(this, 'networkTimePlotEl');
   },
 
   /**
@@ -168,33 +115,9 @@ export const networkTimePlot = () => ({
     }));
 
     Plotly.react(this.networkTimePlotEl, traces, {
-      // biome-ignore-start lint/style/useNamingConvention: library interface names
-      xaxis: {
-        title: {
-          text:
-            this.xAxisValues.find((item) => item.key === this.selectedXAxis)?.label ??
-            this.selectedXAxis,
-        },
-        color: 'white',
-      },
-      yaxis: {
-        title: {
-          text:
-            this.yAxisValues.find((item) => item.key === this.selectedYAxis)?.label ??
-            this.selectedYAxis,
-        },
-        color: 'white',
-      },
-      paper_bgcolor: '#1d232a',
-      plot_bgcolor: '#1d232a',
-      margin: {
-        l: 50,
-        r: 50,
-        b: 50,
-        t: 50,
-        pad: 4,
-      },
-      // biome-ignore-end lint/style/useNamingConvention: library interface names
+      ...DARK_LAYOUT,
+      xaxis: axisConfig(getLabel(this.xAxisValues, this.selectedXAxis, this.selectedXAxis)),
+      yaxis: axisConfig(getLabel(this.yAxisValues, this.selectedYAxis, this.selectedYAxis)),
     });
   },
 });
