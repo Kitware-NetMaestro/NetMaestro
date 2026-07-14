@@ -151,6 +151,9 @@ class TestSimulationView:
         # Should have form errors
         assert response.context["form"].errors
 
+        # Errors are rendered in the page for the user to see
+        assert "This field is required" in response.content.decode()
+
         # No run should be created
         assert Run.objects.count() == 0
 
