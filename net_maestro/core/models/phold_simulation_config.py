@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -41,7 +42,10 @@ class PHOLDSimulationConfig(models.Model):
     mult = models.FloatField(
         default=1.4, validators=[MinValueValidator(1.0)], verbose_name="Memory multiplier"
     )
-    lookahead = models.FloatField(default=1.0, validators=[MinValueValidator(0.1)])
+    # ROSS's PHOLD model hard-errors if lookahead exceeds 1.0
+    lookahead = models.FloatField(
+        default=1.0, validators=[MinValueValidator(0.1), MaxValueValidator(1.0)]
+    )
     start_events = models.IntegerField(
         default=1, validators=[MinValueValidator(1)], verbose_name="Start events per LP"
     )
@@ -52,3 +56,10 @@ class PHOLDSimulationConfig(models.Model):
 
     def __str__(self) -> str:
         return f"PHOLD config for Run {self.run_id}"
+
+    def clean(self) -> None:
+        super().clean()
+        # PHOLD subtracts lookahead from mean before using it as the exponential distribution's
+        # rate parameter. A non-positive result produces invalid event timestamp offsets.
+        if self.mean is not None and self.lookahead is not None and self.mean <= self.lookahead:
+            raise ValidationError({"mean": "Mean timestamp must be greater than lookahead."})
