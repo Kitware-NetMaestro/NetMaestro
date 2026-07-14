@@ -12,7 +12,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 
-from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
 import pytest
@@ -28,24 +27,17 @@ if TYPE_CHECKING:
 class TestSimulationView:
     """Test the PHOLD simulation view."""
 
-    @pytest.fixture
-    def authenticated_client(self, client: Client) -> Client:
-        """Create an authenticated client."""
-        User.objects.create_user(username="testuser", password="testpass")
-        client.login(username="testuser", password="testpass")
-        return client
-
-    def test_get_simulation_form(self, authenticated_client: Client) -> None:
+    def test_get_simulation_form(self, client: Client) -> None:
         """Test GET request returns simulation form."""
-        response = authenticated_client.get(reverse("new-simulation-config"))
+        response = client.get(reverse("new-simulation-config"))
 
         assert response.status_code == 200
         assert "form" in response.context
         assert "net_maestro/index.html" in [t.name for t in response.templates]
 
-    def test_get_simulation_form_htmx(self, authenticated_client: Client) -> None:
+    def test_get_simulation_form_htmx(self, client: Client) -> None:
         """Test HTMX GET request returns partial template."""
-        response = authenticated_client.get(
+        response = client.get(
             reverse("new-simulation-config"),
             HTTP_HX_REQUEST="true",
         )
@@ -55,7 +47,7 @@ class TestSimulationView:
 
     @mock.patch("net_maestro.core.views.run_phold_simulation")
     def test_submit_simulation_form_save_and_run(
-        self, mock_task: mock.Mock, authenticated_client: Client
+        self, mock_task: mock.Mock, client: Client
     ) -> None:
         """Test "Save and Run" submission creates run/config and triggers the task."""
         form_data = {
@@ -73,7 +65,7 @@ class TestSimulationView:
             "stagger": "0",
         }
 
-        response = authenticated_client.post(reverse("new-simulation-config"), data=form_data)
+        response = client.post(reverse("new-simulation-config"), data=form_data)
 
         # Save & Run redirects to analysis so users can monitor the run immediately.
         assert response.status_code == 302
@@ -104,9 +96,7 @@ class TestSimulationView:
         )
 
     @mock.patch("net_maestro.core.views.run_phold_simulation")
-    def test_submit_simulation_form_save_only(
-        self, mock_task: mock.Mock, authenticated_client: Client
-    ) -> None:
+    def test_submit_simulation_form_save_only(self, mock_task: mock.Mock, client: Client) -> None:
         """Save-only submissions stay on the saved simulations page and skip the task."""
         form_data = {
             "action": "save",
@@ -123,7 +113,7 @@ class TestSimulationView:
             "stagger": "0",
         }
 
-        response = authenticated_client.post(reverse("new-simulation-config"), data=form_data)
+        response = client.post(reverse("new-simulation-config"), data=form_data)
 
         # Check redirect
         assert response.status_code == 302
@@ -137,7 +127,7 @@ class TestSimulationView:
         # Verify the task was NOT triggered
         mock_task.delay.assert_not_called()
 
-    def test_submit_invalid_form(self, authenticated_client: Client) -> None:
+    def test_submit_invalid_form(self, client: Client) -> None:
         """Test invalid form submission returns errors."""
         form_data = {
             "run_identifier": "",  # Required field
@@ -153,7 +143,7 @@ class TestSimulationView:
             "stagger": "0",
         }
 
-        response = authenticated_client.post(reverse("new-simulation-config"), data=form_data)
+        response = client.post(reverse("new-simulation-config"), data=form_data)
 
         # Should not redirect
         assert response.status_code == 200
@@ -177,24 +167,17 @@ class TestSimulationView:
 class TestSavedSimulationsView:
     """Test the saved simulations list view."""
 
-    @pytest.fixture
-    def authenticated_client(self, client: Client) -> Client:
-        """Create an authenticated client."""
-        User.objects.create_user(username="testuser", password="testpass")
-        client.login(username="testuser", password="testpass")
-        return client
-
-    def test_list_empty(self, authenticated_client: Client) -> None:
+    def test_list_empty(self, client: Client) -> None:
         """Test the list view renders with no saved configurations."""
-        response = authenticated_client.get(reverse("simulation-config"))
+        response = client.get(reverse("simulation-config"))
 
         assert response.status_code == 200
         assert list(response.context["configs"]) == []
         assert "net_maestro/index.html" in [t.name for t in response.templates]
 
-    def test_list_htmx(self, authenticated_client: Client) -> None:
+    def test_list_htmx(self, client: Client) -> None:
         """Test HTMX GET request returns the partial template."""
-        response = authenticated_client.get(
+        response = client.get(
             reverse("simulation-config"),
             HTTP_HX_REQUEST="true",
         )
@@ -202,7 +185,7 @@ class TestSavedSimulationsView:
         assert response.status_code == 200
         assert "net_maestro/partials/saved_simulations.html" in [t.name for t in response.templates]
 
-    def test_list_shows_saved_configs(self, authenticated_client: Client) -> None:
+    def test_list_shows_saved_configs(self, client: Client) -> None:
         """Test saved configurations are listed, most recently created first."""
         older_run = Run.objects.create(name="Older Run", status=RunStatus.PENDING)
         older_run.created = timezone.now() - timedelta(days=1)
@@ -213,7 +196,7 @@ class TestSavedSimulationsView:
         newer_run.save(update_fields=["created"])
         PHOLDSimulationConfig.objects.create(run=newer_run)
 
-        response = authenticated_client.get(reverse("simulation-config"))
+        response = client.get(reverse("simulation-config"))
 
         assert response.status_code == 200
         configs = list(response.context["configs"])
@@ -222,12 +205,6 @@ class TestSavedSimulationsView:
 
 @pytest.mark.django_db
 class TestEditSimulationView:
-    @pytest.fixture
-    def authenticated_client(self, client: Client) -> Client:
-        User.objects.create_user(username="testuser", password="testpass")
-        client.login(username="testuser", password="testpass")
-        return client
-
     def _create_config(self) -> PHOLDSimulationConfig:
         run = Run.objects.create(name="Original Run", status=RunStatus.SAVED)
         return PHOLDSimulationConfig.objects.create(
@@ -244,10 +221,10 @@ class TestEditSimulationView:
             stagger=False,
         )
 
-    def test_edit_get_prefills_form(self, authenticated_client: Client) -> None:
+    def test_edit_get_prefills_form(self, client: Client) -> None:
         config = self._create_config()
 
-        response = authenticated_client.get(reverse("edit-simulation-config", args=[config.run.id]))
+        response = client.get(reverse("edit-simulation-config", args=[config.run.id]))
 
         assert response.status_code == 200
         form = response.context["form"]
@@ -255,9 +232,7 @@ class TestEditSimulationView:
         assert form["avl_size"].value() == 18
 
     @mock.patch("net_maestro.core.views.run_phold_simulation")
-    def test_edit_save_updates_config(
-        self, mock_task: mock.Mock, authenticated_client: Client
-    ) -> None:
+    def test_edit_save_updates_config(self, mock_task: mock.Mock, client: Client) -> None:
         config = self._create_config()
         form_data = {
             "action": "save",
@@ -274,7 +249,7 @@ class TestEditSimulationView:
             "stagger": "1",
         }
 
-        response = authenticated_client.post(
+        response = client.post(
             reverse("edit-simulation-config", args=[config.run.id]),
             data=form_data,
         )
@@ -294,7 +269,7 @@ class TestEditSimulationView:
         assert config.avl_size == 18
         mock_task.delay.assert_not_called()
 
-    def test_edit_clone_shows_both_runs_in_saved_list(self, authenticated_client: Client) -> None:
+    def test_edit_clone_shows_both_runs_in_saved_list(self, client: Client) -> None:
         config = self._create_config()
         form_data = {
             "action": "save",
@@ -311,22 +286,20 @@ class TestEditSimulationView:
             "stagger": "0",
         }
 
-        response = authenticated_client.post(
+        response = client.post(
             reverse("edit-simulation-config", args=[config.run.id]),
             data=form_data,
         )
 
         assert response.status_code == 302
 
-        list_response = authenticated_client.get(reverse("simulation-config"))
+        list_response = client.get(reverse("simulation-config"))
         assert list_response.status_code == 200
         run_names = [cfg.run.name for cfg in list_response.context["configs"]]
         assert run_names == ["Cloned Run", "Original Run"]
 
     @mock.patch("net_maestro.core.views.run_phold_simulation")
-    def test_edit_save_and_run_triggers_task(
-        self, mock_task: mock.Mock, authenticated_client: Client
-    ) -> None:
+    def test_edit_save_and_run_triggers_task(self, mock_task: mock.Mock, client: Client) -> None:
         config = self._create_config()
         form_data = {
             "action": "save_and_run",
@@ -343,7 +316,7 @@ class TestEditSimulationView:
             "stagger": "0",
         }
 
-        response = authenticated_client.post(
+        response = client.post(
             reverse("edit-simulation-config", args=[config.run.id]),
             data=form_data,
         )
@@ -356,12 +329,10 @@ class TestEditSimulationView:
         mock_task.delay.assert_called_once()
 
     @mock.patch("net_maestro.core.views.run_phold_simulation")
-    def test_run_saved_simulation_shortcut(
-        self, mock_task: mock.Mock, authenticated_client: Client
-    ) -> None:
+    def test_run_saved_simulation_shortcut(self, mock_task: mock.Mock, client: Client) -> None:
         config = self._create_config()
 
-        response = authenticated_client.post(reverse("run-saved-simulation", args=[config.run.id]))
+        response = client.post(reverse("run-saved-simulation", args=[config.run.id]))
 
         assert response.status_code == 302
         assert response.headers["Location"] == reverse("analysis-partial")
@@ -372,16 +343,14 @@ class TestEditSimulationView:
 
     @mock.patch("net_maestro.core.views.run_phold_simulation")
     def test_run_saved_simulation_invalid_config_shows_error(
-        self, mock_task: mock.Mock, authenticated_client: Client
+        self, mock_task: mock.Mock, client: Client
     ) -> None:
         """An invalid saved config surfaces an error message instead of failing silently."""
         config = self._create_config()
         config.avl_size = 5  # Below the form/model MinValueValidator(10)
         config.save(update_fields=["avl_size"])
 
-        response = authenticated_client.post(
-            reverse("run-saved-simulation", args=[config.run.id]), follow=True
-        )
+        response = client.post(reverse("run-saved-simulation", args=[config.run.id]), follow=True)
 
         assert response.status_code == 200
         assert response.redirect_chain[-1] == (reverse("simulation-config"), 302)
