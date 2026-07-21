@@ -2,7 +2,7 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
 # Install OpenMPI for simulations
 RUN sudo apt-get update && sudo apt-get install -y \
-    openmpi-bin \
+    libmpich-dev \
     libopenmpi-dev \
     && sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
 
