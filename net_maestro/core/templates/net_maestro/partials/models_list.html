@@ -2,8 +2,23 @@
   <div class="p-8">
     <div class="flex flex-row items-start justify-between gap-4">
       <div>
-        <h1 class="text-3xl font-semibold">Available Models</h1>
+        <h1 class="text-3xl font-semibold">Available Component Models</h1>
       </div>
+
+      <a
+        href="{% url 'custom-component-create' %}"
+        hx-get="{% url 'custom-component-create' %}"
+        hx-target="#main-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        class="btn btn-primary"
+      >
+        <i class="ri-add-line" aria-hidden="true"></i>
+        New Component Model
+      </a>
+      {% comment %}
+        TODO: Hook this up to a dummy form and document future plans
+      {% endcomment %}
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-8">
@@ -17,8 +32,16 @@
             </div>
             <div class="flex flex-row gap-2">
               <div class="badge badge-outline">{{ model.type }}</div>
-              <div class="badge badge-outline">{{ model.engine }}</div>
+              {% comment %} <div class="badge badge-outline">{{ model.engine }}</div> {% endcomment %}
             </div>
+
+          </div>
+          <p class="text-[12.5px] leading-relaxed" style="color:var(--text-dim);"> {{model.description}}</p>
+          <div class="flex flex-row gap-2">
+            {% for param in model.parameters %}
+            <div class="badge badge-outline">{{ param}}</div>
+            {% comment %} <div class="badge badge-outline">{{ model.engine }}</div> {% endcomment %}
+            {% endfor%}
           </div>
         </div>
       </div>

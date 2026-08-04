@@ -25,40 +25,22 @@ def _avail_models_context() -> dict[str, object]:
     return {
         "models": [
             {
-                "name": "ESNet Switch",
-                "type": "Switch",
-                "engine": "PDES (ROSS)",
+                "name": "nw-lp",
+                "type": "host",
+                "description": """Network LP for compute-node endpoints.
+                                Carries an inline workload: block — traffic pattern, message count,
+                                timing, payload size.""",
+                "parameters": ["traffic", "num_messages", "arrival_time", "payload_size"],
                 "icon_class": "ri-organization-chart",
+                "usage_count": 3,
             },
             {
-                "name": "ESNet Host",
-                "type": "Host",
-                "engine": "PDES (ROSS)",
-                "icon_class": "ri-server-line",
-            },
-            {
-                "name": "ESNet Router",
-                "type": "Router",
-                "engine": "PDES (ROSS)",
+                "name": "simplep2p",
+                "type": "router",
+                "description": "Simple point-to-point router.",
+                "parameters": ["routing", "latency", "bandwidth", "chunk_size", "vc_size"],
                 "icon_class": "ri-router-fill",
-            },
-            {
-                "name": "Mug Host",
-                "type": "Host",
-                "engine": "PDES (ROSS)",
-                "icon_class": "ri-server-line",
-            },
-            {
-                "name": "Acorn Router",
-                "type": "Router",
-                "engine": "PDES (ROSS)",
-                "icon_class": "ri-router-fill",
-            },
-            {
-                "name": "Cube Switch",
-                "type": "Switch",
-                "engine": "PDES (ROSS)",
-                "icon_class": "ri-organization-chart",
+                "usage_count": 2,
             },
         ],
     }
