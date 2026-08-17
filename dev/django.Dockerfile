@@ -4,6 +4,7 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 RUN sudo apt-get update && sudo apt-get install -y \
     openmpi-bin \
     libopenmpi-dev \
+    gosu \
     && sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
@@ -35,8 +36,12 @@ ENV TOX_WORK_DIR=/home/vscode/tox \
 
 RUN ["chsh", "-s", "/usr/bin/zsh", "vscode"]
 
-USER vscode
-
 # Pre-create named volume mount points, so the new volume inherits `vscode` user ownership:
 # https://docs.docker.com/engine/storage/volumes/#populate-a-volume-using-a-container
-RUN ["mkdir", "/home/vscode/pkg-cache"]
+RUN mkdir /home/vscode/pkg-cache && chown vscode:vscode /home/vscode/pkg-cache
+
+COPY ./dev/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN ["chmod", "+x", "/usr/local/bin/docker-entrypoint.sh"]
+
+# Stay as root so the entrypoint can adjust the vscode user's uid/gid before dropping privileges
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

@@ -11,6 +11,9 @@ services:
     tty: true
     working_dir: /home/vscode/net-maestro
     env_file: ./dev/.env.docker-compose
+    environment:
+      # Set NM_USER to a host uid:gid so files created in bind mounts are owned by the host user.
+      NM_USER: ${NM_USER:-}
     volumes:
       - .:/home/vscode/net-maestro
       - ${ROSS_PATH:-../ross}:/home/vscode/ross
@@ -43,6 +46,9 @@ services:
     tty: false
     working_dir: /home/vscode/net-maestro
     env_file: ./dev/.env.docker-compose
+    environment:
+      # Set NM_USER to a host uid:gid so files created in bind mounts are owned by the host user.
+      NM_USER: ${NM_USER:-}
     volumes:
       - .:/home/vscode/net-maestro
       - ${ROSS_PATH:-../ross}:/home/vscode/ross
