@@ -13,7 +13,6 @@ services:
     env_file: ./dev/.env.docker-compose
     volumes:
       - .:/home/vscode/net-maestro
-      - ${ROSS_PATH:-../ross}:/home/vscode/ross
       - pkg_cache:/home/vscode/pkg-cache
     ports:
       - 8000:8000
@@ -45,7 +44,6 @@ services:
     env_file: ./dev/.env.docker-compose
     volumes:
       - .:/home/vscode/net-maestro
-      - ${ROSS_PATH:-../ross}:/home/vscode/ross
       - pkg_cache:/home/vscode/pkg-cache
     depends_on:
       postgres:

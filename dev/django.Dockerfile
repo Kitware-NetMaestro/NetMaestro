@@ -1,12 +1,43 @@
+# Pin to a specific ROSS commit for reproducible builds.
+ARG ROSS_GIT_REF=dc3a6a056cfc7a5e68f7141f88d8833407599ef8
+
+FROM ubuntu:24.04 AS ross-builder
+ARG ROSS_GIT_REF
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    git \
+    build-essential \
+    cmake \
+    openmpi-bin \
+    libmpich-dev \
+    libopenmpi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone https://github.com/ross-org/ross.git /ross \
+    && cd /ross \
+    && git checkout "${ROSS_GIT_REF}" \
+    && git submodule update --init --recursive
+
+RUN cmake -S /ross -B /ross/build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DROSS_BUILD_MODELS=ON \
+        -DROSS_BUILD_TESTING=OFF \
+    && cmake --build /ross/build --parallel
+
+
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
-# Install OpenMPI for simulations
+# OpenMPI runtime, matching the ross-builder stage, for running the PHOLD binary.
 RUN sudo apt-get update && sudo apt-get install -y \
     openmpi-bin \
-    libopenmpi-dev \
     && sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+# PHOLD binary built in the ross-builder stage above. Baked into the image instead
+# of relying on a host `ross` checkout bind-mounted at runtime.
+COPY --from=ross-builder --chown=vscode:vscode /ross/build/models/phold/phold /opt/ross/phold
 
 # Ensure Python output appears immediately in container logs.
 ENV PYTHONUNBUFFERED=1
