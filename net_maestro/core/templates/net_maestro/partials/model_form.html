@@ -1,0 +1,95 @@
+<div class="bg-base-300 overflow-y-auto" style="height: calc(100vh - 64px);">
+  <div class="p-8 max-w-5xl">
+    {% comment %}
+      This page is a demonstration-only create form for `/models-list/new-model`.
+      The fields are read-only and are populated by model_create() via
+      _model_form_context(). Depending on further specs the fields and details here might change.
+      Save and Cancel intentionally navigate back to the
+      custom component list without persisting anything.
+
+      TODO: Replace the read-only display with a real Django form when models
+      are backed properly by django models.
+      TODO: Convert the save action to POST and persist the new model before returning
+      to `/models/`.
+    {% endcomment %}
+    <div class="flex flex-row items-start justify-between gap-4">
+      <div>
+        <div class="flex flex-row items-center gap-2 text-sm text-base-content/60">
+          <a
+            href="{% url 'models-list-partial' %}"
+            hx-get="{% url 'models-list-partial' %}"
+            hx-target="#main-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="link link-hover"
+          >
+            Models
+          </a>
+          <i class="ri-arrow-right-s-line" aria-hidden="true"></i>
+          <span>New Model</span>
+        </div>
+        <h1 class="text-3xl font-semibold mt-2">
+          Model
+        </h1>
+      </div>
+      <div class="flex flex-row gap-2">
+        <a
+          href="{% url 'models-list-partial' %}"
+          hx-get="{% url 'models-list-partial' %}"
+          hx-target="#main-content"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+          class="btn btn-ghost"
+        >
+          Cancel
+        </a>
+        <a
+          href="{% url 'models-list-partial' %}"
+          hx-get="{% url 'models-list-partial' %}"
+          hx-target="#main-content"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+          class="btn btn-primary"
+        >
+          Save
+        </a>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 mt-8">
+      <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+          <div class="flex flex-row items-center justify-between gap-4">
+            <div class="flex flex-row items-center gap-3">
+              <i class="ri-server-line text-2xl text-primary" aria-hidden="true"></i>
+              <div>
+                <h2 class="card-title">New Model</h2>
+              </div>
+            </div>
+          </div>
+
+          {% for section in form_sections %}
+            <div class="mt-6">
+              <h3 class="font-semibold mb-3">{{ section.title }}</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for field in section.fields %}
+                  <label class="form-control w-full">
+                    <div class="label">
+                      <span class="label-text">{{ field.label }}</span>
+                    </div>
+                    <input
+                      type="text"
+                      value="{{ field.value }}"
+                      class="input input-bordered w-full"
+                      readonly
+                    >
+                  </label>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

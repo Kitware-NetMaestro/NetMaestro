@@ -20,6 +20,32 @@ from .models import Run
 from .tasks import run_phold_simulation
 
 
+def _avail_component_models_context() -> dict[str, object]:
+    """Return available models context for the configuration page."""
+    return {
+        "models": [
+            {
+                "name": "nw-lp",
+                "type": "host",
+                "description": """Network LP for compute-node endpoints.
+                                Carries an inline workload: block — traffic pattern, message count,
+                                timing, payload size.""",
+                "parameters": ["traffic", "num_messages", "arrival_time", "payload_size"],
+                "icon_class": "ri-organization-chart",
+                "usage_count": 3,
+            },
+            {
+                "name": "simplep2p",
+                "type": "router",
+                "description": "Simple point-to-point router.",
+                "parameters": ["routing", "latency", "bandwidth", "chunk_size", "vc_size"],
+                "icon_class": "ri-server-line",
+                "usage_count": 2,
+            },
+        ],
+    }
+
+
 def _custom_component_context() -> dict[str, object]:
     """Return custom component context for the configuration page.
 
@@ -35,15 +61,15 @@ def _custom_component_context() -> dict[str, object]:
                 "icon_class": "ri-organization-chart",
             },
             {
-                "name": "ESNet Host",
+                "name": "nw-lp",
                 "type": "Host",
-                "engine": "PDES (ROSS)",
+                "engine": "PDES (CODES)",
                 "icon_class": "ri-server-line",
             },
             {
-                "name": "ESNet Router",
+                "name": "simplep2p",
                 "type": "Router",
-                "engine": "PDES (ROSS)",
+                "engine": "PDES (CODES)",
                 "icon_class": "ri-router-fill",
             },
         ],
@@ -52,7 +78,7 @@ def _custom_component_context() -> dict[str, object]:
                 "id": 1,
                 "name": "High Traffic Host",
                 "type": "Host",
-                "base_model": "ESNet Host",
+                "base_model": "nw-lp",
                 "icon_class": "ri-server-line",
                 "color_class": "text-primary",
                 "badge_class": "badge-primary",
@@ -68,7 +94,7 @@ def _custom_component_context() -> dict[str, object]:
                 "id": 2,
                 "name": "Regional Backbone Router",
                 "type": "Router",
-                "base_model": "ESNet Router",
+                "base_model": "simplep2p",
                 "icon_class": "ri-router-fill",
                 "color_class": "text-secondary",
                 "badge_class": "badge-secondary",
@@ -77,7 +103,7 @@ def _custom_component_context() -> dict[str, object]:
                     {"label": "Egress Bandwidth", "value": "400 Gbps"},
                     {"label": "Ingress Latency", "value": "1.25 ms"},
                     {"label": "Egress Latency", "value": "1.25 ms"},
-                    {"label": "Engine", "value": "PDES (ROSS)"},
+                    {"label": "Engine", "value": "PDES (CODES)"},
                     {"label": "Role", "value": "Backbone Transit"},
                 ],
             },
@@ -334,6 +360,63 @@ def simulation_config(request: HttpRequest) -> HttpResponse:
     if request.headers.get("HX-Request"):
         return render(request, partial_template, context)
     context.update({"active_page": "simulation", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
+
+
+def models_list(request: HttpRequest) -> HttpResponse:
+    """Render the custom component list.
+
+    TODO: Replace models_context() with database queries.
+    TODO: Build absolute action URLs for create, edit, duplicate, and delete once those
+    routes are implemented.
+    """
+    context = _avail_component_models_context()
+    partial_template = "net_maestro/partials/models_list.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": "modelsList", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
+
+
+def _new_model_form_context() -> dict[str, object]:
+    """Return read-only demo context for the new custom component form.
+
+    TODO: Replace this static host example with a real Django form bound to model-backed
+    base component choices and custom component defaults.
+    TODO: Keep field metadata in the view so the template can render form sections without
+    knowing which fields belong to hosts, routers, or switches.
+    """
+    return {
+        "form_sections": [
+            {
+                "title": "Model",
+                "fields": [
+                    {"label": "Name", "value": "New Model"},
+                    {"label": "Component Type", "value": "Router"},
+                    {"label": "Engine", "value": "PDES (CODES)"},
+                    {"label": "Description", "value": "Simple point-to-point router."},
+                    {
+                        "label": "Parameters",
+                        "value": "routing, latency, bandwidth, chunk_size, vc_size",
+                    },
+                ],
+            },
+        ],
+    }
+
+
+def model_create(request: HttpRequest) -> HttpResponse:
+    """Render the demonstration form for creating a new model component.
+
+    TODO: Render and process a real form for creating a new model.
+    TODO: Validate component fields by type, especially host-only traffic fields.
+    TODO: Return either a full-page redirect or an HTMX partial update after successful create.
+    """
+    context = _new_model_form_context()
+    partial_template = "net_maestro/partials/model_form.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": "modelsList", "partial_template": partial_template})
     return render(request, "net_maestro/index.html", context)
 
 
