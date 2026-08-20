@@ -39,6 +39,15 @@
         {% include 'net_maestro/shared/sidebar.html' %}
         <!-- Main content -->
         <div id="main-content" class="flex-1">
+          {% if messages %}
+            <div class="p-4 space-y-2">
+              {% for message in messages %}
+                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                  <span>{{ message }}</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
           {% if partial_template %}
             {% include partial_template %}
           {% else %}

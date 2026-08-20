@@ -6,18 +6,25 @@ Data loading is driven by selecting a Run on the analysis page.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
-from django.http import HttpResponse
+from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
+from django.views.decorators.http import require_POST
 
 if TYPE_CHECKING:
     from django.http import HttpRequest
 
 from .constants import RunStatus
 from .forms import PHOLDSimulationForm
-from .models import Run
+from .models import PHOLDSimulationConfig, Run
 from .tasks import run_phold_simulation
+
+logger = logging.getLogger(__name__)
 
 
 def _avail_component_models_context() -> dict[str, object]:
@@ -206,14 +213,19 @@ def _filtered_runs(request: HttpRequest) -> dict[str, object]:
     """Return runs queryset filtered by ?status= and ?q= params."""
     statuses = request.GET.getlist("status")
     search_query = request.GET.get("q", "").strip()
-    runs = Run.objects.all()
-    if statuses:
-        runs = runs.filter(status__in=statuses)
+    runs = (
+        Run.objects.filter(status__in=statuses)
+        if statuses
+        else Run.objects.exclude(status=RunStatus.SAVED)
+    )
     if search_query:
         runs = runs.filter(name__icontains=search_query)
     return {
         "runs": runs,
-        "status_choices": RunStatus.choices,
+        # SAVED runs have no simulation data to analyze; exclude them from filter options.
+        "status_choices": [
+            (value, label) for value, label in RunStatus.choices if value != RunStatus.SAVED
+        ],
         "selected_statuses": statuses,
         "search_query": search_query,
     }
@@ -320,43 +332,168 @@ def custom_component_delete(_request: HttpRequest, component_id: int) -> HttpRes
     return _custom_component_not_implemented(f"delete for component {component_id}")
 
 
+def _phold_form_initial_from_config(config: PHOLDSimulationConfig) -> dict[str, object]:
+    return {"run_identifier": config.run.name}
+
+
+def _get_latest_phold_config_or_404(run_id: int) -> PHOLDSimulationConfig:
+    """Return the most recently created PHOLDSimulationConfig for a Run.
+
+    TODO: Revisit this "most recent wins" choice once ensembles need to disambiguate
+    between multiple configs.
+    """
+    config = (
+        PHOLDSimulationConfig.objects.select_related("run")
+        .filter(run_id=run_id)
+        .order_by("-id")
+        .first()
+    )
+    if config is None:
+        raise Http404(f"No PHOLDSimulationConfig found for run {run_id}")
+    return config
+
+
+def _run_phold(run: Run, config: PHOLDSimulationConfig) -> None:
+    run_phold_simulation.delay(
+        run_id=run.id,
+        synch=config.synch,
+        avl_size=config.avl_size,
+        nlp=config.nlp,
+        remote=config.remote,
+        mean=config.mean,
+        mult=config.mult,
+        lookahead=config.lookahead,
+        start_events=config.start_events,
+        memory=config.memory,
+        stagger=config.stagger,
+    )
+
+
+def _create_run_and_config(
+    form: PHOLDSimulationForm, run_status: RunStatus
+) -> tuple[Run, PHOLDSimulationConfig]:
+    """Create a Run and its PHOLDSimulationConfig atomically from validated form data."""
+    with transaction.atomic():
+        run = Run.objects.create(
+            name=form.cleaned_data["run_identifier"],
+            status=run_status,
+        )
+        config = form.save(commit=False)
+        config.run = run
+        config.save()
+    return run, config
+
+
 def simulation_config(request: HttpRequest) -> HttpResponse:
     """Render the simulation configuration form and handle submission.
 
     GET: Display the form with PHOLD parameters.
-    POST: Create a Run and trigger the simulation task.
+    POST: Create a Run and its configuration. Only triggers a task when "Save and Run"
+        was used; "Save" persists the configuration without running it.
     """
     if request.method == "POST":
         form = PHOLDSimulationForm(request.POST)
         if form.is_valid():
-            # Create Run with PENDING status
-            run = Run.objects.create(
-                name=form.cleaned_data["run_identifier"],
-                status=RunStatus.PENDING,
-            )
+            should_run = request.POST.get("action") == "save_and_run"
 
-            # Trigger Celery task to run PHOLD simulation
-            run_phold_simulation.delay(
-                run_id=run.id,
-                synch=int(form.cleaned_data["synch"]),
-                avl_size=form.cleaned_data["avl_size"],
-                nlp=form.cleaned_data["nlp"],
-                remote=form.cleaned_data["remote"],
-                mean=form.cleaned_data["mean"],
-                mult=form.cleaned_data["mult"],
-                lookahead=form.cleaned_data["lookahead"],
-                start_events=form.cleaned_data["start_events"],
-                memory=form.cleaned_data["memory"],
-                stagger=bool(int(form.cleaned_data["stagger"])),
-            )
+            run_status = RunStatus.PENDING if should_run else RunStatus.SAVED
+            run, config = _create_run_and_config(form, run_status)
 
-            # Redirect to analysis page
-            return redirect("analysis-partial")
+            if should_run:
+                _run_phold(run, config)
+                # Redirect to the analysis page so the user can watch the run
+                return redirect("analysis-partial")
+
+            # Redirect to the saved simulations list
+            return redirect("simulation-config")
     else:
         form = PHOLDSimulationForm()
 
-    context: dict[str, object] = {"form": form}
-    partial_template = "net_maestro/partials/simulation.html"
+    context: dict[str, object] = {
+        "form": form,
+        "form_action": request.path,
+        "page_heading": "New Simulation",
+        "breadcrumb_label": "New Simulation",
+    }
+    partial_template = "net_maestro/partials/new_simulation.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": "simulation", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
+
+
+def edit_simulation_config(request: HttpRequest, run_id: int) -> HttpResponse:
+    config = _get_latest_phold_config_or_404(run_id)
+
+    if request.method == "POST":
+        form = PHOLDSimulationForm(request.POST)
+        if form.is_valid():
+            should_run = request.POST.get("action") == "save_and_run"
+            run_status = RunStatus.PENDING if should_run else RunStatus.SAVED
+            # TODO: "Editing" a saved config intentionally clones it into a new Run/config
+            # rather than mutating the original. This is a deliberate safeguard against one
+            # person's edits overwriting another person's saved work.
+            # Revisit once per-user ownership exists and in-place edits are safe to allow.
+            #
+            # TODO: The cloned run/config currently has no explicit linkage to the source run.
+            # Consider associating them so users can trace edit history or re-clone without
+            # guesswork.
+            run, new_config = _create_run_and_config(form, run_status)
+
+            if should_run:
+                _run_phold(run, new_config)
+                return redirect("analysis-partial")
+
+            return redirect("simulation-config")
+    else:
+        form = PHOLDSimulationForm(instance=config, initial=_phold_form_initial_from_config(config))
+
+    context: dict[str, object] = {
+        "form": form,
+        "form_action": request.path,
+        "page_heading": "Clone Simulation",
+        "breadcrumb_label": "Clone Simulation",
+    }
+    partial_template = "net_maestro/partials/new_simulation.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": "simulation", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
+
+
+@require_POST
+def run_saved_simulation(request: HttpRequest, run_id: int) -> HttpResponse:
+    config = _get_latest_phold_config_or_404(run_id)
+    run = config.run
+
+    try:
+        config.full_clean()
+    except ValidationError as exc:
+        logger.warning(
+            "Saved config for run %s failed re-validation and could not be run: %s",
+            run_id,
+            exc.message_dict,
+        )
+        # TODO: Consider surfacing errors via a toast notification or an HTMX response instead of
+        # a redirect so it's clear to the user what happened and why.
+        messages.error(request, f'Unable to run "{run.name}": saved configuration is invalid.')
+        return redirect("simulation-config")
+    run.status = RunStatus.PENDING
+    run.save(update_fields=["status"])
+    _run_phold(run, config)
+    return redirect("analysis-partial")
+
+
+def saved_simulations(request: HttpRequest) -> HttpResponse:
+    """Render the list of saved PHOLD simulation configurations.
+
+    GET: Display all saved simulation configurations, most recently created first.
+    """
+    # TODO: This list is unbounded and will likely grow over time. Consider pagination once
+    # the number of saved configs makes this a real usability concern.
+    configs = PHOLDSimulationConfig.objects.select_related("run").order_by("-run__created")
+    context: dict[str, object] = {"configs": configs}
+    partial_template = "net_maestro/partials/saved_simulations.html"
     if request.headers.get("HX-Request"):
         return render(request, partial_template, context)
     context.update({"active_page": "simulation", "partial_template": partial_template})

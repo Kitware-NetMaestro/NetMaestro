@@ -75,7 +75,7 @@ urlpatterns = [
     ),
     path(
         "simulation/config",
-        views.simulation_config,
+        views.saved_simulations,
         name="simulation-config",
     ),
     path(
@@ -87,6 +87,21 @@ urlpatterns = [
         "models/new-model",
         views.model_create,
         name="model-create",
+    ),
+    path(
+        "simulation/new-config",
+        views.simulation_config,
+        name="new-simulation-config",
+    ),
+    path(
+        "simulation/edit-config/<int:run_id>",
+        views.edit_simulation_config,
+        name="edit-simulation-config",
+    ),
+    path(
+        "simulation/run/<int:run_id>",
+        views.run_saved_simulation,
+        name="run-saved-simulation",
     ),
 ]
 

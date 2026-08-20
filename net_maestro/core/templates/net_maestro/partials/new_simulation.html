@@ -3,9 +3,7 @@
     {% comment %}
       Simulation configuration form for PHOLD model.
       Currently demo-only with hard-coded default values.
-      TODO: Replace with real Django form when simulation models exist.
       TODO: Add support for other simulation models (Ping Pong, Custom CODES).
-      TODO: Implement save action to persist simulation configuration.
     {% endcomment %}
     <div class="flex flex-row items-start justify-between gap-4">
       <div>
@@ -21,14 +19,14 @@
             Simulations
           </a>
           <i class="ri-arrow-right-s-line" aria-hidden="true"></i>
-          <span>New Simulation</span>
+          <span>{{ breadcrumb_label|default:"New Simulation" }}</span>
         </div>
-        <h1 class="text-3xl font-semibold mt-2">New Simulation</h1>
+        <h1 class="text-3xl font-semibold mt-2">{{ page_heading|default:"New Simulation" }}</h1>
       </div>
       <div class="flex flex-row gap-2">
         <a
-          href="{% url 'analysis-partial' %}"
-          hx-get="{% url 'analysis-partial' %}"
+          href="{% url 'simulation-config' %}"
+          hx-get="{% url 'simulation-config' %}"
           hx-target="#main-content"
           hx-swap="innerHTML"
           hx-push-url="true"
@@ -36,11 +34,28 @@
         >
           Cancel
         </a>
-        <button type="submit" form="simulation-form" class="btn btn-primary">Run</button>
+        <button
+          type="submit"
+          form="simulation-form"
+          name="action"
+          value="save"
+          class="btn btn-outline btn-primary"
+        >
+          Save
+        </button>
+        <button
+          type="submit"
+          form="simulation-form"
+          name="action"
+          value="save_and_run"
+          class="btn btn-primary"
+        >
+          Save and Run
+        </button>
       </div>
     </div>
 
-    <form id="simulation-form" method="post">
+    <form id="simulation-form" method="post" action="{{ form_action|default:request.path }}">
       {% csrf_token %}
       <div class="grid grid-cols-1 gap-6 mt-8">
       <!-- Simulation Model Selection -->

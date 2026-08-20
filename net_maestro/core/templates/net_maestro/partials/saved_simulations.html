@@ -1,0 +1,136 @@
+<div class="bg-base-300 overflow-y-auto" style="height: calc(100vh - 64px);">
+  <div class="p-8 mx-auto">
+    <div class="flex flex-row items-start justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-semibold">Simulations</h1>
+      </div>
+      <a
+        href="{% url 'new-simulation-config' %}"
+        hx-get="{% url 'new-simulation-config' %}"
+        hx-target="#main-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        class="btn btn-primary"
+      >
+        <i class="ri-add-line" aria-hidden="true"></i>
+        New Simulation
+      </a>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-8">
+      {% for config in configs %}
+      <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+          <div class="flex flex-row items-start justify-between gap-4">
+            <div class="flex flex-row items-center gap-3">
+              <i class="ri-play-large-line text-xl text-primary" aria-hidden="true"></i>
+              <div>
+                <h2 class="card-title">{{ config.run.name }}</h2>
+                <p class="text-sm text-base-content/60">{{ config.run.created }}</p>
+              </div>
+            </div>
+            <div class="flex flex-row gap-2 items-center">
+              {% comment %}
+                This list only supports PHOLDSimulationConfig today.
+                Update to render the actual model type once saved simulations support other models.
+              {% endcomment %}
+              <div class="badge badge-outline">PHOLD</div>
+              <form
+                method="post"
+                action="{% url 'run-saved-simulation' config.run.id %}"
+                class="inline-flex"
+              >
+                {% csrf_token %}
+                <button type="submit" class="btn btn-xs btn-primary">
+                  <i class="ri-play-line" aria-hidden="true"></i>
+                  <span class="ml-1">Run</span>
+                </button>
+              </form>
+              <a
+                href="{% url 'edit-simulation-config' config.run.id %}"
+                hx-get="{% url 'edit-simulation-config' config.run.id %}"
+                hx-target="#main-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                class="btn btn-xs btn-ghost"
+              >
+                <i class="ri-file-copy-line" aria-hidden="true"></i>
+                <span class="ml-1">Clone</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="collapse collapse-arrow bg-base-200 mt-4">
+            <input type="checkbox" aria-label="Toggle {{ config.run.name }} details">
+            <div class="collapse-title text-sm font-medium">View details</div>
+            <div class="collapse-content">
+              <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <div class="text-base-content/60">Synchronization Protocol</div>
+                  <div class="font-medium">{{ config.get_synch_display }}</div>
+                </div>
+                <div>
+                  <div class="text-base-content/60">AVL Tree Size</div>
+                  <div class="font-medium">{{ config.avl_size }}</div>
+                </div>
+                <div>
+                  <div class="text-base-content/60">LPs per Processor</div>
+                  <div class="font-medium">{{ config.nlp }}</div>
+                </div>
+                <div>
+                  <div class="text-base-content/60">Remote Event Rate</div>
+                  <div class="font-medium">{{ config.remote }}</div>
+                </div>
+                <div>
+                  <div class="text-base-content/60">Mean Timestamp</div>
+                  <div class="font-medium">{{ config.mean }}</div>
+                </div>
+                <div>
+                  <div class="text-base-content/60">Memory Multiplier</div>
+                  <div class="font-medium">{{ config.mult }}</div>
+                </div>
+                <div>
+                  <div class="text-base-content/60">Lookahead</div>
+                  <div class="font-medium">{{ config.lookahead }}</div>
+                </div>
+                <div>
+                  <div class="text-base-content/60">Start Events per LP</div>
+                  <div class="font-medium">{{ config.start_events }}</div>
+                </div>
+                <div>
+                  <div class="text-base-content/60">Additional Memory Buffers</div>
+                  <div class="font-medium">{{ config.memory }}</div>
+                </div>
+                <div>
+                  <div class="text-base-content/60">Stagger Events</div>
+                  <div class="font-medium">{{ config.stagger|yesno:"Yes,No" }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+        <div class="card bg-base-100 shadow-sm border border-dashed border-base-content/20 xl:col-span-3">
+          <div class="card-body items-center justify-center text-center min-h-72">
+            <i class="ri-play-large-line text-4xl text-base-content/50" aria-hidden="true"></i>
+            <h2 class="card-title mt-4">No saved simulations yet</h2>
+            <p class="text-base-content/60 max-w-sm">
+              Configure a PHOLD simulation to save it here for future reference or re-run.
+            </p>
+            <a
+              href="{% url 'new-simulation-config' %}"
+              hx-get="{% url 'new-simulation-config' %}"
+              hx-target="#main-content"
+              hx-swap="innerHTML"
+              hx-push-url="true"
+              class="btn btn-primary mt-2"
+            >
+              New Simulation
+            </a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
