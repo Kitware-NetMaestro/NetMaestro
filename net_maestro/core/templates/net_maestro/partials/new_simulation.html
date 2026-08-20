@@ -57,6 +57,15 @@
 
     <form id="simulation-form" method="post" action="{{ form_action|default:request.path }}">
       {% csrf_token %}
+      {% if form.non_field_errors %}
+      <div class="alert alert-error mt-8">
+        <ul>
+          {% for error in form.non_field_errors %}
+          <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
       <div class="grid grid-cols-1 gap-6 mt-8">
       <!-- Simulation Model Selection -->
       <div class="card bg-base-100 shadow-sm">
@@ -79,6 +88,9 @@
                 <span class="label-text">Run Identifier</span>
               </div>
               {{ form.run_identifier }}
+              {% for error in form.run_identifier.errors %}
+              <p class="text-error text-sm mt-1">{{ error }}</p>
+              {% endfor %}
             </label>
           </div>
         </div>
@@ -97,12 +109,18 @@
                 <span class="label-text">Synchronization Protocol</span>
               </div>
               {{ form.synch }}
+              {% for error in form.synch.errors %}
+              <p class="text-error text-sm mt-1">{{ error }}</p>
+              {% endfor %}
             </label>
             <label class="form-control w-full">
               <div class="label">
                 <span class="label-text">AVL Tree Size</span>
               </div>
               {{ form.avl_size }}
+              {% for error in form.avl_size.errors %}
+              <p class="text-error text-sm mt-1">{{ error }}</p>
+              {% endfor %}
             </label>
           </div>
         </div>
@@ -121,48 +139,72 @@
                 <span class="label-text">LPs per Processor</span>
               </div>
               {{ form.nlp }}
+              {% for error in form.nlp.errors %}
+              <p class="text-error text-sm mt-1">{{ error }}</p>
+              {% endfor %}
             </label>
             <label class="form-control w-full">
               <div class="label">
                 <span class="label-text">Remote Event Rate (0-1)</span>
               </div>
               {{ form.remote }}
+              {% for error in form.remote.errors %}
+              <p class="text-error text-sm mt-1">{{ error }}</p>
+              {% endfor %}
             </label>
             <label class="form-control w-full">
               <div class="label">
                 <span class="label-text">Mean Timestamp</span>
               </div>
               {{ form.mean }}
+              {% for error in form.mean.errors %}
+              <p class="text-error text-sm mt-1">{{ error }}</p>
+              {% endfor %}
             </label>
             <label class="form-control w-full">
               <div class="label">
                 <span class="label-text">Lookahead</span>
               </div>
               {{ form.lookahead }}
+              {% for error in form.lookahead.errors %}
+              <p class="text-error text-sm mt-1">{{ error }}</p>
+              {% endfor %}
             </label>
             <label class="form-control w-full">
               <div class="label">
                 <span class="label-text">Start Events per LP</span>
               </div>
               {{ form.start_events }}
+              {% for error in form.start_events.errors %}
+              <p class="text-error text-sm mt-1">{{ error }}</p>
+              {% endfor %}
             </label>
             <label class="form-control w-full">
               <div class="label">
                 <span class="label-text">Memory Multiplier</span>
               </div>
               {{ form.mult }}
+              {% for error in form.mult.errors %}
+              <p class="text-error text-sm mt-1">{{ error }}</p>
+              {% endfor %}
             </label>
             <label class="form-control w-full">
               <div class="label">
                 <span class="label-text">Additional Memory Buffers</span>
               </div>
               {{ form.memory }}
+              {% for error in form.memory.errors %}
+              <p class="text-error text-sm mt-1">{{ error }}</p>
+              {% endfor %}
             </label>
             <label class="form-control w-full">
               <div class="label">
                 <span class="label-text">Stagger Events</span>
               </div>
               {{ form.stagger }}
+              {% for error in form.stagger.errors %}
+              <p class="text-error text-sm mt-1">{{ error }}</p>
+              {% endfor %}
             </label>
           </div>
         </div>

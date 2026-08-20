@@ -57,7 +57,7 @@ class TestSimulationView:
             "avl_size": "18",
             "nlp": "8",
             "remote": "0.25",
-            "mean": "1.0",
+            "mean": "2.0",
             "mult": "1.4",
             "lookahead": "1.0",
             "start_events": "1",
@@ -87,7 +87,7 @@ class TestSimulationView:
             avl_size=18,
             nlp=8,
             remote=0.25,
-            mean=1.0,
+            mean=2.0,
             mult=1.4,
             lookahead=1.0,
             start_events=1,
@@ -105,7 +105,7 @@ class TestSimulationView:
             "avl_size": "18",
             "nlp": "8",
             "remote": "0.25",
-            "mean": "1.0",
+            "mean": "2.0",
             "mult": "1.4",
             "lookahead": "1.0",
             "start_events": "1",
@@ -151,7 +151,34 @@ class TestSimulationView:
         # Should have form errors
         assert response.context["form"].errors
 
+        # Errors are rendered in the page for the user to see
+        assert "This field is required" in response.content.decode()
+
         # No run should be created
+        assert Run.objects.count() == 0
+
+    def test_submit_invalid_form_shows_cross_field_error(self, client: Client) -> None:
+        """Model-level cross-field errors (e.g. mean <= lookahead) are surfaced too."""
+        form_data = {
+            "action": "save",
+            "run_identifier": "Test Simulation",
+            "synch": "1",
+            "avl_size": "18",
+            "nlp": "8",
+            "remote": "0.25",
+            "mean": "1.0",
+            "mult": "1.4",
+            "lookahead": "1.0",
+            "start_events": "1",
+            "memory": "100",
+            "stagger": "0",
+        }
+
+        response = client.post(reverse("new-simulation-config"), data=form_data)
+
+        assert response.status_code == 200
+        assert "mean" in response.context["form"].errors
+        assert "Mean timestamp must be greater than lookahead" in response.content.decode()
         assert Run.objects.count() == 0
 
     def test_unauthenticated_access(self, client: Client) -> None:
@@ -213,7 +240,7 @@ class TestEditSimulationView:
             avl_size=18,
             nlp=8,
             remote=0.25,
-            mean=1.0,
+            mean=2.0,
             mult=1.4,
             lookahead=1.0,
             start_events=1,
@@ -243,7 +270,7 @@ class TestEditSimulationView:
             "remote": "0.5",
             "mean": "2.0",
             "mult": "1.8",
-            "lookahead": "1.2",
+            "lookahead": "1.0",
             "start_events": "3",
             "memory": "200",
             "stagger": "1",
@@ -280,7 +307,7 @@ class TestEditSimulationView:
             "remote": "0.4",
             "mean": "1.5",
             "mult": "1.7",
-            "lookahead": "1.1",
+            "lookahead": "1.0",
             "start_events": "2",
             "memory": "150",
             "stagger": "0",
@@ -308,7 +335,7 @@ class TestEditSimulationView:
             "avl_size": "18",
             "nlp": "8",
             "remote": "0.25",
-            "mean": "1.0",
+            "mean": "2.0",
             "mult": "1.4",
             "lookahead": "1.0",
             "start_events": "1",
