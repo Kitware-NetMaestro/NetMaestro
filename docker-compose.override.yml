@@ -16,7 +16,7 @@ services:
       - ${ROSS_PATH:-../ross}:/home/vscode/ross
       - pkg_cache:/home/vscode/pkg-cache
     ports:
-      - 8000:8000
+      - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
