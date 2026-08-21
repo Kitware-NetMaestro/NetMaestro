@@ -3,6 +3,9 @@ services:
     build:
       context: .
       dockerfile: ./dev/django.Dockerfile
+      args:
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
     command: [
       "./manage.py",
       "runserver_plus", "0.0.0.0:8000"
@@ -29,6 +32,9 @@ services:
     build:
       context: .
       dockerfile: ./dev/django.Dockerfile
+      args:
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
     command: [
       "uv", "run",
       "celery",
