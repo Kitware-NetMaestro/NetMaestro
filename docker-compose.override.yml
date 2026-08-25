@@ -3,6 +3,9 @@ services:
     build:
       context: .
       dockerfile: ./dev/django.Dockerfile
+      args:
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
     command: [
       "./manage.py",
       "runserver_plus", "0.0.0.0:8000"
@@ -16,7 +19,7 @@ services:
       - ${ROSS_PATH:-../ross}:/home/vscode/ross
       - pkg_cache:/home/vscode/pkg-cache
     ports:
-      - 8000:8000
+      - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -29,6 +32,9 @@ services:
     build:
       context: .
       dockerfile: ./dev/django.Dockerfile
+      args:
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
     command: [
       "uv", "run",
       "celery",

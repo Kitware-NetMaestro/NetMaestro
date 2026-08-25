@@ -33,6 +33,18 @@ ENV TOX_WORK_DIR=/home/vscode/tox \
   RUFF_CACHE_DIR=/home/vscode/.cache/ruff \
   MYPY_CACHE_DIR=/home/vscode/.cache/mypy
 
+# Match the container's vscode user to the host user's uid/gid, so bind-mounted
+# files created in the container are owned by the host user. Values come from
+# USER_UID/USER_GID build args (see docker-compose.override.yml), which default
+# to the base image's own vscode uid/gid, making this a no-op by default.
+ARG USER_UID=1000
+ARG USER_GID=1000
+RUN if [ "$USER_UID" != "1000" ] || [ "$USER_GID" != "1000" ]; then \
+      groupmod --gid "$USER_GID" vscode && \
+      usermod --uid "$USER_UID" --gid "$USER_GID" vscode && \
+      chown --recursive vscode:vscode /home/vscode; \
+    fi
+
 RUN ["chsh", "-s", "/usr/bin/zsh", "vscode"]
 
 USER vscode
