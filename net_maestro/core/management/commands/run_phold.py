@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 from net_maestro.core.constants import RunStatus
 from net_maestro.core.models import EventFile, ModelFile, Run, SimulationFile
 from net_maestro.core.tasks import run_event_task, run_model_task, run_simulation_task
-from net_maestro.core.tasks.simulation import mark_run_completed, mark_run_failed
+from net_maestro.core.tasks.simulation import fail_run, mark_run_completed, mark_run_failed
 
 
 @dataclass
@@ -337,9 +337,7 @@ def _ingest_output_files(
             f"{actual_output_dir}. Marking run as failed.",
             err=True,
         )
-        mark_run_failed(
-            None, RuntimeError("No PHOLD output files were produced"), None, run_id=run.id
-        )
+        fail_run(run.id, "No PHOLD output files were produced")
         return
 
     # Mark the run as completed once ingestion is done.
