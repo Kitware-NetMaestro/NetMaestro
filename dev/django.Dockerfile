@@ -1,8 +1,10 @@
-# Pin to a specific ROSS commit for reproducible builds.
+# Pin to a specific ROSS and CODES commits for reproducible builds.
 ARG ROSS_GIT_REF=dc3a6a056cfc7a5e68f7141f88d8833407599ef8
+ARG CODES_GIT_REF=a5958cfaee6dcc73a98d084005e3412da773fb35
 
 FROM ubuntu:24.04 AS ross-builder
 ARG ROSS_GIT_REF
+ARG CODES_GIT_REF
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates git \
@@ -39,7 +41,19 @@ RUN cmake -S /ross -B /ross/build \
         -DCMAKE_BUILD_TYPE=Release \
         -DROSS_BUILD_MODELS=ON \
         -DROSS_BUILD_TESTING=OFF \
-    && cmake --build /ross/build --parallel
+    && cmake --build /ross/build --parallel \
+    && cmake --install /ross/build --prefix /ross/install
+
+RUN git clone https://github.com/codes-org/codes.git /codes \
+    && cd /codes \
+    && git checkout "${CODES_GIT_REF}" \
+    && git submodule update --init --recursive
+
+RUN cmake -S /codes -B /codes/build \
+        -DROSS_DIR=/ross/install/lib \
+        -DROSS_PKG_CONFIG_PATH=/ross/install/lib/pkgconfig \
+    && cmake --build /codes/build \
+    && cmake --install /codes/build/
 
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
@@ -60,7 +74,7 @@ ENV PATH=/opt/mpich/bin:$PATH \
 # PHOLD binary built in the ross-builder stage above. Baked into the image instead
 # of relying on a host `ross` checkout bind-mounted at runtime.
 COPY --from=ross-builder --chown=vscode:vscode /ross/build/models/phold/phold /opt/ross/phold
-
+COPY --from=ross-builder --chown=vscode:vscode /codes/build/doc/example /opt/codes/example
 # Ensure Python output appears immediately in container logs.
 ENV PYTHONUNBUFFERED=1
 
