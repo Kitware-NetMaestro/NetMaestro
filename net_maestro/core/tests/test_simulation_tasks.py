@@ -225,15 +225,19 @@ class TestManagementCommandChains:
         # Verify chain was executed
         mock_workflow.apply_async.assert_called_once()
 
-    @mock.patch("net_maestro.core.management.commands.run_phold.mark_run_completed")
     @mock.patch("net_maestro.core.management.commands.run_phold._execute_phold")
-    def test_no_files_still_marks_completed(
+    def test_no_files_marks_failed(
         self,
         mock_exec_phold: mock.Mock,
-        mock_mark_completed: mock.Mock,
         tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Test that run is marked completed even with no files to ingest."""
+        """Test that a run with no output files is marked failed, not completed.
+
+        A genuinely successful PHOLD run always writes at least the gvt/rt stats
+        files, so an empty output directory indicates the simulation didn't
+        actually produce results and the run must not be marked COMPLETED.
+        """
         # Setup empty output directory
         output_dir = tmp_path / "output"
         output_dir.mkdir()
@@ -261,5 +265,6 @@ class TestManagementCommandChains:
             str(output_dir),
         )
 
-        # Verify mark_run_completed was called directly
-        mock_mark_completed.delay.assert_called_once_with(run.id)
+        run.refresh_from_db()
+        assert run.status == RunStatus.FAILED
+        assert f"Run {run.id} failed: No PHOLD output files were produced" in caplog.text

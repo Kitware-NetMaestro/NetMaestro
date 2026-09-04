@@ -38,6 +38,22 @@ def mark_run_completed(run_id: int) -> None:
         logger.exception("Run %s not found when trying to mark as completed", run_id)
 
 
+def fail_run(run_id: int, reason: str) -> None:
+    """Mark a run as FAILED, logging the reason.
+
+    Shared by ``mark_run_failed`` (the Celery error-callback path) and any
+    caller that needs to fail a run for a reason that isn't a Celery task
+    exception (e.g. a validation failure discovered synchronously).
+    """
+    logger.error("Run %s failed: %s", run_id, reason)
+    try:
+        run = Run.objects.get(pk=run_id)
+        run.status = RunStatus.FAILED
+        run.save()
+    except Run.DoesNotExist:
+        logger.exception("Run %s not found when trying to mark as failed", run_id)
+
+
 @shared_task
 def mark_run_failed(request: object, exc: Exception, traceback: object, *, run_id: int) -> None:
     """Mark a run as failed when an ingestion task in the chain errors.
@@ -48,18 +64,7 @@ def mark_run_failed(request: object, exc: Exception, traceback: object, *, run_i
     task's ``request``, the raised ``exc``, and its ``traceback``; ``run_id`` is
     bound as a keyword argument when the callback is attached.
     """
-    logger.error(
-        "Run %s ingestion task %s failed: %r",
-        run_id,
-        getattr(request, "id", "unknown"),
-        exc,
-    )
-    try:
-        run = Run.objects.get(pk=run_id)
-        run.status = RunStatus.FAILED
-        run.save()
-    except Run.DoesNotExist:
-        logger.exception("Run %s not found when trying to mark as failed", run_id)
+    fail_run(run_id, f"ingestion task {getattr(request, 'id', 'unknown')} failed: {exc!r}")
 
 
 @shared_task

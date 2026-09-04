@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 from net_maestro.core.constants import RunStatus
 from net_maestro.core.models import EventFile, ModelFile, Run, SimulationFile
 from net_maestro.core.tasks import run_event_task, run_model_task, run_simulation_task
-from net_maestro.core.tasks.simulation import mark_run_completed, mark_run_failed
+from net_maestro.core.tasks.simulation import fail_run, mark_run_completed, mark_run_failed
 
 
 @dataclass
@@ -328,6 +328,17 @@ def _ingest_output_files(
 
     # Process any additional files
     _process_additional_files(context, processed_files, task_signatures, immediate=immediate)
+
+    if not processed_files:
+        # None of the expected output files were produced. A genuinely successful run always writes
+        # at least the gvt/rt stats files.
+        click.echo(
+            "Error: No expected PHOLD output files were found in "
+            f"{actual_output_dir}. Marking run as failed.",
+            err=True,
+        )
+        fail_run(run.id, "No PHOLD output files were produced")
+        return
 
     # Mark the run as completed once ingestion is done.
     if immediate:
