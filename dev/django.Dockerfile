@@ -44,16 +44,16 @@ RUN cmake -S /ross -B /ross/build \
     && cmake --build /ross/build --parallel \
     && cmake --install /ross/build --prefix /ross/install
 
-RUN git clone https://github.com/codes-org/codes.git /codes \
-    && cd /codes \
+RUN git clone https://github.com/codes-org/codes.git opt/codes \
+    && cd /opt/codes \
     && git checkout "${CODES_GIT_REF}" \
     && git submodule update --init --recursive
 
-RUN cmake -S /codes -B /codes/build \
+RUN cmake -S /opt/codes -B /opt/codes/build \
         -DROSS_DIR=/ross/install/lib \
         -DROSS_PKG_CONFIG_PATH=/ross/install/lib/pkgconfig \
-    && cmake --build /codes/build \
-    && cmake --install /codes/build/
+    && cmake --build opt/codes/build \
+    && cmake --install opt/codes/build/
 
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
@@ -74,7 +74,7 @@ ENV PATH=/opt/mpich/bin:$PATH \
 # PHOLD binary built in the ross-builder stage above. Baked into the image instead
 # of relying on a host `ross` checkout bind-mounted at runtime.
 COPY --from=ross-builder --chown=vscode:vscode /ross/build/models/phold/phold /opt/ross/phold
-COPY --from=ross-builder --chown=vscode:vscode /codes/build/doc/example /opt/codes/example
+COPY --from=ross-builder --chown=vscode:vscode /opt/codes /opt/codes
 # Ensure Python output appears immediately in container logs.
 ENV PYTHONUNBUFFERED=1
 
