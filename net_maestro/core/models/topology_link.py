@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models import Q
 
 
 class TopologyLink(models.Model):
@@ -21,9 +22,14 @@ class TopologyLink(models.Model):
 
     class Meta:
         constraints = [
+            # Duplicate links are not allowed.
             models.UniqueConstraint(
                 fields=["topology", "source_node", "target_node"],
                 name="unique_link_per_topology",
+            ),
+            models.CheckConstraint(
+                condition=Q(bandwidth__gte=0),
+                name="link_bandwidth_non_negative",
             ),
         ]
 
