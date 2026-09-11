@@ -12,6 +12,9 @@ from .simulation_file import SimulationFileAdmin
 from .simulation_kp_record import SimulationKpRecordAdmin
 from .simulation_lp_record import SimulationLpRecordAdmin
 from .simulation_pe_record import SimulationPeRecordAdmin
+from .topology import TopologyAdmin
+from .topology_link import TopologyLinkAdmin
+from .topology_node import TopologyNodeAdmin
 
 __all__ = [
     "ComponentModelAdmin",
@@ -26,4 +29,7 @@ __all__ = [
     "SimulationKpRecordAdmin",
     "SimulationLpRecordAdmin",
     "SimulationPeRecordAdmin",
+    "TopologyAdmin",
+    "TopologyLinkAdmin",
+    "TopologyNodeAdmin",
 ]
