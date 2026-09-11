@@ -12,6 +12,9 @@ from .simulation_file import SimulationFile
 from .simulation_kp_record import SimulationKpRecord
 from .simulation_lp_record import PHOLDSimulationLpRecord, SimulationLpRecord
 from .simulation_pe_record import SimulationPeRecord
+from .topology import Topology
+from .topology_link import TopologyLink
+from .topology_node import TopologyNode
 
 __all__ = [
     "ComponentModel",
@@ -27,4 +30,7 @@ __all__ = [
     "SimulationKpRecord",
     "SimulationLpRecord",
     "SimulationPeRecord",
+    "Topology",
+    "TopologyLink",
+    "TopologyNode",
 ]
