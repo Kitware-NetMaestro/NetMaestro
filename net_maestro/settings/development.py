@@ -65,3 +65,7 @@ REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = ["rest_framework.permissions.Allo
 PHOLD_BINARY_PATH = env.str("DJANGO_PHOLD_BINARY_PATH", default="")
 PHOLD_OUTPUT_DIR = env.str("DJANGO_PHOLD_OUTPUT_DIR", default="/tmp/phold_output")  # noqa: S108
 PHOLD_MPI_PROCESSES = env.int("DJANGO_PHOLD_MPI_PROCESSES", default=2)
+
+# FFW simulation configuration
+FFW_BINARY_PATH = env.str("DJANGO_FFW_BINARY_PATH" / "src" / "model-net-fluid-flow-wan-random-traffic", default="")
+FFW_OUTPUT_DIR = env.str("DJANGO_FFW_OUTPUT_DIR", default="/tmp/ffw_output")  # noqa: S108
