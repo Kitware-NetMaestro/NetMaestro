@@ -34,3 +34,8 @@ class SynchProtocol(models.IntegerChoices):
     OPTIMISTIC_DEBUG = 4, "Optimistic Debug"
     OPTIMISTIC_REALTIME = 5, "Optimistic Realtime"
     REVERSE_HANDLER_CHECK = 6, "Reverse Handler Check"
+
+
+class NodeKind(models.TextChoices):
+    SWITCH = "switch"
+    TERMINAL = "terminal"
