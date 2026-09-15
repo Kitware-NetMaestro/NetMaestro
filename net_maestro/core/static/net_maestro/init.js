@@ -6,6 +6,7 @@ import { networkTimePlot } from './plots/networkTimePlot.js';
 import { parallelCoords } from './plots/parallelCoords.js';
 import { scatterPlot } from './plots/scatterPlot.js';
 import { timePlot } from './plots/timePlot.js';
+import { topologyCanvas } from './topology/topologyCanvas.js';
 import { uiStateStore } from './uiStateStore.js';
 
 Alpine.store('dataStore', dataStore);
@@ -17,4 +18,5 @@ Alpine.data('networkTimePlot', networkTimePlot);
 Alpine.data('parallelCoords', parallelCoords);
 Alpine.data('scatterPlot', scatterPlot);
 Alpine.data('timePlot', timePlot);
+Alpine.data('topologyCanvas', topologyCanvas);
 Alpine.start();
