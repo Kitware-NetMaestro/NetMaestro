@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.contrib.auth.models import User
 import factory.django
 
-from net_maestro.core.constants import RunStatus
+from net_maestro.core.constants import NodeKind, RunStatus
 from net_maestro.core.models import (
     EventFile,
     EventRecord,
@@ -12,7 +12,12 @@ from net_maestro.core.models import (
     Run,
     SimulationFile,
     SimulationPeRecord,
+    Topology,
+    TopologyLink,
+    TopologyNode,
 )
+
+GBPS = 1_000_000_000
 
 
 class UserFactory(factory.django.DjangoModelFactory[User]):
@@ -125,3 +130,43 @@ class ModelRecordFactory(factory.django.DjangoModelFactory):
     receive_count = factory.Faker("pyint", min_value=0)
     receive_bytes = factory.Faker("pyint", min_value=0)
     receive_time = factory.Faker("pyfloat", min_value=0.0)
+
+
+class TopologyFactory(factory.django.DjangoModelFactory[Topology]):
+    class Meta:
+        model = Topology
+
+    name = factory.Sequence(lambda n: f"topology-{n}")
+    description = factory.Faker("text", max_nb_chars=200)
+
+
+class TopologyNodeFactory(factory.django.DjangoModelFactory[TopologyNode]):
+    """Builds a switch. Pass node_kind=NodeKind.TERMINAL for a terminal row."""
+
+    class Meta:
+        model = TopologyNode
+
+    topology = factory.SubFactory(TopologyFactory)
+    # Globally unique, which also satisfies uniqueness within a topology.
+    name = factory.Sequence(lambda n: f"switch-{n}")
+    node_kind = NodeKind.SWITCH
+    # factory.Sequence will not work because the sequence is global, but
+    # order_index is only unique within a topology.
+    order_index = factory.LazyAttribute(lambda node: node.topology.next_order_index())
+    terminals = 2
+    terminal_bandwidth = 100 * GBPS
+    switch_buffer = 64 * GBPS
+
+
+class TopologyLinkFactory(factory.django.DjangoModelFactory[TopologyLink]):
+    class Meta:
+        model = TopologyLink
+
+    topology = factory.SubFactory(TopologyFactory)
+    source_node = factory.SubFactory(
+        TopologyNodeFactory, topology=factory.SelfAttribute("..topology")
+    )
+    target_node = factory.SubFactory(
+        TopologyNodeFactory, topology=factory.SelfAttribute("..topology")
+    )
+    bandwidth = 30 * GBPS

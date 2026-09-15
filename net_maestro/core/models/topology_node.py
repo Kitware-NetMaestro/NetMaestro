@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models import Q
 
 from net_maestro.core.constants import NodeKind
 
@@ -42,6 +43,22 @@ class TopologyNode(models.Model):
             ),
             models.UniqueConstraint(
                 fields=["topology", "order_index"], name="unique_node_order_index_per_topology"
+            ),
+            models.CheckConstraint(
+                condition=Q(order_index__gte=0),
+                name="node_order_index_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=Q(terminals__isnull=True) | Q(terminals__gte=0),
+                name="node_terminals_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=Q(terminal_bandwidth__isnull=True) | Q(terminal_bandwidth__gte=0),
+                name="node_terminal_bandwidth_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=Q(switch_buffer__isnull=True) | Q(switch_buffer__gte=0),
+                name="node_switch_buffer_non_negative",
             ),
         ]
 
