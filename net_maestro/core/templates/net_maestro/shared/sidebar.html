@@ -32,17 +32,20 @@
       </a>
     </li>
 
-    <!-- Components section (disabled - future feature) -->
+    <!-- Topology section -->
     <li>
-      <button
-        type="button"
+      <a
+        href="{% url 'topology-partial' %}"
+        hx-get="{% url 'topology-partial' %}"
+        hx-target="#main-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
         class="flex items-center justify-center"
-        @click="activeItem = 'components'"
-        :class="{ 'menu-active': activeItem === 'components' }"
-        disabled
+        :class="{ 'menu-active': activeItem === 'topology' }"
+        @click="activeItem = 'topology'"
       >
         <i class="ri-organization-chart" aria-hidden="true"></i>
-      </button>
+      </a>
     </li>
 
     <!-- Simulation section -->

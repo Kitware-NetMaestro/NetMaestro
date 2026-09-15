@@ -80,6 +80,11 @@ urlpatterns = [
         name="custom-component-edit",
     ),
     path(
+        "topology/",
+        views.topology_page,
+        name="topology-partial",
+    ),
+    path(
         "simulation/config",
         views.saved_simulations,
         name="simulation-config",
