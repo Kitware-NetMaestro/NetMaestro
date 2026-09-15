@@ -1,7 +1,6 @@
 """Django views for the NetMaestro core application.
 
 Provides page views for configuration and analysis.
-Data loading is driven by selecting a Run on the analysis page.
 """
 
 from __future__ import annotations
@@ -554,6 +553,20 @@ def model_create(request: HttpRequest) -> HttpResponse:
     if request.headers.get("HX-Request"):
         return render(request, partial_template, context)
     context.update({"active_page": "modelsList", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
+
+
+def topology_page(request: HttpRequest) -> HttpResponse:
+    """Render the topology page.
+
+    TODO: Replace the read-only preset dropdown with database-backed topologies once
+    Topology models exist.
+    """
+    context: dict[str, object] = {}
+    partial_template = "net_maestro/partials/topology.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": "topology", "partial_template": partial_template})
     return render(request, "net_maestro/index.html", context)
 
 
