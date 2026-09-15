@@ -51,7 +51,7 @@ urlpatterns = [
     path("api/v1/runs/<int:run_id>/model", RunModelDataView.as_view(), name="api-run-model"),
     # Checked-in topology presets
     path(
-        "api/v1/topologies/<name:name>",
+        "api/v1/topologies/<slug:name>",
         TopologyDetailView.as_view(),
         name="api-topology-detail",
     ),
