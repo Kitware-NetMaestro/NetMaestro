@@ -90,10 +90,26 @@ class Topology:
                     "source": link.source,
                     "target": link.target,
                     "bandwidth": link.bandwidth,
+                    "bandwidth_label": _short_rate(link.bandwidth),
                 }
                 for link in self.links
             ],
         }
+
+
+def _short_rate(raw: str) -> str:
+    """Round a rate for display: `18.3324 Gbps` becomes `18.3 Gbps`.
+
+    The generator emits rates to three decimals, which is more precision than a
+    canvas edge label can carry. Values that do not look like a number plus a
+    unit are passed through untouched.
+    """
+    number, _, unit = raw.partition(" ")
+    try:
+        value = round(float(number), 1)
+    except ValueError:
+        return raw
+    return f"{value:g} {unit}".strip()
 
 
 def _label_from_name(name: str) -> str:
