@@ -25,6 +25,7 @@ from .forms import ComponentModelForm, PHOLDSimulationForm
 from .models import ComponentModel, PHOLDSimulationConfig, Run
 from .simulation_models import SIMULATION_MODELS
 from .tasks import run_phold_simulation
+from .topology import list_topologies
 
 logger = logging.getLogger(__name__)
 
@@ -456,12 +457,12 @@ def model_create(request: HttpRequest) -> HttpResponse:
 
 
 def topology_page(request: HttpRequest) -> HttpResponse:
-    """Render the topology page.
+    """Render the topology page with the presets available to preview.
 
     TODO: Replace the read-only preset dropdown with database-backed topologies once
     Topology models exist.
     """
-    context: dict[str, object] = {}
+    context: dict[str, object] = {"topologies": list_topologies()}
     partial_template = "net_maestro/partials/topology.html"
     if request.headers.get("HX-Request"):
         return render(request, partial_template, context)
