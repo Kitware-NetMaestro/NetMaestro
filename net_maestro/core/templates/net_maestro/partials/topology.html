@@ -26,7 +26,7 @@
           <i class="ri-add-line" aria-hidden="true"></i>
           Create New
         </button>
-        <button type="button" class="btn" @click="create()" x-show="topology">
+        <button type="button" class="btn" @click="openEditor()" x-show="topology">
           <i class="ri-edit-line" aria-hidden="true"></i>
           Edit
         </button>
@@ -68,4 +68,79 @@
       </div>
     </div>
   </div>
+
+  <!-- Edit dialog: every field the topology YAML file defines. Nothing saves yet. -->
+  <dialog class="modal" x-ref="editorDialog" @close="editor = null">
+    <div class="modal-box max-w-3xl max-h-[90vh]">
+      <form method="dialog">
+        <button class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3" aria-label="Close">
+          <i class="ri-close-line" aria-hidden="true"></i>
+        </button>
+      </form>
+      <template x-if="editor">
+        <div>
+          <h3 class="text-lg font-semibold" x-text="`Edit ${editor.label}`"></h3>
+          <p class="text-[12.5px] mt-1" style="color:var(--text-dim);">
+            Changes are not saved yet.
+          </p>
+
+          <fieldset class="fieldset mt-4">
+            <legend class="fieldset-legend">Name</legend>
+            <input type="text" class="input w-full" x-model="editor.name">
+          </fieldset>
+
+          <div class="flex flex-col gap-4 mt-4">
+            <template x-for="item in editor.switches" :key="item.name">
+              <div class="card bg-base-200">
+                <div class="card-body gap-4">
+                  <h4 class="card-title text-base">
+                    Switch <span x-text="item.name"></span>
+                  </h4>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <fieldset class="fieldset">
+                      <legend class="fieldset-legend">Terminals</legend>
+                      <input type="number" min="0" class="input w-full" x-model.number="item.terminals">
+                    </fieldset>
+                    <fieldset class="fieldset">
+                      <legend class="fieldset-legend">Terminal bandwidth</legend>
+                      <input type="text" class="input w-full" x-model="item.terminalBandwidth">
+                    </fieldset>
+                    <fieldset class="fieldset">
+                      <legend class="fieldset-legend">Switch buffer</legend>
+                      <input type="text" class="input w-full" x-model="item.switchBuffer">
+                    </fieldset>
+                  </div>
+
+                  <div>
+                    <div class="fieldset-legend">Connections</div>
+                    <p class="text-[12.5px]" style="color:var(--text-dim);"
+                       x-show="!item.connections.length">
+                      No outbound connections.
+                    </p>
+                    <div class="flex flex-col gap-2 mt-1">
+                      <template x-for="connection in item.connections" :key="connection.target">
+                        <div class="flex flex-row items-center gap-2">
+                          <span class="w-24 text-sm" x-text="`${item.name} → ${connection.target}`"></span>
+                          <input type="text" class="input input-sm flex-1" x-model="connection.bandwidth">
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <div class="modal-action">
+            <form method="dialog">
+              <button class="btn">Close</button>
+            </form>
+          </div>
+        </div>
+      </template>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button aria-label="Close">close</button>
+    </form>
+  </dialog>
 </div>
