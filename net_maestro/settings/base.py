@@ -112,3 +112,10 @@ CORS_ALLOWED_ORIGIN_REGEXES: list[str] = env.list(
 )
 
 REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = ["rest_framework.permissions.IsAuthenticated"]
+
+# Where topology YAML files are read and written. The fluid-flow WAN model resolves
+# `topology_yaml_file` relative to the directory of the traffic config that names it, so
+# topologies have to sit beside `fluid-flow-wan-random-traffic.yaml` and its trace twin.
+# Defaults to the presets checked into this repo, which the container image copies into
+# the CODES build.
+TOPOLOGY_DIR = Path(env.str("DJANGO_TOPOLOGY_DIR", default=str(BASE_DIR / "data" / "topologies")))
