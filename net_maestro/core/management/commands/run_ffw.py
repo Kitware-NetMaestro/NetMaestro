@@ -1,35 +1,19 @@
-""" RUN FFW simulation management command.
+"""RUN FFW simulation management command.
+
 Execute Fluid-Flow WAN simulation with specified parameters and ingest results.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-import subprocess
 
+from django.conf import settings
 import djclick as click
 
-from net_maestro import settings
 from net_maestro.core.constants import RunStatus
 from net_maestro.core.models import Run
+from net_maestro.core.tasks.simulation import run_ffw_simulation
 
-
-
-def _build_ffw_command(
-    np: int,
-    binary_path: Path,
-    sync: int,
-    config_path: Path
-    ) -> list[str]:
-    """Build the FFW command to run the simulation."""
-    return [
-        "mpirun",
-        "-np",
-        str(np),
-        str(binary_path),
-        f"--sync={sync}",
-        "--",
-        str(config_path),
-    ]
 
 def _create_or_update_run(
     name: str,
@@ -58,7 +42,7 @@ def _create_or_update_run(
         run = Run.objects.create(
             name=name,
             description=description or "",
-            status=RunStatus.RUNNING,
+            status=RunStatus.PENDING,
         )
     return run
 
@@ -84,7 +68,6 @@ def _create_or_update_run(
     "binary_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     help="Path to FFW binary.",
-    required=True,
 )
 @click.option(
     "--sync",
@@ -101,12 +84,11 @@ def _create_or_update_run(
     "config_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     help="Path to FFW configuration file.",
-    required=True,
 )
 @click.option(
     "--working-dir",
     type=click.Path(exists=True, path_type=Path),
-    )
+)
 @click.option(
     "--description",
     "description",
@@ -120,7 +102,7 @@ def _create_or_update_run(
     default=None,
     help="Existing run ID to update instead of creating a new run.",
 )
-def run_FFW(
+def run_ffw(  # noqa: PLR0913
     name: str,
     np: int,
     binary_path: Path,
@@ -129,33 +111,24 @@ def run_FFW(
     working_dir: Path,
     description: str | None = None,
     run_id: int | None = None,
-)-> None:
+) -> None:
 
-    working_dir = Path(working_dir) if working_dir else Path(getattr(settings, "FFW_BINARY_DIR", "."))
+    working_dir = (
+        Path(working_dir) if working_dir else Path(getattr(settings, "FFW_BUILD_PATH", "."))
+    )
     # Logs dir needs to exist for the model to run
-    logs_dir = working_dir/ "doc" / "example" / "logs"
+    logs_dir = working_dir / "doc" / "example" / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
-
-    cmd = _build_ffw_command(np=np, binary_path=binary_path, sync=sync, config_path=config_path)
-    click.echo(f"Running FFW: {' '.join(map(str, cmd))}")
 
     # Create or update Run object
     run = _create_or_update_run(name, description, run_id)
-
-    try:
-        result = subprocess.run(cmd, cwd=working_dir, check=True, capture_output=True, text=True)
-        click.echo(f"STDOUT:\n {result.stdout}")
-        run.status = RunStatus.COMPLETED
-        run.save()
-        if result.stderr:
-            click.echo(f"STDERR:\n {result.stderr}")
-        click.echo("FFW simulation finished successfully.")
-        click.echo(f"Logs are in {logs_dir}")
-        click.echo(f"\nRun {run.id} created successfully.")
-    except subprocess.CalledProcessError as e:
-        click.echo(f"FFW simulation failed with error code {e.returncode}.")
-        click.echo(f"STDOUT:\n {e.stdout}")
-        click.echo(f"STDERR:\n {e.stderr}")
-        run.status = RunStatus.FAILED
-        run.save()
-        raise
+    run_ffw_simulation.apply(
+        kwargs={
+            "run_id": run.id,
+            "np": np,
+            "sync": sync,
+            "config_path": str(config_path) if config_path else None,
+            "working_dir": str(working_dir),
+            "binary_path": str(binary_path) if binary_path else None,
+        }
+    )

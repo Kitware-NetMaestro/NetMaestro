@@ -67,5 +67,7 @@ PHOLD_OUTPUT_DIR = env.str("DJANGO_PHOLD_OUTPUT_DIR", default="/tmp/phold_output
 PHOLD_MPI_PROCESSES = env.int("DJANGO_PHOLD_MPI_PROCESSES", default=2)
 
 # FFW simulation configuration
-FFW_BINARY_PATH = env.str("DJANGO_FFW_BINARY_PATH" / "src" / "model-net-fluid-flow-wan-random-traffic", default="")
+FFW_BUILD_PATH = env.str("DJANGO_FFW_BUILD_DIR", default="")
+FFW_BINARY_PATH = env.str("DJANGO_FFW_BINARY_PATH", default="")
+FFW_CONFIG_PATH = env.str("DJANGO_FFW_CONFIG_PATH", default="")
 FFW_OUTPUT_DIR = env.str("DJANGO_FFW_OUTPUT_DIR", default="/tmp/ffw_output")  # noqa: S108
