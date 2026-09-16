@@ -143,6 +143,29 @@ const toElements = (topology) => [
   })),
 ];
 
+/**
+ * Convert an API topology payload into the editor form model.
+ *
+ * The payload carries links as a flat directed list; the YAML nests them under
+ * the switch they leave from, so regroup them that way for editing.
+ *
+ * @param {Object} topology - Value from the topology detail endpoint
+ * @returns {Object} Form model holding every field the YAML file defines
+ */
+const toForm = (topology) => ({
+  name: topology.name,
+  label: topology.label,
+  switches: topology.switches.map((item) => ({
+    name: item.name,
+    terminals: item.terminals,
+    terminalBandwidth: item.terminal_bandwidth,
+    switchBuffer: item.switch_buffer,
+    connections: topology.links
+      .filter((link) => link.source === item.name)
+      .map((link) => ({ target: link.target, bandwidth: link.bandwidth })),
+  })),
+});
+
 export const topologyCanvas = () => {
   // Outside of the Alpine data object on purpose: With Alpine, its properties
   // are deeply reactive. Wrapping a Cytoscape instance that way seems to break things.
@@ -156,6 +179,7 @@ export const topologyCanvas = () => {
     loading: false,
     error: null,
     topology: null,
+    editor: null,
 
     destroy() {
       this.teardown();
@@ -197,6 +221,17 @@ export const topologyCanvas = () => {
         this.loading = false;
       }
       this.$nextTick(() => this.draw());
+    },
+
+    /**
+     * Open the edit dialog with a copy of the selected topology.
+     */
+    openEditor() {
+      if (!this.topology) {
+        return;
+      }
+      this.editor = toForm(this.topology);
+      this.$refs.editorDialog.showModal();
     },
 
     /**
