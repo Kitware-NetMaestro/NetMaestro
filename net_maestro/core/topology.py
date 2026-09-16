@@ -1,9 +1,14 @@
-"""Access to the checked-in fluid-flow WAN topology presets.
+"""Access to the fluid-flow WAN topology YAML files.
 
-The presets live in `core/data/topologies` as FFW topology YAML files, the
-same format the model reads via its `topology_yaml_file` setting. This module
-turns them into the flat switch/link shape the topology page renders, and
-writes new presets back out in that format.
+Topologies are FFW topology YAML files, the same format the model reads via its
+`topology_yaml_file` setting, and they live in `settings.TOPOLOGY_DIR`: the
+directory holding the traffic configs that name them, since the model resolves
+that setting relative to the config it was read from. This module turns those
+files into the flat switch/link shape the topology page renders, and writes new
+ones back out in that format.
+
+The presets checked into the repo's top-level `data/topologies` are copies; the
+container image puts them in that directory (see `dev/django.Dockerfile`).
 
 TODO: Remove this module once Topology/TopologyNode/TopologyLink models exist
 and topologies are database-backed rather than files.
@@ -12,18 +17,16 @@ and topologies are database-backed rather than files.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import lru_cache
 import logging
 from math import isfinite
 from pathlib import Path
 import re
 from typing import Any
 
+from django.conf import settings
 import yaml
 
 logger = logging.getLogger(__name__)
-
-TOPOLOGY_DIR = Path(__file__).parent / "data" / "topologies"
 
 # Labels that should stay uppercase.
 _LABELS = {"wan": "WAN"}
@@ -34,11 +37,24 @@ _NAME_RE = re.compile(r"^[-a-zA-Z0-9_]+$")
 
 
 class TopologyError(Exception):
-    """Raised when a preset file is missing or is not a valid FFW topology."""
+    """Raised when a topology file is missing or is not a valid FFW topology."""
 
 
 class DuplicateTopologyError(TopologyError):
-    """Raised when saving would overwrite an existing preset file."""
+    """Raised when saving would overwrite an existing topology file."""
+
+
+class NotATopologyError(TopologyError):
+    """Raised for a YAML file that is not an FFW topology document at all.
+
+    The directory is shared with the model's own configs, so most of the YAML
+    in it is somebody else's. Those files are skipped, not reported as broken.
+    """
+
+
+def topology_dir() -> Path:
+    """Return the directory topologies are read from and written to."""
+    return Path(settings.TOPOLOGY_DIR)
 
 
 @dataclass(frozen=True)
@@ -146,13 +162,13 @@ def _parse(topo_name: str, path: Path) -> Topology:
     try:
         document = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as exc:
-        raise TopologyError(f"Could not read topology preset {path.name}: {exc}") from exc
+        raise TopologyError(f"Could not read topology file {path.name}: {exc}") from exc
 
     if not isinstance(document, dict):
-        raise TopologyError(f"{path.name} is not a YAML mapping")
+        raise NotATopologyError(f"{path.name} is not a YAML mapping")
     switch_entries = (document.get("topology") or {}).get("switches")
     if not isinstance(switch_entries, dict):
-        raise TopologyError(f"{path.name} has no topology.switches mapping")
+        raise NotATopologyError(f"{path.name} has no topology.switches mapping")
 
     switches: list[Switch] = []
     links: list[Link] = []
@@ -193,18 +209,24 @@ def _parse(topo_name: str, path: Path) -> Topology:
     )
 
 
-@lru_cache(maxsize=1)
 def list_topologies() -> tuple[Topology, ...]:
-    """Return every available preset, ordered by switch count then name.
+    """Return every available topology, ordered by switch count then name.
 
-    Unparseable files are logged and skipped.
+    Reads the directory every time rather than caching: it is shared with the
+    CODES build, so files arrive and leave without Django knowing.
+
+    The directory also holds the model's traffic configs and other YAML, so
+    files that are not topologies are passed over quietly. Files that are
+    topologies but cannot be read are logged and skipped.
     """
     topologies = []
-    for path in sorted(TOPOLOGY_DIR.glob("*.yaml")):
+    for path in sorted(topology_dir().glob("*.yaml")):
         try:
             topologies.append(_parse(path.stem, path))
+        except NotATopologyError as exc:
+            logger.debug("Not a topology file: %s", exc)
         except TopologyError:
-            logger.exception("Skipping unreadable topology preset %s", path.name)
+            logger.exception("Skipping unreadable topology file %s", path.name)
     return tuple(sorted(topologies, key=lambda t: (len(t.switches), t.name)))
 
 
@@ -317,13 +339,16 @@ def _to_document(topology: Topology) -> dict[str, Any]:
 
 
 def save_topology(topology: Topology) -> Topology:
-    """Write a new preset file and return it as reparsed from disk.
+    """Write a new topology file and return it as reparsed from disk.
+
+    The file lands in the topology directory under `<name>.yaml`, which is the
+    name a traffic config's `topology_yaml_file` refers to.
 
     Never overwrites: an existing file with the same name is a
     DuplicateTopologyError. Reparsing keeps the caller's copy identical to what
     every later read will see.
     """
-    path = TOPOLOGY_DIR / f"{topology.name}.yaml"
+    path = topology_dir() / f"{topology.name}.yaml"
     body = yaml.safe_dump(_to_document(topology), sort_keys=False, default_flow_style=False)
     try:
         with path.open("x", encoding="utf-8") as stream:
@@ -333,17 +358,16 @@ def save_topology(topology: Topology) -> Topology:
     except OSError as exc:
         raise TopologyError(f"Could not write topology {topology.name}: {exc}") from exc
 
-    list_topologies.cache_clear()
     return get_topology(topology.name)
 
 
 def get_topology(name: str) -> Topology:
-    """Return one preset by name.
+    """Return one topology by name.
 
-    Looks the name up among the known presets rather than building a path from
-    it, so a caller cannot accidentally fetch files outside `core/data/topologies`.
+    Looks the name up among the known topologies rather than building a path
+    from it, so a caller cannot reach files outside the topology directory.
     """
     for topology in list_topologies():
         if topology.name == name:
             return topology
-    raise TopologyError(f"Unknown topology preset: {name}")
+    raise TopologyError(f"Unknown topology: {name}")
