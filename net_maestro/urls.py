@@ -14,7 +14,7 @@ from net_maestro.core.rest.run_api import (
     RunModelDataView,
     RunRossDataView,
 )
-from net_maestro.core.rest.topology_api import TopologyDetailView
+from net_maestro.core.rest.topology_api import TopologyCreateView, TopologyDetailView
 
 from .core import views
 
@@ -55,7 +55,11 @@ urlpatterns = [
         ComponentModelListView.as_view(),
         name="api-component-models",
     ),
-    # Checked-in topology presets
+    path(
+        "api/v1/topologies",
+        TopologyCreateView.as_view(),
+        name="api-topology-create",
+    ),
     path(
         "api/v1/topologies/<slug:name>",
         TopologyDetailView.as_view(),
