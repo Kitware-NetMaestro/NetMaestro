@@ -128,8 +128,8 @@ const toElements = (topology) => [
       name: item.name,
       terminals: item.terminals,
       terminalIcons: terminalStrip(item.terminals),
-      terminalBandwidth: item.terminal_bandwidth,
-      switchBuffer: item.switch_buffer,
+      terminalBandwidth: item.terminal_bandwidth_gbps,
+      switchBuffer: item.switch_buffer_gb,
     },
   })),
   ...topology.links.map((link) => ({
@@ -137,7 +137,7 @@ const toElements = (topology) => [
       id: `${link.source}->${link.target}`,
       source: link.source,
       target: link.target,
-      bandwidth: link.bandwidth,
+      bandwidth: link.bandwidth_gbps,
       bandwidthLabel: link.bandwidth_label,
     },
   })),
@@ -149,6 +149,9 @@ const toElements = (topology) => [
  * The payload carries links as a flat directed list; the YAML nests them under
  * the switch they leave from, so regroup them that way for editing.
  *
+ * Every rate and size is a plain number of gigabits; the unit belongs to the
+ * field, and the form shows it as a label beside the input.
+ *
  * @param {Object} topology - Value from the topology detail endpoint
  * @returns {Object} Form model holding every field the YAML file defines
  */
@@ -158,13 +161,54 @@ const toForm = (topology) => ({
   switches: topology.switches.map((item) => ({
     name: item.name,
     terminals: item.terminals,
-    terminalBandwidth: item.terminal_bandwidth,
-    switchBuffer: item.switch_buffer,
+    terminalBandwidth: item.terminal_bandwidth_gbps,
+    switchBuffer: item.switch_buffer_gb,
     connections: topology.links
       .filter((link) => link.source === item.name)
-      .map((link) => ({ target: link.target, bandwidth: link.bandwidth })),
+      .map((link) => ({ target: link.target, bandwidth: link.bandwidth_gbps })),
   })),
 });
+
+/**
+ * Convert the editor form model into a payload for the create endpoint.
+ *
+ * @param {Object} form - The editor form model
+ * @returns {Object} Request body for the topology create endpoint
+ */
+const toPayload = (form) => ({
+  name: form.name.trim(),
+  switches: form.switches.map((item) => ({
+    name: item.name,
+    terminals: item.terminals,
+    // biome-ignore-start lint/style/useNamingConvention: the API speaks snake_case
+    terminal_bandwidth_gbps: item.terminalBandwidth,
+    switch_buffer_gb: item.switchBuffer,
+    connections: item.connections.map((connection) => ({
+      target: connection.target,
+      bandwidth_gbps: connection.bandwidth,
+    })),
+    // biome-ignore-end lint/style/useNamingConvention: the API speaks snake_case
+  })),
+});
+
+/**
+ * Pull the message out of a DRF error response.
+ *
+ * @param {Response} response - The failed fetch response
+ * @returns {Promise<string>} A message to show in the dialog
+ */
+const errorMessage = async (response) => {
+  try {
+    const body = await response.json();
+    const detail = Array.isArray(body) ? body[0] : (body.detail ?? body.non_field_errors?.[0]);
+    if (detail) {
+      return String(detail);
+    }
+  } catch {
+    // Fall through to the status code.
+  }
+  return `Request failed with status ${response.status}`;
+};
 
 export const topologyCanvas = () => {
   // Outside of the Alpine data object on purpose: With Alpine, its properties
@@ -180,6 +224,8 @@ export const topologyCanvas = () => {
     error: null,
     topology: null,
     editor: null,
+    saving: false,
+    saveError: null,
 
     destroy() {
       this.teardown();
@@ -231,7 +277,67 @@ export const topologyCanvas = () => {
         return;
       }
       this.editor = toForm(this.topology);
+      this.saveError = null;
       this.$refs.editorDialog.showModal();
+    },
+
+    /**
+     * Report whether the name in the editor is already used by a preset.
+     *
+     * Each preset is a file named after the topology, so a name can only be
+     * used once. The server enforces this too; checking here keeps the Save
+     * button from promising something that will fail.
+     *
+     * @returns {boolean} True when the dropdown already lists this name
+     */
+    nameTaken() {
+      const name = this.editor?.name.trim();
+      return [...this.$refs.picker.options].some((option) => option.value === name);
+    },
+
+    /**
+     * Save the editor contents as a new preset, then select and draw it.
+     */
+    async saveEditor() {
+      if (this.saving || !this.editor) {
+        return;
+      }
+      this.saving = true;
+      this.saveError = null;
+      try {
+        const response = await fetch(this.$root.dataset.createUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.$root.querySelector('[name=csrfmiddlewaretoken]').value,
+          },
+          body: JSON.stringify(toPayload(this.editor)),
+        });
+        if (!response.ok) {
+          this.saveError = await errorMessage(response);
+          return;
+        }
+        const saved = await response.json();
+        this.$refs.editorDialog.close();
+        this.selectSaved(saved);
+      } catch (error) {
+        this.saveError = `Could not save topology: ${error.message}`;
+      } finally {
+        this.saving = false;
+      }
+    },
+
+    /**
+     * Add a freshly saved topology to the dropdown and preview it.
+     *
+     * @param {Object} saved - Value from the topology create endpoint
+     */
+    selectSaved(saved) {
+      const picker = this.$refs.picker;
+      const option = new Option(`${saved.label} — ${saved.summary}`, saved.name, false, true);
+      option.dataset.url = saved.url;
+      picker.add(option);
+      this.select(picker);
     },
 
     /**
