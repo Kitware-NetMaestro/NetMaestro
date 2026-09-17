@@ -13,7 +13,11 @@ from net_maestro.core.rest.run_api import (
     RunModelDataView,
     RunRossDataView,
 )
-from net_maestro.core.rest.topology_api import TopologyDetailView
+from net_maestro.core.rest.topology_api import (
+    TopologyCreateView,
+    TopologyDetailView,
+    TopologySimulationInputsView,
+)
 
 from .core import views
 
@@ -49,11 +53,21 @@ urlpatterns = [
     path("api/v1/runs/<int:run_id>/ross", RunRossDataView.as_view(), name="api-run-ross"),
     path("api/v1/runs/<int:run_id>/event", RunEventDataView.as_view(), name="api-run-event"),
     path("api/v1/runs/<int:run_id>/model", RunModelDataView.as_view(), name="api-run-model"),
-    # Checked-in topology presets
+    path(
+        "api/v1/topologies",
+        TopologyCreateView.as_view(),
+        name="api-topology-create",
+    ),
     path(
         "api/v1/topologies/<slug:name>",
         TopologyDetailView.as_view(),
         name="api-topology-detail",
+    ),
+    # What a traffic config has to line up with: LP counts and terminal numbering
+    path(
+        "api/v1/topologies/<slug:name>/simulation-inputs",
+        TopologySimulationInputsView.as_view(),
+        name="api-topology-simulation-inputs",
     ),
     path("api/docs/redoc/", schema_view.with_ui("redoc"), name="docs-redoc"),
     path("api/docs/swagger/", schema_view.with_ui("swagger"), name="docs-swagger"),

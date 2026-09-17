@@ -1,0 +1,139 @@
+<dialog class="modal" x-ref="editorDialog" @close="editor = null">
+  <div class="modal-box max-w-3xl max-h-[90vh]">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3" aria-label="Close">
+        <i class="ri-close-line" aria-hidden="true"></i>
+      </button>
+    </form>
+    <template x-if="editor">
+      <form @submit.prevent="saveEditor()">
+        {% csrf_token %}
+        <h3 class="text-lg font-semibold" x-text="editor.label"></h3>
+
+        <div class="alert alert-error mt-4" x-show="saveError || networkProblem" x-cloak>
+          <i class="ri-error-warning-line" aria-hidden="true"></i>
+          <span x-text="saveError || networkProblem"></span>
+        </div>
+
+        <!-- Saveable, but the simulation will not behave the way it looks. -->
+        <div class="alert alert-warning mt-4" x-show="networkWarning" x-cloak>
+          <i class="ri-alert-line" aria-hidden="true"></i>
+          <span x-text="networkWarning"></span>
+        </div>
+
+        <fieldset class="fieldset mt-4">
+          <legend class="fieldset-legend">Name</legend>
+          <input type="text" class="input w-full" x-model="editor.name"
+                :class="nameTaken() && 'input-error'">
+          <p class="label text-error" x-show="nameTaken()" x-cloak>
+            A topology with this name already exists.
+          </p>
+        </fieldset>
+
+        <div class="sticky -top-6 z-10 -mx-6 px-6 pt-1 pb-3 bg-base-100">
+          <div class="flex justify-end mt-4">
+            <button type="button" class="btn btn-info" @click="addSwitch(editor)">
+              <i class="fa fa-plus"></i> Add New Switch
+            </button>
+          </div>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-4 mt-4">
+          <template x-for="item in editor.switches" :key="item.id">
+            <div class="card bg-base-200">
+              <div class="card-body gap-4">
+                <h4 class="card-title text-base flex items-center justify-between">
+                  <div>
+                    Switch
+                    <input type="text" class="input input-sm w-40" placeholder="Name"
+                           x-model="item.name"
+                           :class="switchProblem(item.id) && 'input-error'">
+                    <span class="text-error text-[12.5px] ml-2" x-show="switchProblem(item.id)"
+                          x-text="switchProblem(item.id)" x-cloak></span>
+                  </div>
+                  <button type="button" class="btn btn-sm btn-ghost btn-error" @click="removeSwitch(editor, item.id)">
+                    <i class="ri-delete-bin-line" aria-hidden="true"></i>
+                  </button>
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <fieldset class="fieldset">
+                    <legend class="fieldset-legend">Terminals</legend>
+                    <input type="number" min="0" class="input w-full" x-model.number="item.terminals">
+                  </fieldset>
+                  <fieldset class="fieldset">
+                    <legend class="fieldset-legend">Terminal bandwidth</legend>
+                    <label class="input w-full">
+                      <input type="number" min="0" step="any" class="grow"
+                             x-model.number="item.terminalBandwidth">
+                      <span class="label">Gbps</span>
+                    </label>
+                  </fieldset>
+                  <fieldset class="fieldset">
+                    <legend class="fieldset-legend">Switch buffer</legend>
+                    <label class="input w-full">
+                      <input type="number" min="0" step="any" class="grow"
+                             x-model.number="item.switchBuffer">
+                      <span class="label">Gb</span>
+                    </label>
+                  </fieldset>
+                </div>
+
+                <div>
+                  <div class="flex items-center justify-between">
+                    <div class="fieldset-legend">Connections</div>
+                    <button type="button" class="btn btn-sm btn-ghost btn-primary"
+                            @click="addConnection(editor, item.id)"
+                            :disabled="!canConnect()">
+                      <i class="ri-add-line" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  <p class="text-[12.5px]" style="color:var(--text-dim);"
+                     x-show="!item.connections.length">
+                    No outbound connections.
+                  </p>
+                  <div class="flex flex-col gap-2 mt-1">
+                  <template x-for="connection in item.connections" :key="connection.id">
+                    <div class="flex flex-row items-center gap-2">
+                      <span class="text-sm" x-text="`${item.name} →`"></span>
+                      <select class="select select-sm w-36" x-model="connection.targetId">
+                        <option value="">Choose a switch…</option>
+                        <template x-for="candidate in targetOptions(item, connection)" :key="candidate.id">
+                          <option :value="candidate.id"
+                                  :disabled="candidate.taken"
+                                  x-text="candidate.name || 'Unnamed switch'"></option>
+                        </template>
+                      </select>
+                      <label class="input input-sm flex-1">
+                        <input type="number" min="0" step="any" class="grow" x-model.number="connection.bandwidth">
+                        <span class="label">Gbps</span>
+                      </label>
+                      <button type="button" class="btn btn-sm btn-ghost btn-error"
+                              @click="removeConnection(editor, item.id, connection.id)">
+                        <i class="ri-delete-bin-line" aria-hidden="true"></i>
+                      </button>
+                    </div>
+                  </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <div class="modal-action">
+          <button type="button" class="btn" @click="$refs.editorDialog.close()">Cancel</button>
+          <button type="submit" class="btn btn-primary"
+                  :disabled="saving || nameTaken() || !editor.name.trim() || networkProblem">
+            <span class="loading loading-spinner loading-xs" x-show="saving" x-cloak></span>
+            Save
+          </button>
+        </div>
+      </form>
+    </template>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button aria-label="Close">close</button>
+  </form>
+</dialog>
