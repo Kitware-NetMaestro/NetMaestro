@@ -51,6 +51,17 @@ class TopologyDetailView(APIView):
         return Response(_as_response_data(topology))
 
 
+class TopologySimulationInputsView(APIView):
+    """Return what a traffic config has to take from one topology."""
+
+    def get(self, _request: Request, name: str) -> Response:
+        try:
+            topology = get_topology(name)
+        except TopologyError as exc:
+            raise NotFound(str(exc)) from exc
+        return Response(topology.simulation_inputs())
+
+
 class TopologyCreateView(APIView):
     """Save a topology as a new preset file."""
 

@@ -35,6 +35,11 @@ _LABELS = {"wan": "WAN"}
 # the `slug` URL converter accepts.
 _NAME_RE = re.compile(r"^[-a-zA-Z0-9_]+$")
 
+# The LP type names the model registers. A traffic config's group has to use
+# these exact strings for the counts to reach the right LPs.
+SWITCH_LP_NAME = "fluid-flow-wan-switch-lp"
+TERMINAL_LP_NAME = "fluid-flow-wan-terminal-lp"
+
 
 class TopologyError(Exception):
     """Raised when a topology file is missing or is not a valid FFW topology."""
@@ -96,6 +101,41 @@ class Topology:
             f"{self.terminal_count} terminals, "
             f"{len(self.links)} links"
         )
+
+    def simulation_inputs(self) -> dict[str, Any]:
+        """Return what a traffic config has to take from this topology.
+
+        The model instantiates one LP per switch and one per terminal, so the
+        traffic config's group has to declare exactly these counts, and it
+        names the topology by file. Terminals are numbered by walking the
+        switches in file order, which is the numbering a traffic trace's
+        `source_terminal` and `destination_terminal` columns refer to; each
+        switch reports where its own run of terminal ids begins.
+        """
+        switches = []
+        first_terminal_id = 0
+        for switch in self.switches:
+            switches.append(
+                {
+                    "name": switch.name,
+                    "first_terminal_id": first_terminal_id,
+                    "terminal_count": switch.terminals,
+                    "terminal_bandwidth_gbps": switch.terminal_bandwidth_gbps,
+                }
+            )
+            first_terminal_id += switch.terminals
+
+        return {
+            "name": self.name,
+            "topology_yaml_file": f"{self.name}.yaml",
+            "switch_count": len(self.switches),
+            "terminal_count": self.terminal_count,
+            "lps": {
+                SWITCH_LP_NAME: len(self.switches),
+                TERMINAL_LP_NAME: self.terminal_count,
+            },
+            "switches": switches,
+        }
 
     def as_dict(self) -> dict[str, Any]:
         """Return the JSON that the topology canvas requires."""
@@ -347,6 +387,16 @@ def save_topology(topology: Topology) -> Topology:
     Never overwrites: an existing file with the same name is a
     DuplicateTopologyError. Reparsing keeps the caller's copy identical to what
     every later read will see.
+
+    That rule holds more than it looks like it does. A traffic trace addresses
+    terminals by number, and the model numbers them by walking the switches in
+    file order, so inserting or reordering a switch renumbers every terminal
+    after it. Traces stay honest today only because an edit is a new file under
+    a new name, leaving the file a trace was generated against untouched. An
+    update-in-place path would break that quietly: the shifted ids stay inside
+    the valid range, so the model runs the trace against the wrong terminals
+    without complaint. Whoever adds one has to regenerate or invalidate the
+    traces bound to that topology as part of the save.
     """
     path = topology_dir() / f"{topology.name}.yaml"
     body = yaml.safe_dump(_to_document(topology), sort_keys=False, default_flow_style=False)
