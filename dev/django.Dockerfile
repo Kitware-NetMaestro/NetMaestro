@@ -3,7 +3,7 @@ ARG ROSS_GIT_REF=dc3a6a056cfc7a5e68f7141f88d8833407599ef8
 ARG CODES_GIT_REF=a5958cfaee6dcc73a98d084005e3412da773fb35
 # PIN to a specific CODES Branch for FFW
 # This points to a forked repo and should be updated/removed when merged into CODES proper
-ARG FFW_GIT_REF=d518d2ea9ced7fa7407678594dbfbbeba51d7823
+ARG FFW_GIT_REF=13acd9cbbd57efa80ff073b1826f3a0b9f49922d
 
 FROM ubuntu:24.04 AS ross-builder
 ARG ROSS_GIT_REF
@@ -60,7 +60,7 @@ RUN cmake -S /opt/codes -B /opt/codes/build \
     && cmake --install opt/codes/build/
 
 # TODO: Points to forked repo and should be changed/removed when merged
-RUN git clone https://github.com/sanjaychari/codes.git opt/FFW \
+RUN git clone https://github.com/caitlinross/codes.git opt/FFW \
     && cd opt/FFW \
     && git checkout "${FFW_GIT_REF}" \
     && git submodule update --init --recursive
