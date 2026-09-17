@@ -10,9 +10,9 @@
         {% csrf_token %}
         <h3 class="text-lg font-semibold" x-text="editor.label"></h3>
 
-        <div class="alert alert-error mt-4" x-show="saveError" x-cloak>
+        <div class="alert alert-error mt-4" x-show="saveError || networkProblem" x-cloak>
           <i class="ri-error-warning-line" aria-hidden="true"></i>
-          <span x-text="saveError"></span>
+          <span x-text="saveError || networkProblem"></span>
         </div>
 
         <fieldset class="fieldset mt-4">
@@ -25,7 +25,7 @@
         </fieldset>
 
         <div class="flex justify-end mt-4">
-          <button type="button" class="btn btn-info" @click="editor = addSwitch(editor)">
+          <button type="button" class="btn btn-info" @click="addSwitch(editor)">
             <i class="fa fa-plus"></i> Add New Switch
           </button>
         </div>
@@ -38,7 +38,7 @@
                   <div>
                     Switch <span x-text="item.name"></span>
                   </div>
-                  <button type="button" class="btn btn-sm btn-ghost btn-error" @click="editor = removeSwitch(editor, item.name)">
+                  <button type="button" class="btn btn-sm btn-ghost btn-error" @click="removeSwitch(editor, item.name)">
                     <i class="ri-delete-bin-line" aria-hidden="true"></i>
                   </button>
                 </h4>
@@ -66,7 +66,14 @@
                 </div>
 
                 <div>
-                  <div class="fieldset-legend">Connections</div>
+                  <div class="flex items-center justify-between">
+                    <div class="fieldset-legend">Connections</div>
+                    <button type="button" class="btn btn-sm btn-ghost btn-primary"
+                            @click="addConnection(editor, item.name)"
+                            :disabled="!atLeastTwoSwitches()">
+                      <i class="ri-add-line" aria-hidden="true"></i>
+                    </button>
+                  </div>
                   <p class="text-[12.5px]" style="color:var(--text-dim);"
                      x-show="!item.connections.length">
                     No outbound connections.
@@ -80,6 +87,9 @@
                                  x-model.number="connection.bandwidth">
                           <span class="label">Gbps</span>
                         </label>
+                        <button type="button" class="btn btn-sm btn-ghost btn-error" @click="removeConnection(editor, item.name, connection.target)">
+                          <i class="ri-delete-bin-line" aria-hidden="true"></i>
+                        </button>
                       </div>
                     </template>
                   </div>
@@ -92,7 +102,7 @@
         <div class="modal-action">
           <button type="button" class="btn" @click="$refs.editorDialog.close()">Cancel</button>
           <button type="submit" class="btn btn-primary"
-                  :disabled="saving || nameTaken() || !editor.name.trim() || !atLeastTwoSwitches()">
+                  :disabled="saving || nameTaken() || !editor.name.trim() || networkProblem">
             <span class="loading loading-spinner loading-xs" x-show="saving" x-cloak></span>
             Save
           </button>

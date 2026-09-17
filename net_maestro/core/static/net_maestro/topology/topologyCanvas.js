@@ -1,6 +1,7 @@
 /**
  * Alpine.js component for the topology page.
- * Loads a topology preset and draws it on a Cytoscape canvas.
+ * Draws the selected topology on a Cytoscape canvas, and backs the dialog that
+ * edits it or builds a new one.
  */
 import cytoscape from 'cytoscape';
 
@@ -150,7 +151,8 @@ const toElements = (topology) => [
  * the switch they leave from, so regroup them that way for editing.
  *
  * Every rate and size is a plain number of gigabits; the unit belongs to the
- * field, and the form shows it as a label beside the input.
+ * field, and the form shows it as a label beside the input. `label` is the
+ * dialog heading, not the topology's own label.
  *
  * @param {Object} topology - Value from the topology detail endpoint
  * @returns {Object} Form model holding every field the YAML file defines
@@ -212,6 +214,33 @@ const toPayload = (form) => ({
 });
 
 /**
+ * Report what keeps a form from being a saveable network, if anything.
+ *
+ * Three things have to hold: two or more switches, at least one connection,
+ * and no connection left without a target. A switch with no connections of its
+ * own still passes - this is a floor, not a reachability check.
+ *
+ * @param {Object} form - The editor form model
+ * @returns {?string} The first problem found, or null when the form is ready
+ */
+const findNetworkProblem = (form) => {
+  if (!form) {
+    return null;
+  }
+  if (form.switches.length < 2) {
+    return 'At least two switches required.';
+  }
+  const connections = form.switches.flatMap((item) => item.connections);
+  if (!connections.length) {
+    return 'At least one connection required.';
+  }
+  if (connections.some((connection) => !connection.target)) {
+    return 'At least one connection is incomplete.';
+  }
+  return null;
+};
+
+/**
  * Pull the message out of a DRF error response.
  *
  * @param {Response} response - The failed fetch response
@@ -259,9 +288,9 @@ export const topologyCanvas = () => {
     },
 
     /**
-     * Load the preset chosen in the dropdown and draw it.
+     * Load the topology chosen in the dropdown and draw it.
      *
-     * @param {HTMLSelectElement} selectEl - The preset dropdown element
+     * @param {HTMLSelectElement} selectEl - The topology dropdown element
      */
     async select(selectEl) {
       const url = selectEl.selectedOptions[0]?.dataset.url;
@@ -290,29 +319,33 @@ export const topologyCanvas = () => {
     },
 
     /**
-     * Open the edit dialog with a copy of the selected topology or with a blank form.
+     * Open the dialog on a copy of the selected topology, or on a blank form.
+     *
+     * A blank form starts out failing the minimum-network check, so the dialog
+     * says what it still needs before the user touches anything.
+     *
+     * @param {boolean} isNew - True to start from a blank form
      */
     openEditor(isNew) {
       this.editor = isNew ? blankForm() : toForm(this.topology);
-      this.saveError = isNew ? "At least two switches required" : null;
+      this.saveError = null;
       this.$refs.editorDialog.showModal();
     },
 
     /**
      * Add a switch named with the first free letter, A through Z.
      *
-     * Returns a new form instead of mutating, so the caller has to assign the
-     * result back for the dialog to update: `editor = addSwitch(editor)`.
-     * Once every letter is taken, the form comes back untouched.
+     * Replaces `editor` with the extended form and rechecks the network, so the
+     * Save gate and its message follow the addition. Does nothing once every
+     * letter is taken.
      *
-     * @param {Object} editor - The editor form model
-     * @returns {Object} A form with the new switch, or `editor` if no letter was free
+     * @param {Object} editor - The editor form model to rebuild from
      */
     addSwitch(editor) {
       for (let i = 1; i <= 26; i++) {
         const name = String.fromCharCode(65 + i - 1);
         if (!editor.switches.some((switchItem) => switchItem.name === name)) {
-          return {
+          this.editor = {
             ...editor,
             switches: [
               ...editor.switches,
@@ -325,33 +358,94 @@ export const topologyCanvas = () => {
               },
             ],
           };
+          break;
         }
       }
-      this.atLeastTwoSwitches();
-      return editor;
+      this.hasMinimalNetwork();
     },
-
 
     /**
      * Remove a switch from the editor.
      *
-     * @param {Object} editor - The editor form model
+     * Replaces `editor` with the trimmed form and rechecks the network. Other
+     * switches keep any connection aimed at the one that just left, so those
+     * rows have to be cleaned up before the topology will save.
+     *
+     * @param {Object} editor - The editor form model to rebuild from
      * @param {string} switchName - The name of the switch to remove
-     * @returns {Object} A form with the switch removed
      */
     removeSwitch(editor, switchName) {
-      return {
+      this.editor = {
         ...editor,
         switches: editor.switches.filter((switchItem) => switchItem.name !== switchName),
       };
+      this.hasMinimalNetwork();
     },
 
     /**
-     * Report whether the name in the editor is already used by a preset.
+     * Add an outbound connection to one switch, with no target chosen yet.
      *
-     * Each preset is a file named after the topology, so a name can only be
-     * used once. The server enforces this too; checking here keeps the Save
-     * button from promising something that will fail.
+     * Replaces `editor` with the extended form and rechecks the network, which
+     * reports the blank target until the user picks one.
+     *
+     * @param {Object} editor - The editor form model to rebuild from
+     * @param {string} switchName - Name of the switch the connection leaves from
+     */
+    addConnection(editor, switchName) {
+      this.editor = {
+        ...editor,
+        switches: editor.switches.map((switchItem) => {
+          if (switchItem.name === switchName) {
+            return {
+              ...switchItem,
+              connections: [
+                ...switchItem.connections,
+                {
+                  target: "",
+                  bandwidth: 1,
+                },
+              ],
+            };
+          }
+          return switchItem;
+        }),
+      };
+      this.hasMinimalNetwork();
+    },
+
+    /**
+     * Remove one switch's outbound connection, matched by its target.
+     *
+     * Replaces `editor` with the trimmed form and rechecks the network, so the
+     * Save gate and its message follow the removal. Matching is by target, so
+     * two rows on the same switch aimed at the same place go together.
+     *
+     * @param {Object} editor - The editor form model to rebuild from
+     * @param {string} switchName - Name of the switch the connection leaves from
+     * @param {string} target - Name of the switch the connection points at
+     */
+    removeConnection(editor, switchName, target) {
+      this.editor = {
+        ...editor,
+        switches: editor.switches.map((switchItem) => {
+          if (switchItem.name === switchName) {
+            return {
+              ...switchItem,
+              connections: switchItem.connections.filter((connection) => connection.target !== target),
+            };
+          }
+          return switchItem;
+        }),
+      };
+      this.hasMinimalNetwork();
+    },
+
+    /**
+     * Report whether the name in the editor is already used by a topology.
+     *
+     * Each topology is a file named after it, so a name can only be used once.
+     * The server enforces this too; checking here keeps the Save button from
+     * promising something that will fail.
      *
      * @returns {boolean} True when the dropdown already lists this name
      */
@@ -369,15 +463,25 @@ export const topologyCanvas = () => {
      */
     atLeastTwoSwitches() {
       if (this.editor?.switches.length > 1) {
-        this.saveError = null;
         return true;
       }
-      this.saveError = "At least two switches required";
       return false;
     },
 
     /**
-     * Save the editor contents as a new preset, then select and draw it.
+     * What keeps the editor from being saved, or null when it is ready.
+     *
+     * A getter, so the dialog can read it while rendering without anything
+     * writing state mid-render, and so it re-evaluates as the form changes.
+     *
+     * @returns {?string} The first problem with the form
+     */
+    get networkProblem() {
+      return findNetworkProblem(this.editor);
+    },
+
+    /**
+     * Save the editor contents as a new topology, then select and draw it.
      */
     async saveEditor() {
       if (this.saving || !this.editor) {
