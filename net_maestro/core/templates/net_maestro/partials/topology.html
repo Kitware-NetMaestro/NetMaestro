@@ -23,11 +23,11 @@
         </select>
       </fieldset>
       <div class="flex w-80 justify-between">
-        <button type="button" class="btn" @click="create()">
+        <button type="button" class="btn" @click="openEditor(true)">
           <i class="ri-add-line" aria-hidden="true"></i>
           Create New
         </button>
-        <button type="button" class="btn" @click="openEditor()" x-show="topology">
+        <button type="button" class="btn" @click="openEditor(false)" x-show="topology">
           <i class="ri-edit-line" aria-hidden="true"></i>
           Edit
         </button>
@@ -70,103 +70,5 @@
     </div>
   </div>
 
-  <!-- Edit dialog: every field the topology YAML file defines. Saves as a new preset. -->
-  <dialog class="modal" x-ref="editorDialog" @close="editor = null">
-    <div class="modal-box max-w-3xl max-h-[90vh]">
-      <form method="dialog">
-        <button class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3" aria-label="Close">
-          <i class="ri-close-line" aria-hidden="true"></i>
-        </button>
-      </form>
-      <template x-if="editor">
-        <form @submit.prevent="saveEditor()">
-          {% csrf_token %}
-          <h3 class="text-lg font-semibold" x-text="`Edit ${editor.label}`"></h3>
-          <p class="text-[12.5px] mt-1" style="color:var(--text-dim);">
-            Saving writes a new topology preset. Give it a name that is not taken yet.
-          </p>
-
-          <div class="alert alert-error mt-4" x-show="saveError" x-cloak>
-            <i class="ri-error-warning-line" aria-hidden="true"></i>
-            <span x-text="saveError"></span>
-          </div>
-
-          <fieldset class="fieldset mt-4">
-            <legend class="fieldset-legend">Name</legend>
-            <input type="text" class="input w-full" x-model="editor.name"
-                   :class="nameTaken() && 'input-error'">
-            <p class="label text-error" x-show="nameTaken()" x-cloak>
-              A topology with this name already exists.
-            </p>
-          </fieldset>
-
-          <div class="flex flex-col gap-4 mt-4">
-            <template x-for="item in editor.switches" :key="item.name">
-              <div class="card bg-base-200">
-                <div class="card-body gap-4">
-                  <h4 class="card-title text-base">
-                    Switch <span x-text="item.name"></span>
-                  </h4>
-                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <fieldset class="fieldset">
-                      <legend class="fieldset-legend">Terminals</legend>
-                      <input type="number" min="0" class="input w-full" x-model.number="item.terminals">
-                    </fieldset>
-                    <fieldset class="fieldset">
-                      <legend class="fieldset-legend">Terminal bandwidth</legend>
-                      <label class="input w-full">
-                        <input type="number" min="0" step="any" class="grow"
-                               x-model.number="item.terminalBandwidth">
-                        <span class="label">Gbps</span>
-                      </label>
-                    </fieldset>
-                    <fieldset class="fieldset">
-                      <legend class="fieldset-legend">Switch buffer</legend>
-                      <label class="input w-full">
-                        <input type="number" min="0" step="any" class="grow"
-                               x-model.number="item.switchBuffer">
-                        <span class="label">Gb</span>
-                      </label>
-                    </fieldset>
-                  </div>
-
-                  <div>
-                    <div class="fieldset-legend">Connections</div>
-                    <p class="text-[12.5px]" style="color:var(--text-dim);"
-                       x-show="!item.connections.length">
-                      No outbound connections.
-                    </p>
-                    <div class="flex flex-col gap-2 mt-1">
-                      <template x-for="connection in item.connections" :key="connection.target">
-                        <div class="flex flex-row items-center gap-2">
-                          <span class="w-24 text-sm" x-text="`${item.name} → ${connection.target}`"></span>
-                          <label class="input input-sm flex-1">
-                            <input type="number" min="0" step="any" class="grow"
-                                   x-model.number="connection.bandwidth">
-                            <span class="label">Gbps</span>
-                          </label>
-                        </div>
-                      </template>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </template>
-          </div>
-
-          <div class="modal-action">
-            <button type="button" class="btn" @click="$refs.editorDialog.close()">Cancel</button>
-            <button type="submit" class="btn btn-primary"
-                    :disabled="saving || nameTaken() || !editor.name.trim()">
-              <span class="loading loading-spinner loading-xs" x-show="saving" x-cloak></span>
-              Save
-            </button>
-          </div>
-        </form>
-      </template>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-      <button aria-label="Close">close</button>
-    </form>
-  </dialog>
+  {% include 'net_maestro/partials/topology_editor.html' %}
 </div>
