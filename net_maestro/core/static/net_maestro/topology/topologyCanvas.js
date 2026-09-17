@@ -144,6 +144,12 @@ const toElements = (topology) => [
   })),
 ];
 
+let lastId = 0;
+const nextId = () => {
+  lastId += 1;
+  return `row-${lastId}`;
+};
+
 /**
  * Convert an API topology payload into the editor form model.
  *
@@ -157,19 +163,26 @@ const toElements = (topology) => [
  * @param {Object} topology - Value from the topology detail endpoint
  * @returns {Object} Form model holding every field the YAML file defines
  */
-const toForm = (topology) => ({
-  name: topology.name,
-  label: `Edit ${topology.label}`,
-  switches: topology.switches.map((item) => ({
+const toForm = (topology) => {
+  const switches = topology.switches.map((item) => ({
+    id: nextId(),
     name: item.name,
     terminals: item.terminals,
     terminalBandwidth: item.terminal_bandwidth_gbps,
     switchBuffer: item.switch_buffer_gb,
-    connections: topology.links
-      .filter((link) => link.source === item.name)
-      .map((link) => ({ target: link.target, bandwidth: link.bandwidth_gbps })),
-  })),
-});
+    connections: [],
+  }));
+  const idByName = new Map(switches.map((item) => [item.name, item.id]));
+  for (const link of topology.links) {
+    const source = switches.find((item) => item.name === link.source);
+    source.connections.push({
+      id: nextId(),
+      targetId: idByName.get(link.target),
+      bandwidth: link.bandwidth_gbps,
+    });
+  }
+  return { name: topology.name, label: `Edit ${topology.label}`, switches };
+};
 
 /**
  * Build the empty form the create flow starts from, shaped like `toForm`.
@@ -183,6 +196,7 @@ const blankForm = () => ({
   name: '',
   label: 'New Topology',
   switches: [{
+    id: nextId(),
     name: 'A',
     terminals: 1,
     terminalBandwidth: 1,
@@ -197,28 +211,32 @@ const blankForm = () => ({
  * @param {Object} form - The editor form model
  * @returns {Object} Request body for the topology create endpoint
  */
-const toPayload = (form) => ({
-  name: form.name.trim(),
-  switches: form.switches.map((item) => ({
-    name: item.name,
-    terminals: item.terminals,
-    // biome-ignore-start lint/style/useNamingConvention: the API speaks snake_case
-    terminal_bandwidth_gbps: item.terminalBandwidth,
-    switch_buffer_gb: item.switchBuffer,
-    connections: item.connections.map((connection) => ({
-      target: connection.target,
-      bandwidth_gbps: connection.bandwidth,
+const toPayload = (form) => {
+  const nameById = new Map(form.switches.map((item) => [item.id, item.name.trim()]));
+  return {
+    name: form.name.trim(),
+    switches: form.switches.map((item) => ({
+      name: item.name.trim(),
+      terminals: item.terminals,
+      // biome-ignore-start lint/style/useNamingConvention: the API speaks snake_case
+      terminal_bandwidth_gbps: item.terminalBandwidth,
+      switch_buffer_gb: item.switchBuffer,
+      connections: item.connections.map((connection) => ({
+        target: nameById.get(connection.targetId) ?? '',
+        bandwidth_gbps: connection.bandwidth,
+      })),
+      // biome-ignore-end lint/style/useNamingConvention: the API speaks snake_case
     })),
-    // biome-ignore-end lint/style/useNamingConvention: the API speaks snake_case
-  })),
-});
+  };
+};
 
 /**
  * Report what keeps a form from being a saveable network, if anything.
  *
- * Three things have to hold: two or more switches, at least one connection,
- * and no connection left without a target. A switch with no connections of its
- * own still passes - this is a floor, not a reachability check.
+ * Four things have to hold: two or more switches, a unique name on each of
+ * them, at least one connection, and no connection left without a target. A
+ * switch with no connections of its own still passes - this is a floor, not a
+ * reachability check.
  *
  * @param {Object} form - The editor form model
  * @returns {?string} The first problem found, or null when the form is ready
@@ -230,14 +248,44 @@ const findNetworkProblem = (form) => {
   if (form.switches.length < 2) {
     return 'At least two switches required.';
   }
+  if (findSwitchProblems(form).size) {
+    return 'Every switch needs a name of its own.';
+  }
   const connections = form.switches.flatMap((item) => item.connections);
   if (!connections.length) {
     return 'At least one connection required.';
   }
-  if (connections.some((connection) => !connection.target)) {
+  if (connections.some((connection) => !connection.targetId)) {
     return 'At least one connection is incomplete.';
   }
   return null;
+};
+
+/**
+ * Report which switch names the server would reject, and why.
+ *
+ * Names become the mapping keys of the YAML file, so each one has to be
+ * present and unique. Both switches in a collision are reported, since either
+ * one is a reasonable thing to rename.
+ *
+ * @param {Object} form - The editor form model
+ * @returns {Map<string, string>} Problem text keyed by switch id
+ */
+const findSwitchProblems = (form) => {
+  const problems = new Map();
+  const idByName = new Map();
+  for (const item of form.switches) {
+    const name = item.name.trim();
+    if (!name) {
+      problems.set(item.id, 'Needs a name');
+    } else if (idByName.has(name)) {
+      problems.set(item.id, 'Name already used');
+      problems.set(idByName.get(name), 'Name already used');
+    } else {
+      idByName.set(name, item.id);
+    }
+  }
+  return problems;
 };
 
 /**
@@ -350,6 +398,7 @@ export const topologyCanvas = () => {
             switches: [
               ...editor.switches,
               {
+                id: nextId(),
                 name,
                 terminals: 1,
                 terminalBandwidth: 1,
@@ -361,83 +410,114 @@ export const topologyCanvas = () => {
           break;
         }
       }
-      this.hasMinimalNetwork();
     },
 
     /**
      * Remove a switch from the editor.
      *
-     * Replaces `editor` with the trimmed form and rechecks the network. Other
-     * switches keep any connection aimed at the one that just left, so those
-     * rows have to be cleaned up before the topology will save.
+     * Replaces `editor` with the trimmed form, dropping any connection that
+     * pointed at the switch along with it.
      *
      * @param {Object} editor - The editor form model to rebuild from
-     * @param {string} switchName - The name of the switch to remove
+     * @param {string} switchId - Id of the switch to remove
      */
-    removeSwitch(editor, switchName) {
+    removeSwitch(editor, switchId) {
       this.editor = {
         ...editor,
-        switches: editor.switches.filter((switchItem) => switchItem.name !== switchName),
+        switches: editor.switches
+          .filter((switchItem) => switchItem.id !== switchId)
+          .map((switchItem) => ({
+            ...switchItem,
+            connections: switchItem.connections.filter(
+              (connection) => connection.targetId !== switchId,
+            ),
+          })),
       };
-      this.hasMinimalNetwork();
     },
 
     /**
      * Add an outbound connection to one switch, with no target chosen yet.
      *
-     * Replaces `editor` with the extended form and rechecks the network, which
-     * reports the blank target until the user picks one.
+     * Replaces `editor` with the extended form. The new row has no target yet,
+     * which the network check reports until the user picks one.
      *
      * @param {Object} editor - The editor form model to rebuild from
-     * @param {string} switchName - Name of the switch the connection leaves from
+     * @param {string} switchId - Id of the switch the connection leaves from
      */
-    addConnection(editor, switchName) {
+    addConnection(editor, switchId) {
       this.editor = {
         ...editor,
         switches: editor.switches.map((switchItem) => {
-          if (switchItem.name === switchName) {
-            return {
-              ...switchItem,
-              connections: [
-                ...switchItem.connections,
-                {
-                  target: "",
-                  bandwidth: 1,
-                },
-              ],
-            };
+          if (switchItem.id !== switchId) {
+            return switchItem;
           }
-          return switchItem;
+          return {
+            ...switchItem,
+            connections: [
+              ...switchItem.connections,
+              {
+                id: nextId(),
+                targetId: '',
+                bandwidth: 1,
+              },
+            ],
+          };
         }),
       };
-      this.hasMinimalNetwork();
     },
 
     /**
-     * Remove one switch's outbound connection, matched by its target.
+     * Remove one of a switch's outbound connections.
      *
-     * Replaces `editor` with the trimmed form and rechecks the network, so the
-     * Save gate and its message follow the removal. Matching is by target, so
-     * two rows on the same switch aimed at the same place go together.
+     * Replaces `editor` with the trimmed form. Rows are matched by their own
+     * id, so a switch with two rows aimed at the same place loses only the one
+     * the user clicked.
      *
      * @param {Object} editor - The editor form model to rebuild from
-     * @param {string} switchName - Name of the switch the connection leaves from
-     * @param {string} target - Name of the switch the connection points at
+     * @param {string} switchId - Id of the switch the connection leaves from
+     * @param {string} connectionId - Id of the connection to remove
      */
-    removeConnection(editor, switchName, target) {
+    removeConnection(editor, switchId, connectionId) {
       this.editor = {
         ...editor,
         switches: editor.switches.map((switchItem) => {
-          if (switchItem.name === switchName) {
-            return {
-              ...switchItem,
-              connections: switchItem.connections.filter((connection) => connection.target !== target),
-            };
+          if (switchItem.id !== switchId) {
+            return switchItem;
           }
-          return switchItem;
+          return {
+            ...switchItem,
+            connections: switchItem.connections.filter(
+              (connection) => connection.id !== connectionId,
+            ),
+          };
         }),
       };
-      this.hasMinimalNetwork();
+    },
+
+        /**
+     * List the switches a connection may point at.
+     *
+     * Leaves out the switch itself, and marks targets this switch already
+     * points at: two connections to the same place collapse into one entry
+     * when the YAML is written.
+     *
+     * @param {Object} switchItem - The switch the connection leaves from
+     * @param {Object} connection - The connection being edited
+     * @returns {Array} Candidates with `id`, `name`, and `taken`
+     */
+    targetOptions(switchItem, connection) {
+      const used = new Set(
+        switchItem.connections
+          .filter((other) => other.id !== connection.id)
+          .map((other) => other.targetId),
+      );
+      return this.editor.switches
+        .filter((candidate) => candidate.id !== switchItem.id || candidate.id === connection.targetId)
+        .map((candidate) => ({
+          id: candidate.id,
+          name: candidate.name,
+          taken: used.has(candidate.id),
+        }));
     },
 
     /**
@@ -461,7 +541,7 @@ export const topologyCanvas = () => {
      *
      * @returns {boolean} True when there are two or more switches.
      */
-    atLeastTwoSwitches() {
+    canConnect() {
       if (this.editor?.switches.length > 1) {
         return true;
       }
@@ -478,6 +558,22 @@ export const topologyCanvas = () => {
      */
     get networkProblem() {
       return findNetworkProblem(this.editor);
+    },
+
+    /**
+     * Report what is wrong with one switch's name, if anything.
+     *
+     * Read while rendering, so the offending card can mark itself rather than
+     * leaving the user to hunt for it.
+     *
+     * @param {string} switchId - Id of the switch to check
+     * @returns {?string} Problem text, or null when the name is fine
+     */
+    switchProblem(switchId) {
+      if (!this.editor) {
+        return null;
+      }
+      return findSwitchProblems(this.editor).get(switchId) ?? null;
     },
 
     /**
