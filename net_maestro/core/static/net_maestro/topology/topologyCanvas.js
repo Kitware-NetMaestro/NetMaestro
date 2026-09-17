@@ -157,7 +157,7 @@ const toElements = (topology) => [
  */
 const toForm = (topology) => ({
   name: topology.name,
-  label: topology.label,
+  label: `Edit ${topology.label}`,
   switches: topology.switches.map((item) => ({
     name: item.name,
     terminals: item.terminals,
@@ -167,6 +167,26 @@ const toForm = (topology) => ({
       .filter((link) => link.source === item.name)
       .map((link) => ({ target: link.target, bandwidth: link.bandwidth_gbps })),
   })),
+});
+
+/**
+ * Build the empty form the create flow starts from, shaped like `toForm`.
+ *
+ * One switch so the dialog opens on something editable; no name so Save stays
+ * disabled until the user picks one.
+ *
+ * @returns {Object} Form model for a topology that does not exist yet
+ */
+const blankForm = () => ({
+  name: '',
+  label: 'New Topology',
+  switches: [{
+    name: 'A',
+    terminals: 1,
+    terminalBandwidth: 1,
+    switchBuffer: 1,
+    connections: [],
+  }],
 });
 
 /**
@@ -270,15 +290,60 @@ export const topologyCanvas = () => {
     },
 
     /**
-     * Open the edit dialog with a copy of the selected topology.
+     * Open the edit dialog with a copy of the selected topology or with a blank form.
      */
-    openEditor() {
-      if (!this.topology) {
-        return;
-      }
-      this.editor = toForm(this.topology);
-      this.saveError = null;
+    openEditor(isNew) {
+      this.editor = isNew ? blankForm() : toForm(this.topology);
+      this.saveError = isNew ? "At least two switches required" : null;
       this.$refs.editorDialog.showModal();
+    },
+
+    /**
+     * Add a switch named with the first free letter, A through Z.
+     *
+     * Returns a new form instead of mutating, so the caller has to assign the
+     * result back for the dialog to update: `editor = addSwitch(editor)`.
+     * Once every letter is taken, the form comes back untouched.
+     *
+     * @param {Object} editor - The editor form model
+     * @returns {Object} A form with the new switch, or `editor` if no letter was free
+     */
+    addSwitch(editor) {
+      for (let i = 1; i <= 26; i++) {
+        const name = String.fromCharCode(65 + i - 1);
+        if (!editor.switches.some((switchItem) => switchItem.name === name)) {
+          return {
+            ...editor,
+            switches: [
+              ...editor.switches,
+              {
+                name,
+                terminals: 1,
+                terminalBandwidth: 1,
+                switchBuffer: 1,
+                connections: [],
+              },
+            ],
+          };
+        }
+      }
+      this.atLeastTwoSwitches();
+      return editor;
+    },
+
+
+    /**
+     * Remove a switch from the editor.
+     *
+     * @param {Object} editor - The editor form model
+     * @param {string} switchName - The name of the switch to remove
+     * @returns {Object} A form with the switch removed
+     */
+    removeSwitch(editor, switchName) {
+      return {
+        ...editor,
+        switches: editor.switches.filter((switchItem) => switchItem.name !== switchName),
+      };
     },
 
     /**
@@ -293,6 +358,22 @@ export const topologyCanvas = () => {
     nameTaken() {
       const name = this.editor?.name.trim();
       return [...this.$refs.picker.options].some((option) => option.value === name);
+    },
+
+    /**
+     * Report whether there are at least two switches present.
+     *
+     * A topology cannot be created without at least two switches.
+     *
+     * @returns {boolean} True when there are two or more switches.
+     */
+    atLeastTwoSwitches() {
+      if (this.editor?.switches.length > 1) {
+        this.saveError = null;
+        return true;
+      }
+      this.saveError = "At least two switches required";
+      return false;
     },
 
     /**
