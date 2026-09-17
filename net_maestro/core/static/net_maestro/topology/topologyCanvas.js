@@ -33,6 +33,9 @@ const STRIP_WIDTH = MAX_ICONS_WIDTH + ICON_GAP + OVERFLOW_TEXT_WIDTH;
 const NODE_WIDTH = STRIP_WIDTH + 16;
 const NODE_HEIGHT = 64;
 
+// Prevent an error with the model (`fixed_vector capacity exceeded`)
+const MAX_PORTS_PER_SWITCH = 128;
+
 /**
  * Draw a node's terminals as a strip of small icons.
  *
@@ -195,14 +198,16 @@ const toForm = (topology) => {
 const blankForm = () => ({
   name: '',
   label: 'New Topology',
-  switches: [{
-    id: nextId(),
-    name: 'A',
-    terminals: 1,
-    terminalBandwidth: 1,
-    switchBuffer: 1,
-    connections: [],
-  }],
+  switches: [
+    {
+      id: nextId(),
+      name: 'A',
+      terminals: 1,
+      terminalBandwidth: 1,
+      switchBuffer: 1,
+      connections: [],
+    },
+  ],
 });
 
 /**
@@ -258,6 +263,21 @@ const findNetworkProblem = (form) => {
   if (connections.some((connection) => !connection.targetId)) {
     return 'At least one connection is incomplete.';
   }
+  const terminalCount = form.switches.reduce((count, item) => count + item.terminals, 0);
+  if (terminalCount < 2) {
+    return 'At least two total terminals required.';
+  }
+  if (
+    form.switches.some((item) => item.terminals + item.connections.length > MAX_PORTS_PER_SWITCH)
+  ) {
+    return `No switch may have more than ${MAX_PORTS_PER_SWITCH} terminals and connections combined.`;
+  }
+  if (form.switches.some((item) => item.terminalBandwidth <= 0 || item.switchBuffer <= 0)) {
+    return 'Terminal bandwidth and switch buffer must be greater than zero.';
+  }
+  if (connections.some((connection) => connection.bandwidth <= 0)) {
+    return 'Every connection needs a bandwidth greater than zero.';
+  }
   return null;
 };
 
@@ -281,11 +301,57 @@ const findSwitchProblems = (form) => {
     } else if (idByName.has(name)) {
       problems.set(item.id, 'Name already used');
       problems.set(idByName.get(name), 'Name already used');
+    } else if (name.includes(':')) {
+      problems.set(item.id, 'No colons in names');
     } else {
       idByName.set(name, item.id);
     }
   }
   return problems;
+};
+
+/**
+ * Report which switches cannot exchange traffic with the rest of the network.
+ *
+ * The model routes with a breadth-first search per source and leaves no route
+ * where it finds none, then drops that traffic at run time without a word. So
+ * every switch has to reach every other one, which holds exactly when a search
+ * forwards along the connections and a search backwards against them both
+ * reach everything from the same starting switch.
+ *
+ * @param {Object} form - The editor form model
+ * @returns {Array<string>} Names of the stranded switches, empty when all can talk
+ */
+const findStrandedSwitches = (form) => {
+  const [root] = form.switches;
+  const outbound = new Map(form.switches.map((item) => [item.id, []]));
+  const inbound = new Map(form.switches.map((item) => [item.id, []]));
+  for (const item of form.switches) {
+    for (const connection of item.connections) {
+      outbound.get(item.id).push(connection.targetId);
+      inbound.get(connection.targetId)?.push(item.id);
+    }
+  }
+
+  const reachable = (edges) => {
+    const seen = new Set([root.id]);
+    const queue = [root.id];
+    while (queue.length) {
+      for (const next of edges.get(queue.pop())) {
+        if (!seen.has(next)) {
+          seen.add(next);
+          queue.push(next);
+        }
+      }
+    }
+    return seen;
+  };
+  const downstream = reachable(outbound);
+  const upstream = reachable(inbound);
+
+  return form.switches
+    .filter((item) => !(downstream.has(item.id) && upstream.has(item.id)))
+    .map((item) => item.name.trim());
 };
 
 /**
@@ -494,7 +560,7 @@ export const topologyCanvas = () => {
       };
     },
 
-        /**
+    /**
      * List the switches a connection may point at.
      *
      * Leaves out the switch itself, and marks targets this switch already
@@ -512,7 +578,9 @@ export const topologyCanvas = () => {
           .map((other) => other.targetId),
       );
       return this.editor.switches
-        .filter((candidate) => candidate.id !== switchItem.id || candidate.id === connection.targetId)
+        .filter(
+          (candidate) => candidate.id !== switchItem.id || candidate.id === connection.targetId,
+        )
         .map((candidate) => ({
           id: candidate.id,
           name: candidate.name,
@@ -558,6 +626,26 @@ export const topologyCanvas = () => {
      */
     get networkProblem() {
       return findNetworkProblem(this.editor);
+    },
+
+    /**
+     * Warn about switches the model would never route traffic to or from.
+     *
+     * The topology still saves: the model loads it and runs, it just discards
+     * what it cannot route. Held back until the form is otherwise sound, since
+     * a half-built network is stranded by definition.
+     *
+     * @returns {?string} Warning text, or null when there is nothing to say
+     */
+    get networkWarning() {
+      if (!this.editor || findNetworkProblem(this.editor)) {
+        return null;
+      }
+      const stranded = findStrandedSwitches(this.editor);
+      if (!stranded.length) {
+        return null;
+      }
+      return `${stranded.join(', ')} cannot exchange traffic with the rest of the network. The model drops what it cannot route.`;
     },
 
     /**
