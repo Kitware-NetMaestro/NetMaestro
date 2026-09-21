@@ -45,6 +45,8 @@ class ComponentModelForm(forms.ModelForm):
 
     def clean(self) -> dict[str, Any]:
         cleaned = super().clean()
+        if cleaned is None:
+            return {}
         base_name = cleaned.get("base_model", "")
         meta = BASE_MODEL_BY_NAME.get(base_name)
         if not meta:

@@ -38,7 +38,9 @@ class TestSimulationModelsData:
 
     def test_ffw_has_component_models(self) -> None:
         ffw = SIMULATION_MODELS[0]
-        component_names = [c["name"] for c in ffw["component_models"]]
+        components = ffw["component_models"]
+        assert isinstance(components, list)
+        component_names = [c["name"] for c in components]
         assert "fluid-flow-wan-switch-lp" in component_names
 
     def test_phold_has_no_component_models(self) -> None:
