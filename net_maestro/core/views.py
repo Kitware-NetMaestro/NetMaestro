@@ -24,6 +24,7 @@ from .base_models import BASE_MODEL_BY_NAME, BASE_MODEL_REGISTRY
 from .constants import RunStatus
 from .forms import ComponentModelForm, PHOLDSimulationForm
 from .models import ComponentModel, PHOLDSimulationConfig, Run
+from .simulation_models import SIMULATION_MODELS
 from .tasks import run_phold_simulation
 
 logger = logging.getLogger(__name__)
@@ -32,17 +33,7 @@ logger = logging.getLogger(__name__)
 def _avail_component_models_context() -> dict[str, object]:
     """Return available models context for the models list page."""
     return {
-        "models": [
-            {
-                "name": m["name"],
-                "type": m["component_type"],
-                "description": m["description"],
-                "parameters": [p["name"] if isinstance(p, dict) else p for p in m["parameters"]],
-                "icon_class": m["icon_class"],
-                "disabled": m.get("disabled", False),
-            }
-            for m in BASE_MODEL_REGISTRY
-        ],
+        "simulation_models": SIMULATION_MODELS,
     }
 
 
