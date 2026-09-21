@@ -1,5 +1,6 @@
 <div class="bg-base-300 overflow-y-auto" style="height: calc(100vh - 64px);" x-data="topologyCanvas"
-     data-create-url="{% url 'api-topology-create' %}">
+     data-create-url="{% url 'api-topology-create' %}"
+     data-component-models-url="{% url 'api-component-models' %}?base_model=fluid-flow-wan-switch-lp">
   <div class="p-8 flex flex-row gap-6 h-full">
     <div class="flex flex-col items-start gap-4">
       <div>
