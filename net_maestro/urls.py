@@ -8,6 +8,7 @@ from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions, routers
 
+from net_maestro.core.rest.component_api import ComponentModelListView
 from net_maestro.core.rest.run_api import (
     RunEventDataView,
     RunModelDataView,
@@ -48,6 +49,11 @@ urlpatterns = [
     path("api/v1/runs/<int:run_id>/ross", RunRossDataView.as_view(), name="api-run-ross"),
     path("api/v1/runs/<int:run_id>/event", RunEventDataView.as_view(), name="api-run-event"),
     path("api/v1/runs/<int:run_id>/model", RunModelDataView.as_view(), name="api-run-model"),
+    path(
+        "api/v1/component-models/",
+        ComponentModelListView.as_view(),
+        name="api-component-models",
+    ),
     path("api/docs/redoc/", schema_view.with_ui("redoc"), name="docs-redoc"),
     path("api/docs/swagger/", schema_view.with_ui("swagger"), name="docs-swagger"),
     # Page endpoints
