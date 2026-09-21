@@ -1,48 +1,85 @@
 <div class="bg-base-300 overflow-y-auto" style="height: calc(100vh - 64px);">
   <div class="p-8">
-    <div class="flex flex-row items-start justify-between gap-4">
-      <div>
-        <h1 class="text-3xl font-semibold">Available Component Models</h1>
-      </div>
-       <a
-        href="{% url 'model-create' %}"
-        hx-get="{% url 'model-create' %}"
-        hx-target="#main-content"
-        hx-swap="innerHTML"
-        hx-push-url="true"
-        class="btn btn-primary"
-      >
-        <i class="ri-add-line" aria-hidden="true"></i>
-        New Component Model
-      </a>
+
+    <div>
+      <h1 class="text-3xl font-semibold">Available Models</h1>
+      <p class="text-sm text-base-content/60 mt-1">
+        Select a simulation model to configure and run.
+      </p>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-8">
-      {% for model in models %}
-      <div class="card bg-base-100 shadow-sm">
-        <div class="card-body">
+    <div class="grid grid-cols-1 gap-6 mt-6">
+      {% for sim in simulation_models %}
+      <div class="collapse collapse-arrow bg-base-100 shadow-sm{% if sim.disabled %} opacity-60{% endif %}">
+        <input type="checkbox" aria-label="Toggle {{ sim.name }} details"{% if forloop.first %} checked{% endif %}>
+        <div class="collapse-title">
           <div class="flex flex-row items-start justify-between gap-4">
             <div class="flex flex-row items-center gap-3">
-              <i class="{{ model.icon_class }} text-xl" aria-hidden="true"></i>
-              <h2 class="card-title">{{ model.name }}</h2>
+              <i class="{{ sim.icon_class }} text-xl" aria-hidden="true"></i>
+              <h2 class="card-title">{{ sim.name }}</h2>
+              {% if sim.disabled %}
+              <div class="badge badge-neutral">Coming Soon</div>
+              {% else %}
+              <a
+                href="{% url sim.url_name %}"
+                hx-get="{% url sim.url_name %}"
+                hx-target="#main-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                class="btn btn-secondary btn-xs relative z-10"
+                onclick="event.stopPropagation()"
+                @click="activeItem = '{{ sim.active_page }}'"
+              >
+                Get Started
+                <i class="ri-arrow-right-line" aria-hidden="true"></i>
+              </a>
+              {% endif %}
             </div>
-            <div class="flex flex-row gap-2">
-              <div class="badge badge-outline">{{ model.type }}</div>
+            <div class="flex flex-row items-center gap-2">
+              <div class="badge badge-primary badge-outline">{{ sim.engine }}</div>
+              <div class="badge badge-outline">{{ sim.category }}</div>
             </div>
           </div>
-          <p class="text-[12.5px] leading-relaxed" style="color:var(--text-dim);"> {{model.description}}</p>
-          <div class="flex flex-row gap-2">
-            {% for param in model.parameters %}
-            <div class="badge badge-outline">{{ param }}</div>
+          <p class="text-[12.5px] leading-relaxed mt-1" style="color:var(--text-dim);">
+            {{ sim.description }}
+          </p>
+          <div class="flex flex-row gap-2 mt-2">
+            {% for tag in sim.tags %}
+            <div class="badge badge-ghost badge-sm">{{ tag }}</div>
             {% endfor %}
           </div>
         </div>
-      </div>
-      {% empty %}
-      <div class="card bg-base-100 shadow-sm border border-dashed border-base-content/20 xl:col-span-2">
-        <div class="card-body items-center justify-center text-center min-h-72">
-          <i class="ri-stack-line text-4xl text-base-content/50" aria-hidden="true"></i>
-          <h2 class="card-title mt-4">No models available</h2>
+        <div class="collapse-content">
+          {% if sim.component_models %}
+          <div>
+            <h3 class="text-sm font-semibold text-base-content/60 mb-3">Component Models</h3>
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              {% for model in sim.component_models %}
+              <div class="card bg-base-200">
+                <div class="card-body p-4">
+                  <div class="flex flex-row items-start justify-between gap-4">
+                    <div class="flex flex-row items-center gap-2">
+                      <i class="{{ model.icon_class }} text-lg" aria-hidden="true"></i>
+                      <span class="font-medium text-sm">{{ model.name }}</span>
+                    </div>
+                    <div class="badge badge-outline badge-sm">{{ model.type }}</div>
+                  </div>
+                  <p class="text-xs mt-1" style="color:var(--text-dim);">{{ model.description }}</p>
+                  <div class="flex flex-row flex-wrap gap-1 mt-2">
+                    {% for param in model.parameters %}
+                    <div class="badge badge-outline badge-xs">{{ param }}</div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% elif not sim.disabled %}
+          <p class="text-sm text-base-content/60">
+            This model has no associated component models.
+          </p>
+          {% endif %}
         </div>
       </div>
       {% endfor %}

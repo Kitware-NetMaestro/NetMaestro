@@ -1,16 +1,15 @@
 <div class="bg-base-300 overflow-y-auto" style="height: calc(100vh - 64px);">
   <div class="p-8 max-w-5xl">
     {% comment %}
-      This page is a demonstration-only create form for `/models-list/new-model`.
-      The fields are read-only and are populated by model_create() via
-      _model_form_context(). Depending on further specs the fields and details here might change.
-      Save and Cancel intentionally navigate back to the
-      custom component list without persisting anything.
+      This page is a demonstration-only create form for `/models/new-model`.
+      The fields are read-only and populated by model_create() via
+      _new_model_form_context().
 
-      TODO: Replace the read-only display with a real Django form when models
-      are backed properly by django models.
-      TODO: Convert the save action to POST and persist the new model before returning
-      to `/models/`.
+      TODO: Decide whether to wire this form up to a real Django model for
+      user-defined component models, or remove it entirely in favor of the
+      base model registry in base_models.py. The "New Component Model" button
+      that linked here has been removed from models_list.html pending that
+      decision.
     {% endcomment %}
     <div class="flex flex-row items-start justify-between gap-4">
       <div>
