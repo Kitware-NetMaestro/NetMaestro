@@ -198,16 +198,7 @@ const toForm = (topology) => {
 const blankForm = () => ({
   name: '',
   label: 'New Topology',
-  switches: [
-    {
-      id: nextId(),
-      name: 'A',
-      terminals: 1,
-      terminalBandwidth: 1,
-      switchBuffer: 1,
-      connections: [],
-    },
-  ],
+  switches: [],
 });
 
 /**
@@ -389,6 +380,7 @@ export const topologyCanvas = () => {
     editor: null,
     saving: false,
     saveError: null,
+    switchComponents: [],
 
     destroy() {
       this.teardown();
@@ -440,22 +432,37 @@ export const topologyCanvas = () => {
      *
      * @param {boolean} isNew - True to start from a blank form
      */
-    openEditor(isNew) {
+    async fetchSwitchComponents() {
+      const url = this.$root.dataset.componentModelsUrl;
+      if (!url) return;
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          this.switchComponents = await response.json();
+        }
+      } catch {
+        // the dropdown will be empty and show a disabled button.
+      }
+    },
+
+    async openEditor(isNew) {
+      await this.fetchSwitchComponents();
       this.editor = isNew ? blankForm() : toForm(this.topology);
       this.saveError = null;
       this.$refs.editorDialog.showModal();
     },
 
     /**
-     * Add a switch named with the first free letter, A through Z.
+     * Add a switch from a custom component, using its defaults.
      *
-     * Replaces `editor` with the extended form and rechecks the network, so the
-     * Save gate and its message follow the addition. Does nothing once every
-     * letter is taken.
+     * Picks the first free letter A–Z as the name. Pre-fills terminal bandwidth
+     * and switch buffer from the component's parameters.
      *
      * @param {Object} editor - The editor form model to rebuild from
+     * @param {Object} component - Component model from the API
      */
-    addSwitch(editor) {
+    addSwitchFromComponent(editor, component) {
+      const params = component.parameters || {};
       for (let i = 1; i <= 26; i++) {
         const name = String.fromCharCode(65 + i - 1);
         if (!editor.switches.some((switchItem) => switchItem.name === name)) {
@@ -467,8 +474,8 @@ export const topologyCanvas = () => {
                 id: nextId(),
                 name,
                 terminals: 1,
-                terminalBandwidth: 1,
-                switchBuffer: 1,
+                terminalBandwidth: Number(params.terminal_bandwidth) || 100,
+                switchBuffer: Number(params.switch_buffer) || 64,
                 connections: [],
               },
             ],
