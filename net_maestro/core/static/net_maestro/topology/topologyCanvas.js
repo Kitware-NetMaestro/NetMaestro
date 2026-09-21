@@ -434,7 +434,9 @@ export const topologyCanvas = () => {
      */
     async fetchSwitchComponents() {
       const url = this.$root.dataset.componentModelsUrl;
-      if (!url) return;
+      if (!url) {
+        return;
+      }
       try {
         const response = await fetch(url);
         if (response.ok) {
