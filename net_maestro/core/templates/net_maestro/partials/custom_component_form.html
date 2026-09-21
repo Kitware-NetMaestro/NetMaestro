@@ -1,17 +1,44 @@
 <div class="bg-base-300 overflow-y-auto" style="height: calc(100vh - 64px);">
-  <div class="p-8 max-w-5xl">
-    {% comment %}
-      This page is a demonstration-only create form for `/configuration/new-component`.
-      The fields are read-only and are populated by custom_component_create() via
-      _new_component_form_context(). Save and Cancel intentionally navigate back to the
-      custom component list without persisting anything.
+  {{ base_model_registry_by_name|json_script:"base-model-registry" }}
+  {{ initial_params|json_script:"initial-params" }}
+  {{ form.base_model.value|default:''|json_script:"selected-base-model" }}
+  <div class="p-8 max-w-5xl m-auto"
+    x-data="{
+      registry: {},
+      selectedBase: '',
+      paramValues: {},
+      get meta() {
+        return this.registry[this.selectedBase] || null;
+      },
+      get params() {
+        if (!this.meta) return [];
+        return this.meta.parameters.map(p =>
+          typeof p === 'string' ? {name: p, label: p, type: 'text'} : p
+        );
+      },
+      init() {
+        this.registry = JSON.parse(
+          document.getElementById('base-model-registry').textContent
+        );
+        this.paramValues = JSON.parse(
+          document.getElementById('initial-params').textContent
+        );
+        this.selectedBase = JSON.parse(
+          document.getElementById('selected-base-model').textContent
+        );
+      },
+      collectParams() {
+        const obj = {};
+        for (const p of this.params) {
+          obj[p.name] = this.paramValues[p.name] || '';
+        }
+        this.$refs.parameters.value = JSON.stringify(obj);
+        this.$refs.component_type.value = this.meta ? this.meta.component_type : '';
+        this.$refs.engine.value = this.meta ? this.meta.engine : '';
+      }
+    }"
+  >
 
-      TODO: Replace the read-only display with a real Django form when custom components
-      are backed by models.
-      TODO: Convert the save action to POST and persist the new component before returning
-      to `/configuration/my-components/`.
-      TODO: Use the selected base model to determine which type-specific sections render.
-    {% endcomment %}
     <div class="flex flex-row items-start justify-between gap-4">
       <div>
         <div class="flex flex-row items-center gap-2 text-sm text-base-content/60">
@@ -29,7 +56,7 @@
           <span>{% if is_edit %}Edit{% else %}New{% endif %} Component</span>
         </div>
         <h1 class="text-3xl font-semibold mt-2">
-          {{ component_type }} Component
+          {% if is_edit %}Edit{% else %}New{% endif %} Component
         </h1>
       </div>
       <div class="flex flex-row gap-2">
@@ -43,58 +70,142 @@
         >
           Cancel
         </a>
-        <a
-          href="{% url 'configuration-partial' %}"
-          hx-get="{% url 'configuration-partial' %}"
-          hx-target="#main-content"
-          hx-swap="innerHTML"
-          hx-push-url="true"
+        <button
+          type="submit"
+          form="component-form"
           class="btn btn-primary"
         >
           Save
-        </a>
+        </button>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-6 mt-8">
-      <div class="card bg-base-100 shadow-sm">
-        <div class="card-body">
-          <div class="flex flex-row items-center justify-between gap-4">
-            <div class="flex flex-row items-center gap-3">
-              <i class="ri-server-line text-2xl text-primary" aria-hidden="true"></i>
-              <div>
-                <h2 class="card-title">{{ component_type }} preset</h2>
-                <div class="text-sm text-base-content/60">Based on {{ base_model }}</div>
+    <form id="component-form" method="post" action="{{ request.path }}"
+      @submit="collectParams()">
+      {% csrf_token %}
+      <input type="hidden" name="component_type" x-ref="component_type"
+        value="{{ form.component_type.value|default:'' }}">
+      <input type="hidden" name="engine" x-ref="engine"
+        value="{{ form.engine.value|default:'' }}">
+      <input type="hidden" name="parameters" x-ref="parameters"
+        value="{{ form.parameters.value|default_if_none:'{}' }}">
+
+      {% if form.non_field_errors %}
+      <div class="alert alert-error mt-4">
+        <ul>
+          {% for error in form.non_field_errors %}
+          <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <div class="grid grid-cols-1 gap-6 mt-8">
+        <div class="card bg-base-100 shadow-sm">
+          <div class="card-body">
+            <h2 class="card-title mb-4">Base Model</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label class="form-control w-full">
+                <div class="label">
+                  <span class="label-text">Base Model</span>
+                </div>
+                <select
+                  name="base_model"
+                  x-model="selectedBase"
+                  class="select select-bordered w-full"
+                >
+                  <option value="">Select a base model</option>
+                  {% for bm in base_model_registry %}
+                  <option
+                    value="{{ bm.name }}"
+                    {% if form.base_model.value == bm.name %} selected{% endif %}
+                    {% if bm.disabled %} disabled{% endif %}
+                  >
+                    {{ bm.name }}{% if bm.disabled %} (coming soon){% endif %}
+                  </option>
+                  {% endfor %}
+                </select>
+                {% for error in form.base_model.errors %}
+                <p class="text-error text-sm mt-1">{{ error }}</p>
+                {% endfor %}
+              </label>
+              <div class="flex flex-col justify-end" x-show="meta" x-cloak>
+                <div class="flex flex-row gap-2 mb-2">
+                  <div class="badge badge-outline" x-text="meta?.component_type"></div>
+                  <div class="badge badge-outline" x-text="meta?.engine"></div>
+                </div>
               </div>
-            </div>
-            <div class="flex flex-row gap-2">
-              <div class="badge badge-primary badge-outline">{{ component_type }}</div>
-              <div class="badge badge-outline">{{ engine }}</div>
+              <div class="md:col-span-2" x-show="meta" x-cloak>
+                <p class="text-sm text-base-content/60" x-text="meta?.description"></p>
+              </div>
             </div>
           </div>
+        </div>
 
-          {% for section in form_sections %}
-            <div class="mt-6">
-              <h3 class="font-semibold mb-3">{{ section.title }}</h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {% for field in section.fields %}
-                  <label class="form-control w-full">
-                    <div class="label">
-                      <span class="label-text">{{ field.label }}</span>
+        <div class="card bg-base-100 shadow-sm">
+          <div class="card-body">
+            <h2 class="card-title mb-4">Component Details</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label class="form-control w-full">
+                <div class="label">
+                  <span class="label-text">Name</span>
+                </div>
+                {{ form.name }}
+                {% for error in form.name.errors %}
+                <p class="text-error text-sm mt-1">{{ error }}</p>
+                {% endfor %}
+              </label>
+              <label class="form-control w-full md:col-span-2">
+                <div class="label">
+                  <span class="label-text">Description</span>
+                </div>
+                {{ form.description }}
+                {% for error in form.description.errors %}
+                <p class="text-error text-sm mt-1">{{ error }}</p>
+                {% endfor %}
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="card bg-base-100 shadow-sm" x-show="params.length > 0" x-cloak>
+          <div class="card-body">
+            <h2 class="card-title mb-4">Parameters</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <template x-for="p in params" :key="p.name">
+                <label class="form-control w-full">
+                  <div class="label">
+                    <span class="label-text" x-text="p.label"></span>
+                  </div>
+                  <template x-if="p.type === 'number'">
+                    <div class="join w-full">
+                      <input
+                        type="number"
+                        class="input input-bordered join-item w-full"
+                        x-model="paramValues[p.name]"
+                        :min="p.min"
+                        :max="p.max"
+                        :step="p.step || 1"
+                      >
+                      <span
+                        class="join-item flex items-center px-3 bg-base-200 border border-base-300 text-sm text-base-content/60"
+                        x-text="p.unit"
+                      ></span>
                     </div>
+                  </template>
+                  <template x-if="p.type !== 'number'">
                     <input
                       type="text"
-                      value="{{ field.value }}"
                       class="input input-bordered w-full"
-                      readonly
+                      x-model="paramValues[p.name]"
                     >
-                  </label>
-                {% endfor %}
-              </div>
+                  </template>
+                </label>
+              </template>
             </div>
-          {% endfor %}
+          </div>
         </div>
       </div>
-    </div>
+    </form>
   </div>
 </div>

@@ -15,9 +15,31 @@
       {% endcomment %}
       <div class="grid gap-y-4">
         {% for base_model in base_models %}
-          <div class="card bg-base-100 card-sm shadow-sm">
-            <div class="card-body flex p-2 ">
-              <div class="flex flex-row">
+          {% if base_model.disabled %}
+          <div class="card bg-base-100 card-sm shadow-sm opacity-50">
+            <div class="card-body flex p-2">
+              <div class="flex flex-row items-center">
+                <i class="{{ base_model.icon_class }}" aria-hidden="true"></i>
+                <div class="card-title pl-2">{{ base_model.name }}</div>
+                <div class="badge badge-neutral badge-xs ml-auto">Soon</div>
+              </div>
+              <div class="flex flex-row items-baseline justify-between p-2">
+                <div class="font-light text-sm pb-4 pt-2">{{ base_model.type }}</div>
+                <div class="badge badge-outline badge-primary">{{ base_model.engine }}</div>
+              </div>
+            </div>
+          </div>
+          {% else %}
+          <a
+            href="{% url 'custom-component-create' %}?base_model={{ base_model.name }}"
+            hx-get="{% url 'custom-component-create' %}?base_model={{ base_model.name }}"
+            hx-target="#main-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="card bg-base-100 card-sm shadow-sm cursor-pointer transition hover:shadow-md hover:ring-1 hover:ring-primary/30"
+          >
+            <div class="card-body flex p-2">
+              <div class="flex flex-row items-center">
                 <i class="{{ base_model.icon_class }}" aria-hidden="true"></i>
                 <div class="card-title pl-2">{{ base_model.name }}</div>
               </div>
@@ -26,7 +48,8 @@
                 <div class="badge badge-outline badge-primary">{{ base_model.engine }}</div>
               </div>
             </div>
-          </div>
+          </a>
+          {% endif %}
         {% empty %}
           <div class="text-sm text-base-content/60">No base models available.</div>
         {% endfor %}

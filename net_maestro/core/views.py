@@ -6,6 +6,7 @@ Data loading is driven by selecting a Run on the analysis page.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import TYPE_CHECKING
 
@@ -19,194 +20,46 @@ from django.views.decorators.http import require_POST
 if TYPE_CHECKING:
     from django.http import HttpRequest
 
+from .base_models import BASE_MODEL_BY_NAME, BASE_MODEL_REGISTRY
 from .constants import RunStatus
-from .forms import PHOLDSimulationForm
-from .models import PHOLDSimulationConfig, Run
+from .forms import ComponentModelForm, PHOLDSimulationForm
+from .models import ComponentModel, PHOLDSimulationConfig, Run
 from .tasks import run_phold_simulation
 
 logger = logging.getLogger(__name__)
 
 
 def _avail_component_models_context() -> dict[str, object]:
-    """Return available models context for the configuration page."""
+    """Return available models context for the models list page."""
     return {
         "models": [
             {
-                "name": "nw-lp",
-                "type": "host",
-                "description": """Network LP for compute-node endpoints.
-                                Carries an inline workload: block — traffic pattern, message count,
-                                timing, payload size.""",
-                "parameters": ["traffic", "num_messages", "arrival_time", "payload_size"],
-                "icon_class": "ri-organization-chart",
-                "usage_count": 3,
-            },
-            {
-                "name": "simplep2p",
-                "type": "router",
-                "description": "Simple point-to-point router.",
-                "parameters": ["routing", "latency", "bandwidth", "chunk_size", "vc_size"],
-                "icon_class": "ri-server-line",
-                "usage_count": 2,
-            },
+                "name": m["name"],
+                "type": m["component_type"],
+                "description": m["description"],
+                "parameters": [p["name"] if isinstance(p, dict) else p for p in m["parameters"]],
+                "icon_class": m["icon_class"],
+                "disabled": m.get("disabled", False),
+            }
+            for m in BASE_MODEL_REGISTRY
         ],
     }
 
 
-def _custom_component_context() -> dict[str, object]:
-    """Return custom component context for the configuration page.
-
-    TODO: Replace this hard-coded wireframe data with database-backed queries once custom
-    component and base model persistence exists.
-    """
-    return {
-        "base_models": [
-            {
-                "name": "ESNet Switch",
-                "type": "Switch",
-                "engine": "PDES (ROSS)",
-                "icon_class": "ri-organization-chart",
-            },
-            {
-                "name": "nw-lp",
-                "type": "Host",
-                "engine": "PDES (CODES)",
-                "icon_class": "ri-server-line",
-            },
-            {
-                "name": "simplep2p",
-                "type": "Router",
-                "engine": "PDES (CODES)",
-                "icon_class": "ri-router-fill",
-            },
-        ],
-        "custom_components": [
-            {
-                "id": 1,
-                "name": "High Traffic Host",
-                "type": "Host",
-                "base_model": "nw-lp",
-                "icon_class": "ri-server-line",
-                "color_class": "text-primary",
-                "badge_class": "badge-primary",
-                "detail_fields": [
-                    {"label": "Ingress Bandwidth", "value": "100 Gbps"},
-                    {"label": "Egress Bandwidth", "value": "100 Gbps"},
-                    {"label": "Ingress Latency", "value": "0.75 ms"},
-                    {"label": "Egress Latency", "value": "0.75 ms"},
-                    {"label": "Traffic", "value": "Synthetic Workload"},
-                ],
-            },
-            {
-                "id": 2,
-                "name": "Regional Backbone Router",
-                "type": "Router",
-                "base_model": "simplep2p",
-                "icon_class": "ri-router-fill",
-                "color_class": "text-secondary",
-                "badge_class": "badge-secondary",
-                "detail_fields": [
-                    {"label": "Ingress Bandwidth", "value": "400 Gbps"},
-                    {"label": "Egress Bandwidth", "value": "400 Gbps"},
-                    {"label": "Ingress Latency", "value": "1.25 ms"},
-                    {"label": "Egress Latency", "value": "1.25 ms"},
-                    {"label": "Engine", "value": "PDES (CODES)"},
-                    {"label": "Role", "value": "Backbone Transit"},
-                ],
-            },
-            {
-                "id": 3,
-                "name": "Edge Aggregation Switch",
-                "type": "Switch",
-                "base_model": "ESNet Switch",
-                "icon_class": "ri-organization-chart",
-                "color_class": "text-accent",
-                "badge_class": "badge-accent",
-                "detail_fields": [
-                    {"label": "Ingress Bandwidth", "value": "200 Gbps"},
-                    {"label": "Egress Bandwidth", "value": "200 Gbps"},
-                    {"label": "Ingress Latency", "value": "0.50 ms"},
-                    {"label": "Egress Latency", "value": "0.50 ms"},
-                    {"label": "Engine", "value": "PDES (ROSS)"},
-                    {"label": "Role", "value": "Edge Aggregation"},
-                ],
-            },
-        ],
-    }
-
-
-def _new_component_form_context() -> dict[str, object]:
-    """Return read-only demo context for the new custom component form.
-
-    TODO: Replace this static host example with a real Django form bound to model-backed
-    base component choices and custom component defaults.
-    TODO: Keep field metadata in the view so the template can render form sections without
-    knowing which fields belong to hosts, routers, or switches.
-    """
-    return {
-        "component_type": "Host",
-        "base_model": "ESNet Host",
-        "engine": "PDES (ROSS)",
-        "form_sections": [
-            {
-                "title": "Component",
-                "fields": [
-                    {"label": "Name", "value": "New Host Component"},
-                    {"label": "Type", "value": "Host"},
-                    {"label": "Base Model", "value": "ESNet Host"},
-                    {"label": "Engine", "value": "PDES (ROSS)"},
-                ],
-            },
-            {
-                "title": "Network Defaults",
-                "fields": [
-                    {"label": "Ingress Bandwidth", "value": "100 Gbps"},
-                    {"label": "Egress Bandwidth", "value": "100 Gbps"},
-                    {"label": "Ingress Latency", "value": "0.75 ms"},
-                    {"label": "Egress Latency", "value": "0.75 ms"},
-                ],
-            },
-            {
-                "title": "Host Traffic Defaults",
-                "fields": [
-                    {"label": "Traffic", "value": "Synthetic Workload"},
-                ],
-            },
-        ],
-    }
-
-
-def _component_to_form_context(component: dict[str, object]) -> dict[str, object]:
-    """Convert a component dict to the form_sections format expected by the form template.
-
-    TODO: Replace this with model-backed lookups when custom components are persisted.
-    TODO: Split detail_fields into type-specific sections (Network Defaults vs Host Traffic
-    Defaults) based on component type instead of assuming a flat list.
-    """
-    # Infer engine from base model for demo purposes
-    base_model = component.get("base_model", "")
-    engine = "PDES (ROSS)" if isinstance(base_model, str) and "ESNet" in base_model else "Unknown"
-
-    return {
-        "component_type": component.get("type"),
-        "base_model": component.get("base_model"),
-        "engine": engine,
-        "form_sections": [
-            {
-                "title": "Component",
-                "fields": [
-                    {"label": "Name", "value": component.get("name")},
-                    {"label": "Type", "value": component.get("type")},
-                    {"label": "Base Model", "value": component.get("base_model")},
-                    {"label": "Engine", "value": engine},
-                ],
-            },
-            {
-                "title": "Network Defaults",
-                "fields": component.get("detail_fields", []),
-            },
-        ],
-    }
+def _base_models_sidebar_context() -> list[dict[str, object]]:
+    """Return base models for the sidebar, derived from the registry."""
+    models = [
+        {
+            "name": m["name"],
+            "type": m["component_type"],
+            "engine": m["engine"],
+            "icon_class": m["icon_class"],
+            "disabled": m.get("disabled", False),
+        }
+        for m in BASE_MODEL_REGISTRY
+    ]
+    models.sort(key=lambda m: bool(m["disabled"]))
+    return models
 
 
 def _filtered_runs(request: HttpRequest) -> dict[str, object]:
@@ -242,16 +95,50 @@ def _custom_component_not_implemented(action: str) -> HttpResponse:
     return HttpResponse(f"TODO: Implement custom component {action}.", status=501)
 
 
-def custom_component_list(request: HttpRequest) -> HttpResponse:
-    """Render the custom component list.
+_COMPONENT_TYPE_STYLE: dict[str, dict[str, str]] = {
+    "host": {
+        "icon_class": "ri-server-line",
+        "color_class": "text-primary",
+        "badge_class": "badge-primary",
+    },
+    "router": {
+        "icon_class": "ri-router-fill",
+        "color_class": "text-secondary",
+        "badge_class": "badge-secondary",
+    },
+    "switch": {
+        "icon_class": "ri-organization-chart",
+        "color_class": "text-accent",
+        "badge_class": "badge-accent",
+    },
+}
 
-    TODO: Replace _custom_component_context() with database queries.
-    TODO: Build absolute action URLs for create, edit, duplicate, and delete once those
-    routes are implemented.
-    TODO: Decide whether this list should support server-side filtering/search before topology
-    design needs it.
-    """
-    context = _custom_component_context()
+
+def _component_to_card(component: ComponentModel) -> dict[str, object]:
+    """Convert a ComponentModel instance to the dict shape expected by the template."""
+    style = _COMPONENT_TYPE_STYLE.get(component.component_type, {})
+    params = component.parameters or {}
+    detail_fields = [{"label": k, "value": v} for k, v in params.items()]
+    detail_fields.append({"label": "Engine", "value": component.engine})
+    return {
+        "id": component.pk,
+        "name": component.name,
+        "type": component.get_component_type_display(),
+        "base_model": component.base_model,
+        "icon_class": style.get("icon_class", "ri-question-line"),
+        "color_class": style.get("color_class", ""),
+        "badge_class": style.get("badge_class", "badge-outline"),
+        "detail_fields": detail_fields,
+    }
+
+
+def custom_component_list(request: HttpRequest) -> HttpResponse:
+    """Render the custom component list from the database."""
+    db_components = [_component_to_card(c) for c in ComponentModel.objects.order_by("-created_at")]
+    context: dict[str, object] = {
+        "base_models": _base_models_sidebar_context(),
+        "custom_components": db_components,
+    }
     partial_template = "net_maestro/partials/configuration.html"
     if request.headers.get("HX-Request"):
         return render(request, partial_template, context)
@@ -259,16 +146,37 @@ def custom_component_list(request: HttpRequest) -> HttpResponse:
     return render(request, "net_maestro/index.html", context)
 
 
-def custom_component_create(request: HttpRequest) -> HttpResponse:
-    """Render the demonstration form for creating a new custom component.
+def _component_form_context(form: ComponentModelForm) -> dict[str, object]:
+    """Build the template context shared by create and edit views."""
+    params = form.initial.get("parameters") or form.instance.parameters or {}
+    if isinstance(params, str):
+        try:
+            params = json.loads(params)
+        except (json.JSONDecodeError, TypeError):
+            params = {}
+    return {
+        "form": form,
+        "base_model_registry": BASE_MODEL_REGISTRY,
+        "base_model_registry_by_name": BASE_MODEL_BY_NAME,
+        "initial_params": params,
+    }
 
-    TODO: Render and process a real form for creating a custom component from a base model.
-    TODO: Load base model choices from the same source used by _custom_component_context().
-    TODO: Validate component fields by type, especially host-only traffic fields.
-    TODO: Persist shared network defaults such as bandwidth and latency.
-    TODO: Return either a full-page redirect or an HTMX partial update after successful create.
-    """
-    context = _new_component_form_context()
+
+def custom_component_create(request: HttpRequest) -> HttpResponse:
+    """Create a new custom component backed by ComponentModel."""
+    if request.method == "POST":
+        form = ComponentModelForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect("configuration-partial")
+    else:
+        initial: dict[str, object] = {}
+        base = request.GET.get("base_model", "")
+        if base in BASE_MODEL_BY_NAME and not BASE_MODEL_BY_NAME[base].get("disabled"):
+            initial["base_model"] = base
+        form = ComponentModelForm(initial=initial)
+
+    context = _component_form_context(form)
     partial_template = "net_maestro/partials/custom_component_form.html"
     if request.headers.get("HX-Request"):
         return render(request, partial_template, context)
@@ -287,27 +195,27 @@ def custom_component_detail(_request: HttpRequest, component_id: int) -> HttpRes
 
 
 def custom_component_edit(request: HttpRequest, component_id: int) -> HttpResponse:
-    """Render the demonstration form for editing an existing custom component.
+    """Edit an existing custom component."""
+    try:
+        component = ComponentModel.objects.get(pk=component_id)
+    except ComponentModel.DoesNotExist as err:
+        raise Http404 from err
 
-    TODO: Fetch the custom component by ID, scoped to the current user/project.
-    TODO: Render and process a real form initialized with the existing component values.
-    TODO: Re-run type-specific validation when the base model or component type changes.
-    TODO: Refresh the list or component card after save without losing the user's place in the UI.
-    """
-    context = _custom_component_context()
-    components = context.get("custom_components", [])
-    if not isinstance(components, list):
-        components = []
-    component = next((c for c in components if c.get("id") == component_id), None)
-    if not component:
-        return HttpResponse(f"Component {component_id} not found.", status=404)
-    form_context = _component_to_form_context(component)
-    form_context["is_edit"] = True
+    if request.method == "POST":
+        form = ComponentModelForm(request.POST, instance=component)
+        if form.is_valid():
+            form.save()
+            return redirect("configuration-partial")
+    else:
+        form = ComponentModelForm(instance=component)
+
+    context = _component_form_context(form)
+    context["is_edit"] = True
     partial_template = "net_maestro/partials/custom_component_form.html"
     if request.headers.get("HX-Request"):
-        return render(request, partial_template, form_context)
-    form_context.update({"active_page": "customComponents", "partial_template": partial_template})
-    return render(request, "net_maestro/index.html", form_context)
+        return render(request, partial_template, context)
+    context.update({"active_page": "customComponents", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
 
 
 def custom_component_duplicate(_request: HttpRequest, component_id: int) -> HttpResponse:
@@ -572,7 +480,15 @@ def page_view(
     if partial == "analysis":
         context.update(_filtered_runs(request))
     if partial == "configuration":
-        context.update(_custom_component_context())
+        db_components = [
+            _component_to_card(c) for c in ComponentModel.objects.order_by("-created_at")
+        ]
+        context.update(
+            {
+                "base_models": _base_models_sidebar_context(),
+                "custom_components": db_components,
+            }
+        )
     if request.headers.get("HX-Request"):
         return render(request, partial_template, context)
     context.update({"active_page": active_page, "partial_template": partial_template})
