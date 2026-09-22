@@ -1,6 +1,6 @@
 # Development Guide
 
-This guide covers development setup, testing, and code quality tools for Net Maestro contributors.
+This guide covers development setup, testing, and code quality tools for Net Maestro contributors. For a more detailed version, see the [Developers documentation](docs/developers.md).
 
 ## Setup
 1. Install [VS Code with dev container support](https://code.visualstudio.com/docs/devcontainers/containers#_installation).
@@ -25,7 +25,15 @@ Open the **Run and Debug** panel (`Ctrl+Shift+D`) and select a launch configurat
 ## Test
 Run the full test suite from a terminal: `tox`
 
-Auto-format code: `tox -e format`
+Individual environments:
+
+| Environment          | Command                   | What it does                    |
+|---------------------|---------------------------|---------------------------------|
+| **lint**            | `tox -e lint`             | Ruff linting + format check     |
+| **format**          | `tox -e format`           | Auto-fix lint issues + reformat |
+| **type**            | `tox -e type`             | Mypy type checking              |
+| **test**            | `tox -e test`             | Pytest test suite               |
+| **check-migrations**| `tox -e check-migrations` | Verify no missing migrations    |
 
 Run and debug individual tests from the **Testing** panel (`Ctrl+Shift+;`).
 
@@ -46,8 +54,7 @@ This project uses pre-commit hooks to enforce code quality standards before comm
 ### What Pre-commit Checks
 Pre-commit automatically runs the following checks on staged files:
 * **File checks**: Large files, merge conflicts, YAML/TOML syntax, trailing whitespace
-* **Formatting**: Black (code formatting) and isort (import sorting)
-* **Linting**: flake8 with plugins for docstrings, bugbear, quotes, and naming conventions
+* **Ruff**: Linting and formatting
 
 **Note**: Type checking (mypy) and Django migrations checks are **not** included in pre-commit because they require a full Django environment setup. Run these via tox instead:
 * Type checking: `tox -e type`
@@ -62,7 +69,14 @@ To manually run pre-commit on all files:
 pre-commit run --all-files
 ```
 
-To skip pre-commit hooks (not recommended):
+## Documentation
+
+Documentation is built with Sphinx and MyST (Markdown). To build and preview locally:
+
 ```bash
-git commit --no-verify
+cd docs
+sphinx-build -b html . _build/html
+python -m http.server 8080 --directory _build/html
 ```
+
+Then open http://localhost:8080 in your browser.
