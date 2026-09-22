@@ -16,12 +16,12 @@ Active models have a **Get Started** button that navigates to the next step. Mod
 |----------------|--------|-------------|----------------------|
 | Fluid Flow WAN | CODES  | Active      | Custom Components    |
 | PHOLD          | ROSS   | Active      | Simulation Config    |
-| Ping Pong      | CODES  | Coming Soon | -                    |
-| ESnet          | CODES  | Coming Soon | -                    |
+| Ping Pong      | CODES  | Coming Soon | —                    |
+| ESnet          | CODES  | Coming Soon | —                    |
 
 ## 2. Create Custom Components
 
-For models that use component-based topologies (like Fluid Flow WAN), the next step is creating **custom components** - presets with specific parameter values.
+For models that use component-based topologies (like Fluid Flow WAN), the next step is creating **custom components** — presets with specific parameter values.
 
 ### Sidebar: Base Models
 
@@ -35,11 +35,11 @@ The left sidebar lists the available base component models. Clicking one opens t
 
 The form has three sections:
 
-1. **Base Model** - select from the dropdown (or pre-populated from the sidebar). Selecting a base model shows its type, engine, and description.
+1. **Base Model** — select from the dropdown (or pre-populated from the sidebar). Selecting a base model shows its type, engine, and description.
 
-2. **Component Details** - name and optional description for this preset.
+2. **Component Details** — name and optional description for this preset.
 
-3. **Parameters** - fields specific to the selected base model, with appropriate input types.
+3. **Parameters** — fields specific to the selected base model, with appropriate input types.
 
 ```{image} images/new_component_form.png
 :alt: New component form with fluid-flow-wan-switch-lp selected
@@ -99,7 +99,7 @@ Saved topologies appear in the dropdown and are written as YAML files that the s
 
 ### PHOLD
 
-The PHOLD simulation form lets you configure engine and model parameters directly - no topology step is needed.
+The PHOLD simulation form lets you configure engine and model parameters directly — no topology step is needed.
 
 ```{image} images/new_simulation.png
 :alt: PHOLD simulation configuration form
@@ -109,7 +109,18 @@ Key parameters include synchronization protocol, LPs per processor, remote event
 
 ### Fluid Flow WAN
 
-The workflow is: custom components &#8594; topology &#8594; traffic configuration &#8594; run.
+The FFW simulation workflow follows the steps above: create switch components, build a topology, then configure the simulation run.
+
+<!-- ```{image} images/ffw_simulation_form.png
+:alt: Fluid Flow WAN simulation configuration form
+``` -->
+
+The FFW simulation form requires:
+- A **topology** to simulate (selected from saved topologies)
+- A **traffic configuration** specifying workload parameters
+- **Engine parameters** (synchronization protocol, number of MPI ranks)
+
+Click **Save and Run** to submit the simulation as an async Celery task. The run appears on the Analysis page once complete.
 
 ## 5. View Results
 
@@ -119,6 +130,9 @@ The **Analysis** page shows completed simulation runs. Select a run to view its 
 :alt: Analysis page with simulation results
 ```
 
-Available visualizations include time-series plots, heatmaps, scatter plots, and parallel coordinates.
+### Available Visualizations
 
----
+- **Time-series plots** — metrics over simulated time
+- **Heatmaps** — per-LP activity patterns
+- **Scatter plots** — relationships between metrics
+- **Parallel coordinates** — multi-dimensional parameter exploration

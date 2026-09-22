@@ -114,20 +114,27 @@ net_maestro/
 │   ├── constants.py        # Shared enums (RunStatus, ModelType, etc.)
 │   ├── forms.py            # Django forms (ComponentModelForm, PHOLDSimulationForm)
 │   ├── management/
-│   │   └── commands/       # Management commands (data_ingest, run_phold, ingest_topology)
+│   │   └── commands/       # Management commands
+│   │       ├── data_ingest.py      # Ingest binary result files
+│   │       ├── ingest_topology.py  # Import topology YAML + create components
+│   │       ├── run_ffw.py          # Execute FFW simulation
+│   │       └── run_phold.py        # Execute PHOLD simulation
 │   ├── models/             # Django ORM models
 │   │   ├── component_model.py  # Custom component presets
 │   │   ├── run.py              # Simulation runs
 │   │   └── ...                 # Event/model/simulation file records
+│   ├── parsers/            # Binary and CSV file parsers
 │   ├── rest/               # DRF API views
 │   │   ├── component_api.py    # GET /api/v1/component-models/
 │   │   ├── run_api.py          # Run data endpoints
-│   │   └── topology_api.py     # Topology CRUD (on topology branches)
+│   │   └── topology_api.py     # Topology CRUD
+│   ├── services/           # Business logic (simulation execution)
+│   │   └── ffw.py              # FFW binary execution and result handling
 │   ├── simulation_models.py    # Simulation model registry (FFW, PHOLD, etc.)
-│   ├── tasks/              # Celery async tasks
+│   ├── tasks/              # Celery async tasks (PHOLD, FFW)
 │   ├── templates/          # Django/HTMX templates
 │   ├── tests/              # Pytest test suite
-│   ├── topology.py         # Topology YAML parsing and storage (on topology branches)
+│   ├── topology.py         # Topology YAML parsing and storage
 │   └── views.py            # Page views and form handlers
 ├── settings/               # Django settings (base, development, testing)
 └── urls.py                 # URL routing
@@ -142,6 +149,10 @@ net_maestro/
 **Component Models** (`models/component_model.py`): User-created presets derived from a base model. For example, a "Core WAN Switch" component with `switch_buffer=64` and `terminal_bandwidth=100` is a preset of the `fluid-flow-wan-switch-lp` base model.
 
 **Topologies** (`topology.py`): FFW topology YAML files representing switch/link configurations. Stored as files in `settings.TOPOLOGY_DIR` and parsed into `Topology`/`Switch`/`Link` dataclasses. The topology editor reads and writes these files through a REST API.
+
+**Services** (`services/`): Business logic for simulation execution. The FFW service (`services/ffw.py`) handles running the CODES binary via MPI, managing working directories, and coordinating result ingestion.
+
+**Parsers** (`parsers/`): Convert simulation output files into the columnar format the visualization layer expects. Includes parsers for ROSS binary stats and FFW CSV logs (terminal events, switch events, fluid segments).
 
 ### Frontend Stack
 
