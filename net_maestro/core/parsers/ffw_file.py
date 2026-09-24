@@ -23,10 +23,11 @@ Exits non-zero on framing errors or truncated input so tests can assert parseabi
 stdlib only -- no numpy/pandas required.
 """
 
+from __future__ import annotations
+
 import csv
 import struct
 import sys
-
 
 MODEL_TYPE_FLAG = 3  # lp_metadata/sample_metadata flag value for model data
 
@@ -64,8 +65,8 @@ def _decode_svr_model(payload):
 def _decode_terminal_model(payload, rails, qos):
     off = 0
     row = {}
-    (row["terminal_id"], row["fin_chunks"], row["data_size"], row["fin_hops"]) = (
-        struct.unpack_from("<Q3q", payload, off)
+    (row["terminal_id"], row["fin_chunks"], row["data_size"], row["fin_hops"]) = struct.unpack_from(
+        "<Q3q", payload, off
     )
     off += 32
     (row["fin_chunks_time_ns"],) = struct.unpack_from("<d", payload, off)
@@ -169,8 +170,8 @@ def _decode_terminal_vt(payload, rails, qos):
 
 def _decode_router_vt(payload, radix):
     row = {}
-    (row["router_id"], row["end_time"], row["fwd_events"], row["rev_events"]) = (
-        struct.unpack_from("<Qdqq", payload, 0)
+    (row["router_id"], row["end_time"], row["fwd_events"], row["rev_events"]) = struct.unpack_from(
+        "<Qdqq", payload, 0
     )
     off = 32 + 5 * 8  # scalars + 5 pointer slots (opaque on disk)
     for i in range(radix):
@@ -490,7 +491,7 @@ def write_csv(rows, csv_prefix):
                 if k not in fields:
                     fields.append(k)
         if csv_prefix:
-            dir = '/tmp/ffw/'
+            dir = "/tmp/ffw/"
             out = open(f"{dir}{csv_prefix}-{lp_type}.csv", "w", newline="")
             # out = open(f"{csv_prefix}-{lp_type}.csv", "w", newline="")
         else:

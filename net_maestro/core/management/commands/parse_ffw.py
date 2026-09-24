@@ -9,7 +9,14 @@ from pathlib import Path
 
 import djclick as click
 
-from net_maestro.core.parsers.ffw_file import build_dispatch, parse_model_file, parse_vt_file, write_csv, FormatError
+from net_maestro.core.parsers.ffw_file import (
+    FormatError,
+    build_dispatch,
+    parse_model_file,
+    parse_vt_file,
+    write_csv,
+)
+
 
 @click.command()
 @click.argument(
@@ -42,7 +49,7 @@ from net_maestro.core.parsers.ffw_file import build_dispatch, parse_model_file, 
     type=click.Choice(["auto", "dragonfly", "fluid-flow-wan"]),
     default="auto",
     help="restrict payload dispatch to one model family; only needed when the "
-    "dragonfly dimensions make a payload size collide (default: auto)"
+    "dragonfly dimensions make a payload size collide (default: auto)",
 )
 @click.option(
     "--csv-prefix",
@@ -53,7 +60,6 @@ from net_maestro.core.parsers.ffw_file import build_dispatch, parse_model_file, 
     "--dump-unknown",
     is_flag=True,
     help="hex-dump undecodable payloads",
-
 )
 def parse_output(
     files: list[Path],
@@ -66,9 +72,7 @@ def parse_output(
 ) -> None:
 
     try:
-        model_dispatch, vt_dispatch = build_dispatch(
-            num_rails, num_qos, radix, model_family
-        )
+        model_dispatch, vt_dispatch = build_dispatch(num_rails, num_qos, radix, model_family)
     except FormatError as e:
         click.echo(f"error: {e}", err=True)
         raise click.Abort() from e
@@ -88,18 +92,18 @@ def parse_output(
         click.echo(f"error: {e}", err=True)
         raise click.Abort() from e
 
-
     write_csv(rows, csv_prefix)
 
     counts = {t: len(e) for t, e in sorted(rows.items())}
     click.echo(f"# parsed {total} records: {counts}, unknown payloads: {len(unknown)}", err=True)
     if unknown:
         sizes = sorted({sz for (_, sz, _) in unknown})
-        click.echo(f"# undecoded payload sizes {sizes} -- check --num-rails/--num-qos/--radix "
-                    "and --model-family against the run's network config "
-                    "(see doc/model-stats-binary-format.md)"
-                    ,
-                    err=True)
+        click.echo(
+            f"# undecoded payload sizes {sizes} -- check --num-rails/--num-qos/--radix "
+            "and --model-family against the run's network config "
+            "(see doc/model-stats-binary-format.md)",
+            err=True,
+        )
 
         if dump_unknown:
             for path, sz, payload in unknown:

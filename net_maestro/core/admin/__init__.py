@@ -3,6 +3,12 @@ from __future__ import annotations
 from .component_model import ComponentModelAdmin
 from .event_file import EventFileAdmin
 from .event_record import EventRecordAdmin
+from .ffw_results import (
+    FFWPortRecordAdmin,
+    FFWResultFileAdmin,
+    FFWSwitchRecordAdmin,
+    FFWTerminalRecordAdmin,
+)
 from .model_file import ModelFileAdmin
 from .model_record import ModelRecordAdmin
 from .phold_simulation_config import PHOLDSimulationConfigAdmin
@@ -17,6 +23,10 @@ __all__ = [
     "ComponentModelAdmin",
     "EventFileAdmin",
     "EventRecordAdmin",
+    "FFWPortRecordAdmin",
+    "FFWResultFileAdmin",
+    "FFWSwitchRecordAdmin",
+    "FFWTerminalRecordAdmin",
     "ModelFileAdmin",
     "ModelRecordAdmin",
     "PHOLDSimulationConfigAdmin",

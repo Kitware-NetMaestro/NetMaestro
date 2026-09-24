@@ -18,6 +18,12 @@ class SimulationType(models.TextChoices):
     FFW = "ffw", "FFW"
 
 
+class FFWStatsType(models.TextChoices):
+    GVT = "gvt", "GVT"
+    RT = "rt", "Real time"
+    VT = "vt", "Virtual time"
+
+
 class NodeType(models.TextChoices):
     HOST = "host"
     ROUTER = "router"
