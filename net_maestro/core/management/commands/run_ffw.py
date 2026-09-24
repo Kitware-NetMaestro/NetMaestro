@@ -47,6 +47,8 @@ def _create_or_update_run(
     return run
 
 
+# TODO: consider adding the stats path as an option
+# get help text for new options
 @click.command()
 @click.option(
     "-n",
@@ -80,6 +82,26 @@ def _create_or_update_run(
     ),
 )
 @click.option(
+    "--model-stats",
+    "model_stats",
+    type=int,
+    default=4,
+)
+@click.option(
+    "--num-gvt",
+    "num_gvt",
+    type=int,
+    default=1,
+)
+@click.option(
+    "--rt-interval",
+    "rt_interval",
+    type=int,
+    default=1,
+)
+@click.option("--vt-interval", "vt_interval", type=int, default=1e8)
+@click.option("--vt-samp-end", "vt_samp_end", type=int, default=1.7e10)
+@click.option(
     "--config-path",
     "config_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
@@ -107,12 +129,16 @@ def run_ffw(  # noqa: PLR0913
     np: int,
     binary_path: Path,
     sync: int,
+    model_stats: int,
+    num_gvt: int,
+    rt_interval: int,
+    vt_interval: int,
+    vt_samp_end: int,
     config_path: Path,
     working_dir: Path,
     description: str | None = None,
     run_id: int | None = None,
 ) -> None:
-
     working_dir = (
         Path(working_dir) if working_dir else Path(getattr(settings, "FFW_BUILD_PATH", "."))
     )
@@ -127,6 +153,11 @@ def run_ffw(  # noqa: PLR0913
             "run_id": run.id,
             "np": np,
             "sync": sync,
+            "model_stats": model_stats,
+            "num_gvt": num_gvt,
+            "rt_interval": rt_interval,
+            "vt_interval": vt_interval,
+            "vt_samp_end": vt_samp_end,
             "config_path": str(config_path) if config_path else None,
             "working_dir": str(working_dir),
             "binary_path": str(binary_path) if binary_path else None,
