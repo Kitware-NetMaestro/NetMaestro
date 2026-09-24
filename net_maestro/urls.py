@@ -16,6 +16,10 @@ from net_maestro.core.rest.run_api import (
     RunModelDataView,
     RunRossDataView,
 )
+from net_maestro.core.rest.topology_api import (
+    TopologyDetailView,
+    TopologySimulationInputsView,
+)
 
 from .core import views
 
@@ -63,6 +67,17 @@ urlpatterns = [
     ),
     path(
         "api/v1/runs/<int:run_id>/ffw-ports", RunFFWPortDataView.as_view(), name="api-run-ffw-ports"
+    ),
+    path(
+        "api/v1/topologies/<slug:name>",
+        TopologyDetailView.as_view(),
+        name="api-topology-detail",
+    ),
+    # What a traffic config has to line up with: LP counts and terminal numbering
+    path(
+        "api/v1/topologies/<slug:name>/simulation-inputs",
+        TopologySimulationInputsView.as_view(),
+        name="api-topology-simulation-inputs",
     ),
     path("api/docs/redoc/", schema_view.with_ui("redoc"), name="docs-redoc"),
     path("api/docs/swagger/", schema_view.with_ui("swagger"), name="docs-swagger"),
