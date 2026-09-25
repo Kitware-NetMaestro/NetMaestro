@@ -7,11 +7,12 @@ import tempfile
 
 from celery import shared_task
 from django.conf import settings
+from django.core.files import File
 from django.core.management import call_command
 from django.db import transaction
 
 from net_maestro.core.constants import RunStatus
-from net_maestro.core.models import Run
+from net_maestro.core.models import FFWResultFile, Run
 from net_maestro.core.models.simulation_file import SimulationFile
 from net_maestro.core.models.simulation_kp_record import SimulationKpRecord
 from net_maestro.core.models.simulation_lp_record import PHOLDSimulationLpRecord, SimulationLpRecord
@@ -19,6 +20,7 @@ from net_maestro.core.models.simulation_pe_record import SimulationPeRecord
 from net_maestro.core.parsers.ross_binary_file import RecordType
 from net_maestro.core.parsers.ross_binary_file import ROSSFile as SimulationFileParser
 from net_maestro.core.services.ffw import execute_ffw_model
+from net_maestro.core.tasks.ingest_ffw import run_ffw_ingest_task
 
 logger = logging.getLogger(__name__)
 
@@ -248,18 +250,36 @@ def run_ffw_simulation(  # noqa: PLR0913
     ffw_config_path = config_path or getattr(settings, "FFW_CONFIG_PATH", "")
 
     try:
-        execute_ffw_model(
-            np=np,
-            sync=sync,
-            model_stats=model_stats,
-            num_gvt=num_gvt,
-            rt_interval=rt_interval,
-            vt_interval=vt_interval,
-            vt_samp_end=vt_samp_end,
-            config_path=ffw_config_path,
-            working_dir=ffw_working_dir,
-            binary_path=ffw_binary_path,
+        output_dir = Path(
+            execute_ffw_model(
+                np=np,
+                sync=sync,
+                model_stats=model_stats,
+                num_gvt=num_gvt,
+                rt_interval=rt_interval,
+                vt_interval=vt_interval,
+                vt_samp_end=vt_samp_end,
+                config_path=ffw_config_path,
+                working_dir=ffw_working_dir,
+                binary_path=ffw_binary_path,
+            )
         )
+        ffw_model_result_file = FFWResultFile.objects.create(
+            run=run,
+            file=File(open(output_dir / "ross-stats-model.bin", "rb"), name="ross-stats-model.bin"),
+        )
+
+        ffw_analysis_result_file = FFWResultFile.objects.create(
+            run=run,
+            file=File(
+                open(output_dir / "ross-stats-analysis-lps.bin", "rb"),
+                name="ross-stats-analysis-lps.bin",
+            ),
+        )
+
+        ffw_model_result_file.save()
+        ffw_analysis_result_file.save()
+        run_ffw_ingest_task([ffw_model_result_file.pk, ffw_analysis_result_file.pk])
         run.status = RunStatus.COMPLETED
         run.save()
         logger.info("FFW simulation finished for run %s", run_id)
