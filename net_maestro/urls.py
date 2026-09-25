@@ -75,11 +75,6 @@ urlpatterns = [
         TopologySimulationInputsView.as_view(),
         name="api-topology-simulation-inputs",
     ),
-    path(
-        "api/v1/component-models/",
-        ComponentModelListView.as_view(),
-        name="api-component-models",
-    ),
     path("api/docs/redoc/", schema_view.with_ui("redoc"), name="docs-redoc"),
     path("api/docs/swagger/", schema_view.with_ui("swagger"), name="docs-swagger"),
     # Page endpoints
