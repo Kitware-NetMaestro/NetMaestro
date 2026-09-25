@@ -21,10 +21,10 @@ if TYPE_CHECKING:
 
 from .base_models import BASE_MODEL_BY_NAME, BASE_MODEL_REGISTRY
 from .constants import RunStatus, SimulationType
-from .forms import ComponentModelForm, PHOLDSimulationForm
+from .forms import ComponentModelForm, FFWSimulationForm, PHOLDSimulationForm
 from .models import ComponentModel, PHOLDSimulationConfig, Run
 from .simulation_models import SIMULATION_MODELS
-from .tasks import run_phold_simulation
+from .tasks import run_ffw_simulation, run_phold_simulation
 from .topology import list_topologies
 
 logger = logging.getLogger(__name__)
@@ -382,6 +382,40 @@ def run_saved_simulation(request: HttpRequest, run_id: int) -> HttpResponse:
     run.save(update_fields=["status"])
     _run_phold(run, config)
     return redirect("analysis-partial")
+
+
+def ffw_simulation_config(request: HttpRequest) -> HttpResponse:
+    """Render the FFW simulation form and start a run on submit.
+
+    There is no FFW config model yet, so a submission creates the Run and starts
+    it immediately rather than offering a separate save.
+    """
+    if request.method == "POST":
+        form = FFWSimulationForm(request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+            run = Run.objects.create(
+                name=data["run_identifier"],
+                description=data["description"],
+                status=RunStatus.PENDING,
+            )
+            run_ffw_simulation.delay(
+                run_id=run.id,
+                topology_name=data["topology"],
+                traffic=data["traffic"],
+                np=data["np"],
+                sync=data["sync"],
+            )
+            return redirect("analysis-partial")
+    else:
+        form = FFWSimulationForm()
+
+    context: dict[str, object] = {"form": form, "form_action": request.path}
+    partial_template = "net_maestro/partials/new_ffw_simulation.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": "simulation", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
 
 
 def saved_simulations(request: HttpRequest) -> HttpResponse:
