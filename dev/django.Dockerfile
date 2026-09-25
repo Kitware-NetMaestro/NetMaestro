@@ -94,11 +94,6 @@ COPY --from=ross-builder --chown=vscode:vscode /ross/build/models/phold/phold /o
 COPY --from=ross-builder --chown=vscode:vscode /opt/codes /opt/codes
 # TODO: This may change once the FFW changes land in the main repo
 COPY --from=ross-builder --chown=vscode:vscode /opt/FFW /opt/FFW
-
-# The model resolves a traffic config's `topology_yaml_file` relative to that config's own
-# directory, so the pre-configured topologies have to sit beside the FFW traffic configs.
-# Topologies saved from the UI are currently written here too.
-COPY --chown=vscode:vscode data/topologies/*.yaml /opt/FFW/build/local/doc/example/
 # Ensure Python output appears immediately in container logs.
 ENV PYTHONUNBUFFERED=1
 
