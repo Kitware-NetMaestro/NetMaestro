@@ -7,12 +7,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from django.conf import settings
 import djclick as click
 
 from net_maestro.core.constants import RunStatus
 from net_maestro.core.models import Run
+from net_maestro.core.services.ffw import FFW_TRAFFIC_DEFAULTS
 from net_maestro.core.tasks.simulation import run_ffw_simulation
+from net_maestro.core.topology import TopologyError, get_topology
 
 
 def _create_or_update_run(
@@ -108,8 +109,17 @@ def _create_or_update_run(
     help="Path to FFW configuration file.",
 )
 @click.option(
-    "--working-dir",
-    type=click.Path(exists=True, path_type=Path),
+    "--topology",
+    "topology_name",
+    type=str,
+    required=True,
+    help="Name of the topology to simulate, e.g. fluid-flow-wan-8-switch.",
+)
+@click.option(
+    "--traffic",
+    type=click.Choice(sorted(FFW_TRAFFIC_DEFAULTS)),
+    default="random",
+    help="Traffic mode; picks the default binary and traffic config.",
 )
 @click.option(
     "--description",
@@ -135,22 +145,23 @@ def run_ffw(  # noqa: PLR0913
     vt_interval: int,
     vt_samp_end: int,
     config_path: Path,
-    working_dir: Path,
+    topology_name: str,
+    traffic: str,
     description: str | None = None,
     run_id: int | None = None,
 ) -> None:
-    working_dir = (
-        Path(working_dir) if working_dir else Path(getattr(settings, "FFW_BUILD_PATH", "."))
-    )
-    # Logs dir needs to exist for the model to run
-    logs_dir = working_dir / "doc" / "example" / "logs"
-    logs_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        get_topology(topology_name)
+    except TopologyError as exc:
+        raise click.ClickException(str(exc)) from exc
 
     # Create or update Run object
     run = _create_or_update_run(name, description, run_id)
     run_ffw_simulation.apply(
         kwargs={
             "run_id": run.id,
+            "topology_name": topology_name,
+            "traffic": traffic,
             "np": np,
             "sync": sync,
             "model_stats": model_stats,
@@ -158,8 +169,7 @@ def run_ffw(  # noqa: PLR0913
             "rt_interval": rt_interval,
             "vt_interval": vt_interval,
             "vt_samp_end": vt_samp_end,
-            "config_path": str(config_path) if config_path else None,
-            "working_dir": str(working_dir),
-            "binary_path": str(binary_path) if binary_path else None,
+            "config_path": str(config_path) if config_path else "",
+            "binary_path": str(binary_path) if binary_path else "",
         }
     )
