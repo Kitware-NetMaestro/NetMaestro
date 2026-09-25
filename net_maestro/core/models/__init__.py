@@ -10,6 +10,7 @@ from .ffw_results import (
     FFWSwitchSnapshot,
     FFWTerminalSnapshot,
 )
+from .ffw_simulation_config import FFWSimulationConfig
 from .model_file import ModelFile
 from .model_record import ModelRecord
 from .phold_simulation_config import PHOLDSimulationConfig
@@ -26,6 +27,7 @@ __all__ = [
     "EventRecord",
     "FFWPortSnapshot",
     "FFWResultFile",
+    "FFWSimulationConfig",
     "FFWSnapshot",
     "FFWSwitchSnapshot",
     "FFWTerminalSnapshot",

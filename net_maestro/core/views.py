@@ -17,12 +17,13 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
 if TYPE_CHECKING:
+    from django import forms
     from django.http import HttpRequest
 
 from .constants import RunStatus
-from .forms import PHOLDSimulationForm
-from .models import PHOLDSimulationConfig, Run
-from .tasks import run_phold_simulation
+from .forms import FFWSimulationForm, PHOLDSimulationForm
+from .models import FFWSimulationConfig, PHOLDSimulationConfig, Run
+from .tasks import run_ffw_simulation, run_phold_simulation
 
 logger = logging.getLogger(__name__)
 
@@ -369,13 +370,14 @@ def _run_phold(run: Run, config: PHOLDSimulationConfig) -> None:
     )
 
 
-def _create_run_and_config(
-    form: PHOLDSimulationForm, run_status: RunStatus
-) -> tuple[Run, PHOLDSimulationConfig]:
-    """Create a Run and its PHOLDSimulationConfig atomically from validated form data."""
+def _create_run_and_config[Config: PHOLDSimulationConfig | FFWSimulationConfig](
+    form: forms.ModelForm[Config], run_status: RunStatus
+) -> tuple[Run, Config]:
+    """Create a Run and its simulation config atomically from validated form data."""
     with transaction.atomic():
         run = Run.objects.create(
             name=form.cleaned_data["run_identifier"],
+            description=form.cleaned_data.get("description", ""),
             status=run_status,
         )
         config = form.save(commit=False)
@@ -484,14 +486,107 @@ def run_saved_simulation(request: HttpRequest, run_id: int) -> HttpResponse:
     return redirect("analysis-partial")
 
 
-def saved_simulations(request: HttpRequest) -> HttpResponse:
-    """Render the list of saved PHOLD simulation configurations.
+def _get_latest_ffw_config_or_404(run_id: int) -> FFWSimulationConfig:
+    config = (
+        FFWSimulationConfig.objects.select_related("run")
+        .filter(run_id=run_id)
+        .order_by("-id")
+        .first()
+    )
+    if config is None:
+        raise Http404(f"No FFWSimulationConfig found for run {run_id}")
+    return config
 
-    GET: Display all saved simulation configurations, most recently created first.
+
+def _run_ffw(run: Run, config: FFWSimulationConfig) -> None:
+    run_ffw_simulation.delay(
+        run_id=run.id,
+        topology_name=config.topology_name,
+        traffic=config.traffic,
+        np=config.np,
+        sync=config.sync,
+    )
+
+
+def _ffw_simulation_form_page(
+    request: HttpRequest, *, source: FFWSimulationConfig | None, page_heading: str
+) -> HttpResponse:
+    """Handle the FFW form for both new and cloned configs.
+
+    A clone is saved as a new Run and config, as PHOLD's edit does.
+    """
+    if request.method == "POST":
+        form = FFWSimulationForm(request.POST)
+        if form.is_valid():
+            should_run = request.POST.get("action") == "save_and_run"
+            run_status = RunStatus.PENDING if should_run else RunStatus.SAVED
+            run, config = _create_run_and_config(form, run_status)
+            if should_run:
+                _run_ffw(run, config)
+                return redirect("analysis-partial")
+            return redirect("simulation-config")
+    elif source is not None:
+        form = FFWSimulationForm(
+            instance=source,
+            initial={"run_identifier": source.run.name, "description": source.run.description},
+        )
+    else:
+        form = FFWSimulationForm()
+
+    context: dict[str, object] = {
+        "form": form,
+        "form_action": request.path,
+        "page_heading": page_heading,
+    }
+    partial_template = "net_maestro/partials/new_ffw_simulation.html"
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": "simulation", "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
+
+
+def ffw_simulation_config(request: HttpRequest) -> HttpResponse:
+    return _ffw_simulation_form_page(request, source=None, page_heading="New FFW Simulation")
+
+
+def edit_ffw_simulation_config(request: HttpRequest, run_id: int) -> HttpResponse:
+    source = _get_latest_ffw_config_or_404(run_id)
+    return _ffw_simulation_form_page(request, source=source, page_heading="Clone FFW Simulation")
+
+
+@require_POST
+def run_saved_ffw_simulation(request: HttpRequest, run_id: int) -> HttpResponse:
+    config = _get_latest_ffw_config_or_404(run_id)
+    run = config.run
+
+    try:
+        config.full_clean()
+    except ValidationError as exc:
+        logger.warning(
+            "Saved FFW config for run %s failed re-validation and could not be run: %s",
+            run_id,
+            exc.message_dict,
+        )
+        messages.error(request, f'Unable to run "{run.name}": saved configuration is invalid.')
+        return redirect("simulation-config")
+    run.status = RunStatus.PENDING
+    run.save(update_fields=["status"])
+    _run_ffw(run, config)
+    return redirect("analysis-partial")
+
+
+def saved_simulations(request: HttpRequest) -> HttpResponse:
+    """Render the list of saved simulation configurations.
+
+    GET: Display all saved PHOLD and FFW configurations, most recently created first.
     """
     # TODO: This list is unbounded and will likely grow over time. Consider pagination once
     # the number of saved configs makes this a real usability concern.
-    configs = PHOLDSimulationConfig.objects.select_related("run").order_by("-run__created")
+    configs: list[PHOLDSimulationConfig | FFWSimulationConfig] = [
+        *PHOLDSimulationConfig.objects.select_related("run"),
+        *FFWSimulationConfig.objects.select_related("run"),
+    ]
+    configs.sort(key=lambda config: config.run.created, reverse=True)
     context: dict[str, object] = {"configs": configs}
     partial_template = "net_maestro/partials/saved_simulations.html"
     if request.headers.get("HX-Request"):
