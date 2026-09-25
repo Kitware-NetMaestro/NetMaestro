@@ -14,9 +14,9 @@
             Simulations
           </a>
           <i class="ri-arrow-right-s-line" aria-hidden="true"></i>
-          <span>New FFW Simulation</span>
+          <span>{{ page_heading }}</span>
         </div>
-        <h1 class="text-3xl font-semibold mt-2">New FFW Simulation</h1>
+        <h1 class="text-3xl font-semibold mt-2">{{ page_heading }}</h1>
       </div>
       <div class="flex flex-row gap-2">
         <a
@@ -29,15 +29,38 @@
         >
           Cancel
         </a>
-        <button type="submit" form="ffw-simulation-form" class="btn btn-primary">
-          <i class="ri-play-line" aria-hidden="true"></i>
-          Run
+        <button
+          type="submit"
+          form="ffw-simulation-form"
+          name="action"
+          value="save"
+          class="btn btn-outline btn-primary"
+        >
+          Save
+        </button>
+        <button
+          type="submit"
+          form="ffw-simulation-form"
+          name="action"
+          value="save_and_run"
+          class="btn btn-primary"
+        >
+          Save and Run
         </button>
       </div>
     </div>
 
     <form id="ffw-simulation-form" method="post" action="{{ form_action|default:request.path }}">
       {% csrf_token %}
+      {% if form.non_field_errors %}
+      <div class="alert alert-error mt-8">
+        <ul>
+          {% for error in form.non_field_errors %}
+          <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
       <div class="grid grid-cols-1 gap-6 mt-8">
         <div class="card bg-base-100 shadow-sm">
           <div class="card-body">
@@ -77,10 +100,10 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label class="form-control w-full">
                 <div class="label">
-                  <span class="label-text">{{ form.topology.label }}</span>
+                  <span class="label-text">{{ form.topology_name.label }}</span>
                 </div>
-                {{ form.topology }}
-                {% for error in form.topology.errors %}
+                {{ form.topology_name }}
+                {% for error in form.topology_name.errors %}
                 <p class="text-error text-sm mt-1">{{ error }}</p>
                 {% endfor %}
               </label>

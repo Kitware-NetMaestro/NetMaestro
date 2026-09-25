@@ -43,16 +43,15 @@
               </div>
             </div>
             <div class="flex flex-row gap-2 items-center">
-              {% comment %}
-                This list only supports PHOLDSimulationConfig today.
-                Update to render the actual model type once saved simulations support other models.
-              {% endcomment %}
-              <div class="badge badge-outline">PHOLD</div>
-              <form
-                method="post"
-                action="{% url 'run-saved-simulation' config.run.id %}"
-                class="inline-flex"
-              >
+              {% if config.model_label == "FFW" %}
+                {% url 'run-saved-ffw-simulation' config.run.id as run_url %}
+                {% url 'edit-ffw-simulation-config' config.run.id as clone_url %}
+              {% else %}
+                {% url 'run-saved-simulation' config.run.id as run_url %}
+                {% url 'edit-simulation-config' config.run.id as clone_url %}
+              {% endif %}
+              <div class="badge badge-outline">{{ config.model_label }}</div>
+              <form method="post" action="{{ run_url }}" class="inline-flex">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-xs btn-primary">
                   <i class="ri-play-line" aria-hidden="true"></i>
@@ -60,8 +59,8 @@
                 </button>
               </form>
               <a
-                href="{% url 'edit-simulation-config' config.run.id %}"
-                hx-get="{% url 'edit-simulation-config' config.run.id %}"
+                href="{{ clone_url }}"
+                hx-get="{{ clone_url }}"
                 hx-target="#main-content"
                 hx-swap="innerHTML"
                 hx-push-url="true"
@@ -78,6 +77,24 @@
             <div class="collapse-title text-sm font-medium">View details</div>
             <div class="collapse-content">
               <div class="grid grid-cols-2 gap-4 text-sm">
+                {% if config.model_label == "FFW" %}
+                <div>
+                  <div class="text-base-content/60">Topology</div>
+                  <div class="font-medium">{{ config.topology_name }}</div>
+                </div>
+                <div>
+                  <div class="text-base-content/60">Traffic</div>
+                  <div class="font-medium">{{ config.get_traffic_display }}</div>
+                </div>
+                <div>
+                  <div class="text-base-content/60">Synchronization Protocol</div>
+                  <div class="font-medium">{{ config.get_sync_display }}</div>
+                </div>
+                <div>
+                  <div class="text-base-content/60">MPI Processes</div>
+                  <div class="font-medium">{{ config.np }}</div>
+                </div>
+                {% else %}
                 <div>
                   <div class="text-base-content/60">Synchronization Protocol</div>
                   <div class="font-medium">{{ config.get_synch_display }}</div>
@@ -118,6 +135,7 @@
                   <div class="text-base-content/60">Stagger Events</div>
                   <div class="font-medium">{{ config.stagger|yesno:"Yes,No" }}</div>
                 </div>
+                {% endif %}
               </div>
             </div>
           </div>
@@ -129,7 +147,7 @@
             <i class="ri-play-large-line text-4xl text-base-content/50" aria-hidden="true"></i>
             <h2 class="card-title mt-4">No saved simulations yet</h2>
             <p class="text-base-content/60 max-w-sm">
-              Configure a PHOLD simulation to save it here for future reference or re-run.
+              Configure a simulation to save it here for future reference or re-run.
             </p>
             <a
               href="{% url 'new-simulation-config' %}"

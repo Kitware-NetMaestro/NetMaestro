@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
+from net_maestro.core.constants import FFWTrafficMode
 from net_maestro.core.topology import SWITCH_LP_NAME
 
 if TYPE_CHECKING:
@@ -19,7 +20,7 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
-# TODO This might make more sense in either the simulation task or the management command in the future. revisit
+# TODO: Revisit whether this belongs in the simulation task or the management command.
 def _find_output_directory(output_dir: Path) -> Path:
     """Find the actual FFW output directory (FFW creates a random suffix).
 
@@ -34,18 +35,13 @@ def _find_output_directory(output_dir: Path) -> Path:
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
-    if ffw_output_dirs:
-        actual_output_dir = ffw_output_dirs[0]
-    else:
-        actual_output_dir = output_dir
-
-    return actual_output_dir
+    return ffw_output_dirs[0] if ffw_output_dirs else output_dir
 
 
 # The settings naming the stock binary and template traffic config for each traffic mode.
 FFW_TRAFFIC_DEFAULTS: dict[str, dict[str, str]] = {
-    "random": {"binary": "FFW_BINARY_PATH", "config": "FFW_CONFIG_PATH"},
-    "trace": {"binary": "FFW_TRACE_BINARY_PATH", "config": "FFW_TRACE_CONFIG_PATH"},
+    FFWTrafficMode.RANDOM: {"binary": "FFW_BINARY_PATH", "config": "FFW_CONFIG_PATH"},
+    FFWTrafficMode.TRACE: {"binary": "FFW_TRACE_BINARY_PATH", "config": "FFW_TRACE_CONFIG_PATH"},
 }
 
 
