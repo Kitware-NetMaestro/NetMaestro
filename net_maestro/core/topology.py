@@ -1,14 +1,11 @@
 """Access to the fluid-flow WAN topology YAML files.
 
 Topologies are FFW topology YAML files, the same format the model reads via its
-`topology_yaml_file` setting, and they live in `settings.TOPOLOGY_DIR`: the
-directory holding the traffic configs that name them, since the model resolves
-that setting relative to the config it was read from. This module turns those
-files into the flat switch/link shape the topology page renders, and writes new
-ones back out in that format.
-
-The presets checked into the repo's top-level `data/topologies` are copies; the
-container image puts them in that directory (see `dev/django.Dockerfile`).
+`topology_yaml_file` setting, and they live in `settings.TOPOLOGY_DIR`, by default
+the repo's `data/topologies`, which holds the checked-in presets. This module
+turns those files into the flat switch/link shape the topology page renders, and
+writes new ones back out in that format. The model resolves that setting relative
+to the traffic config naming it, so a run needs the file copied beside its config.
 
 TODO: Remove this module once Topology/TopologyNode/TopologyLink models exist
 and topologies are database-backed rather than files.
@@ -252,11 +249,10 @@ def _parse(topo_name: str, path: Path) -> Topology:
 def list_topologies() -> tuple[Topology, ...]:
     """Return every available topology, ordered by switch count then name.
 
-    Reads the directory every time rather than caching: it is shared with the
-    CODES build, so files arrive and leave without Django knowing.
+    Reads the directory every time rather than caching: other processes (the
+    ingest command, other containers) add files without this one knowing.
 
-    The directory also holds the model's traffic configs and other YAML, so
-    files that are not topologies are passed over quietly. Files that are
+    YAML files that are not topologies are passed over quietly. Files that are
     topologies but cannot be read are logged and skipped.
     """
     topologies = []
