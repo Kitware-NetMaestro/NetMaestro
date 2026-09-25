@@ -16,6 +16,8 @@ class PHOLDSimulationConfig(models.Model):
     without duplicating schema for each model.
     """
 
+    model_label = "PHOLD"
+
     run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name="phold_configs")
 
     synch = models.IntegerField(
