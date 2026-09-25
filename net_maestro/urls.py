@@ -114,6 +114,16 @@ urlpatterns = [
         name="new-ffw-simulation-config",
     ),
     path(
+        "simulation/ffw/edit-config/<int:run_id>",
+        views.edit_ffw_simulation_config,
+        name="edit-ffw-simulation-config",
+    ),
+    path(
+        "simulation/ffw/run/<int:run_id>",
+        views.run_saved_ffw_simulation,
+        name="run-saved-ffw-simulation",
+    ),
+    path(
         "simulation/edit-config/<int:run_id>",
         views.edit_simulation_config,
         name="edit-simulation-config",

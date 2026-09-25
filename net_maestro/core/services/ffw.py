@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
+from net_maestro.core.constants import FFWTrafficMode
 from net_maestro.core.topology import SWITCH_LP_NAME
 
 if TYPE_CHECKING:
@@ -20,8 +21,8 @@ logger = logging.getLogger(__name__)
 
 # The settings naming the stock binary and template traffic config for each traffic mode.
 FFW_TRAFFIC_DEFAULTS: dict[str, dict[str, str]] = {
-    "random": {"binary": "FFW_BINARY_PATH", "config": "FFW_CONFIG_PATH"},
-    "trace": {"binary": "FFW_TRACE_BINARY_PATH", "config": "FFW_TRACE_CONFIG_PATH"},
+    FFWTrafficMode.RANDOM: {"binary": "FFW_BINARY_PATH", "config": "FFW_CONFIG_PATH"},
+    FFWTrafficMode.TRACE: {"binary": "FFW_TRACE_BINARY_PATH", "config": "FFW_TRACE_CONFIG_PATH"},
 }
 
 

@@ -6,9 +6,7 @@ from typing import Any
 
 from django import forms
 
-from .constants import SynchProtocol
-from .models import PHOLDSimulationConfig
-from .services.ffw import FFW_TRAFFIC_DEFAULTS
+from .models import FFWSimulationConfig, PHOLDSimulationConfig
 from .topology import list_topologies
 
 
@@ -16,9 +14,10 @@ def _topology_choices() -> list[tuple[str, str]]:
     return [(t.name, f"{t.label} ({t.summary()})") for t in list_topologies()]
 
 
-class FFWSimulationForm(forms.Form):
-    """Form for the arguments an FFW run takes; paths come from settings."""
+class FFWSimulationForm(forms.ModelForm):
+    """Form for the settings an FFW run takes; binary and config paths come from settings."""
 
+    # run_identifier and description map to Run fields, not FFWSimulationConfig ones.
     run_identifier = forms.CharField(
         label="Run Identifier",
         max_length=200,
@@ -28,28 +27,21 @@ class FFWSimulationForm(forms.Form):
         required=False,
         widget=forms.Textarea(attrs={"class": "textarea textarea-bordered w-full", "rows": 2}),
     )
-    topology = forms.ChoiceField(
+    topology_name = forms.ChoiceField(
+        label="Topology",
         choices=_topology_choices,
         widget=forms.Select(attrs={"class": "select select-bordered w-full"}),
     )
-    traffic = forms.ChoiceField(
-        choices=[(mode, mode.capitalize()) for mode in FFW_TRAFFIC_DEFAULTS],
-        initial="random",
-        widget=forms.Select(attrs={"class": "select select-bordered w-full"}),
-    )
-    np = forms.IntegerField(
-        label="MPI Processes",
-        min_value=1,
-        initial=1,
-        widget=forms.NumberInput(attrs={"class": "input input-bordered w-full"}),
-    )
-    sync = forms.TypedChoiceField(
-        label="Synchronization Protocol",
-        choices=SynchProtocol.choices,
-        coerce=int,
-        initial=SynchProtocol.SEQUENTIAL,
-        widget=forms.Select(attrs={"class": "select select-bordered w-full"}),
-    )
+
+    class Meta:
+        model = FFWSimulationConfig
+        fields = ["topology_name", "traffic", "np", "sync"]
+        labels = {"np": "MPI Processes", "sync": "Synchronization Protocol"}
+        widgets = {
+            "traffic": forms.Select(attrs={"class": "select select-bordered w-full"}),
+            "np": forms.NumberInput(attrs={"class": "input input-bordered w-full"}),
+            "sync": forms.Select(attrs={"class": "select select-bordered w-full"}),
+        }
 
 
 class PHOLDSimulationForm(forms.ModelForm):

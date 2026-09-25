@@ -9,9 +9,8 @@ from pathlib import Path
 
 import djclick as click
 
-from net_maestro.core.constants import RunStatus
+from net_maestro.core.constants import FFWTrafficMode, RunStatus
 from net_maestro.core.models import Run
-from net_maestro.core.services.ffw import FFW_TRAFFIC_DEFAULTS
 from net_maestro.core.tasks.simulation import run_ffw_simulation
 from net_maestro.core.topology import TopologyError, get_topology
 
@@ -117,8 +116,8 @@ def _create_or_update_run(
 )
 @click.option(
     "--traffic",
-    type=click.Choice(sorted(FFW_TRAFFIC_DEFAULTS)),
-    default="random",
+    type=click.Choice(FFWTrafficMode.values),
+    default=FFWTrafficMode.RANDOM,
     help="Traffic mode; picks the default binary and traffic config.",
 )
 @click.option(
