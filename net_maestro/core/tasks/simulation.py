@@ -18,7 +18,12 @@ from net_maestro.core.models.simulation_lp_record import PHOLDSimulationLpRecord
 from net_maestro.core.models.simulation_pe_record import SimulationPeRecord
 from net_maestro.core.parsers.ross_binary_file import RecordType
 from net_maestro.core.parsers.ross_binary_file import ROSSFile as SimulationFileParser
-from net_maestro.core.services.ffw import execute_ffw_model
+from net_maestro.core.services.ffw import (
+    FFW_TRAFFIC_DEFAULTS,
+    execute_ffw_model,
+    point_traffic_config_at_topology,
+)
+from net_maestro.core.topology import get_topology
 
 logger = logging.getLogger(__name__)
 
@@ -226,6 +231,8 @@ def run_phold_simulation(  # noqa: PLR0913
 def run_ffw_simulation(  # noqa: PLR0913
     *,
     run_id: int,
+    topology_name: str,
+    traffic: str = "random",
     np: int = 1,
     sync: int = 1,
     model_stats: int = 3,
@@ -233,21 +240,27 @@ def run_ffw_simulation(  # noqa: PLR0913
     rt_interval: int = 1,
     vt_interval: int = 1e8,
     vt_samp_end: int = 1.7e10,
-    working_dir: str = "",
     binary_path: str = "",
     config_path: str = "",
 ) -> None:
-    """Execute FFW simulation with given parameters and update run status."""
+    """Execute FFW simulation on a topology and update run status.
+
+    The traffic config (`config_path`, or the stock one for `traffic`) is
+    rewritten in place to point at the topology, and the model runs from the
+    config's directory.
+    """
     run = Run.objects.get(pk=run_id)
     run.status = RunStatus.RUNNING
     run.save()
 
-    # Use example defaults if values not provided
-    ffw_working_dir = working_dir or getattr(settings, "FFW_BUILD_PATH", "")
-    ffw_binary_path = binary_path or getattr(settings, "FFW_BINARY_PATH", "")
-    ffw_config_path = config_path or getattr(settings, "FFW_CONFIG_PATH", "")
+    defaults = FFW_TRAFFIC_DEFAULTS[traffic]
+    ffw_binary_path = binary_path or getattr(settings, defaults["binary"], "")
+    ffw_config_path = Path(config_path or getattr(settings, defaults["config"], ""))
 
     try:
+        point_traffic_config_at_topology(
+            topology=get_topology(topology_name), config_path=ffw_config_path
+        )
         execute_ffw_model(
             np=np,
             sync=sync,
@@ -256,8 +269,8 @@ def run_ffw_simulation(  # noqa: PLR0913
             rt_interval=rt_interval,
             vt_interval=vt_interval,
             vt_samp_end=vt_samp_end,
-            config_path=ffw_config_path,
-            working_dir=ffw_working_dir,
+            config_path=str(ffw_config_path),
+            working_dir=str(ffw_config_path.parent),
             binary_path=ffw_binary_path,
         )
         run.status = RunStatus.COMPLETED
