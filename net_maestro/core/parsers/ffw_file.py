@@ -28,6 +28,7 @@ from __future__ import annotations
 import csv
 import struct
 import sys
+from net_maestro.core.models import FFWResultFile
 
 MODEL_TYPE_FLAG = 3  # lp_metadata/sample_metadata flag value for model data
 
@@ -400,7 +401,8 @@ def resolve_payload(size, dispatch, kind, family="auto"):
 
 def parse_model_file(path, dispatch, rows, unknown, family="auto"):
     """Parse ross-stats-model.bin (GVT + RT records)."""
-    with open(path, "rb") as f:
+    result_file = FFWResultFile.objects.get(pk=path)
+    with result_file.file.open("rb") as f:
         data = f.read()
     off = 0
     n = 0
@@ -443,7 +445,8 @@ def parse_model_file(path, dispatch, rows, unknown, family="auto"):
 
 def parse_vt_file(path, dispatch, rows, unknown, family="auto"):
     """Parse ross-stats-analysis-lps.bin (virtual-time records)."""
-    with open(path, "rb") as f:
+    result_file = FFWResultFile.objects.get(pk=path)
+    with result_file.file.open("rb") as f:
         data = f.read()
     off = 0
     n = 0
@@ -465,7 +468,7 @@ def parse_vt_file(path, dispatch, rows, unknown, family="auto"):
             "stats_type": "vt",
             "ts": ts,
             "real_time": real_time,
-            "gvt": "",
+            "gvt": None,
             "peid": peid,
             "kpid": kpid,
             "lpid": lpid,
@@ -502,3 +505,26 @@ def write_csv(rows, csv_prefix):
         writer.writerows(entries)
         if csv_prefix:
             out.close()
+
+
+def parse_ffw_files(
+    files:list[str],
+    *,
+    num_rails: int = 1,
+    num_qos: int = 1,
+    radix: int = 7,
+    model_family: str = "fluid-flow-wan",
+) -> tuple[dict[str, list[dict]], list[tuple[str, int, bytes]]]:
+    model_dispatch, vt_dispatch = build_dispatch(num_rails, num_qos, radix, model_family)
+
+    rows: dict[str, list[dict]] = {}
+    unknown: list[tuple[str, int, bytes]] = []
+    total = 0
+    for path_str in files:
+        result_file = FFWResultFile.objects.get(pk=path_str)
+        if "analysis-lps" in result_file.file.name:
+            total += parse_vt_file(path_str, vt_dispatch, rows, unknown, model_family)
+        else:
+            total += parse_model_file(path_str, model_dispatch, rows, unknown, model_family)
+
+    return rows, unknown
