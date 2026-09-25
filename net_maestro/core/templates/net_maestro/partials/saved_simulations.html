@@ -4,17 +4,30 @@
       <div>
         <h1 class="text-3xl font-semibold">Simulations</h1>
       </div>
-      <a
-        href="{% url 'new-simulation-config' %}"
-        hx-get="{% url 'new-simulation-config' %}"
-        hx-target="#main-content"
-        hx-swap="innerHTML"
-        hx-push-url="true"
-        class="btn btn-primary"
-      >
-        <i class="ri-add-line" aria-hidden="true"></i>
-        New Simulation
-      </a>
+      <div class="flex flex-row gap-2">
+        <a
+          href="{% url 'new-ffw-simulation-config' %}"
+          hx-get="{% url 'new-ffw-simulation-config' %}"
+          hx-target="#main-content"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+          class="btn btn-outline btn-primary"
+        >
+          <i class="ri-add-line" aria-hidden="true"></i>
+          New FFW Simulation
+        </a>
+        <a
+          href="{% url 'new-simulation-config' %}"
+          hx-get="{% url 'new-simulation-config' %}"
+          hx-target="#main-content"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+          class="btn btn-primary"
+        >
+          <i class="ri-add-line" aria-hidden="true"></i>
+          New Simulation
+        </a>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-8">
