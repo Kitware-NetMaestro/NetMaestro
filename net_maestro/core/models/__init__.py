@@ -3,6 +3,13 @@ from __future__ import annotations
 from .component_model import ComponentModel
 from .event_file import EventFile
 from .event_record import EventRecord
+from .ffw_results import (
+    FFWPortSnapshot,
+    FFWResultFile,
+    FFWSnapshot,
+    FFWSwitchSnapshot,
+    FFWTerminalSnapshot,
+)
 from .model_file import ModelFile
 from .model_record import ModelRecord
 from .phold_simulation_config import PHOLDSimulationConfig
@@ -17,6 +24,11 @@ __all__ = [
     "ComponentModel",
     "EventFile",
     "EventRecord",
+    "FFWPortSnapshot",
+    "FFWResultFile",
+    "FFWSnapshot",
+    "FFWSwitchSnapshot",
+    "FFWTerminalSnapshot",
     "ModelFile",
     "ModelRecord",
     "PHOLDSimulationConfig",
