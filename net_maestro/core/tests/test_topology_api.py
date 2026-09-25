@@ -144,7 +144,7 @@ def test_checked_in_preset_reads_as_gigabits(
 
 
 def test_other_yaml_in_the_directory_is_ignored(api_client: APIClient, topology_dir: Path) -> None:
-    """The directory is shared with the model's own configs."""
+    """Only YAML files that are topologies are listed."""
     (topology_dir / "fluid-flow-wan-random-traffic.yaml").write_text(
         "topology:\n  format: groups\n  groups:\n    FLUID_FLOW_WAN_GRP:\n      repetitions: 1\n"
     )
@@ -156,7 +156,7 @@ def test_other_yaml_in_the_directory_is_ignored(api_client: APIClient, topology_
 def test_unparseable_yaml_does_not_break_the_listing(
     api_client: APIClient, topology_dir: Path
 ) -> None:
-    """A stray file in the shared directory must not take the topology page down."""
+    """A broken file in the directory must not take the topology page down."""
     (topology_dir / "broken.yaml").write_text("topology:\n  switches:\n    A: [unclosed\n")
     api_client.post(URL, PAYLOAD, format="json")
 
