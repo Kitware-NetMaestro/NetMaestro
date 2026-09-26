@@ -3,6 +3,7 @@
  * Displays ROSS simulation data over time with configurable axes.
  */
 import Plotly from 'plotly';
+import { plotProfileFor } from './plotProfiles.js';
 import {
   axisConfig,
   createValueList,
@@ -28,14 +29,15 @@ export const timePlot = () => ({
   plotId: 'timePlot',
   isSyncing: false,
 
+  get profile() {
+    return plotProfileFor(this.$store.dataStore.simulationType).simulation;
+  },
+
   get xAxisValues() {
-    return [
-      { key: 'virtual_time', label: 'Virtual Time' },
-      { key: 'real_time', label: 'Real Time' },
-    ];
+    return this.profile.timeAxes;
   },
   get yAxisValues() {
-    return createValueList(this.columns, ['PE_ID', 'real_time', 'virtual_time']);
+    return createValueList(this.columns, this.profile.excludedColumns);
   },
 
   /**
@@ -96,9 +98,16 @@ export const timePlot = () => ({
   async loadRossData() {
     this.isLoaded = false;
     this.noData = false;
-    const payload = await this.$store.dataStore.fetchRossData();
+    const payload = await this.$store.dataStore.fetchRunData(this.profile.dataset);
     this.columns = payload?.columns ?? [];
     this.records = payload?.data ?? [];
+    // Saved axes may belong to another simulation type; fall back to this type's defaults.
+    if (this.columns.length > 0 && !this.columns.includes(this.selectedXAxis)) {
+      this.selectedXAxis = this.profile.timeDefaults.x;
+    }
+    if (this.columns.length > 0 && !this.columns.includes(this.selectedYAxis)) {
+      this.selectedYAxis = this.profile.timeDefaults.y;
+    }
     if (this.records.length === 0) {
       this.noData = true;
       this.purge();
@@ -123,16 +132,16 @@ export const timePlot = () => ({
     const groupedData = {};
 
     for (const record of this.records) {
-      const peId = record.PE_ID;
-      if (!groupedData[peId]) {
-        groupedData[peId] = {
+      const seriesId = record[this.profile.groupBy];
+      if (!groupedData[seriesId]) {
+        groupedData[seriesId] = {
           x: [],
           y: [],
-          peId: peId,
+          seriesId: seriesId,
         };
       }
-      groupedData[peId].x.push(record[this.selectedXAxis]);
-      groupedData[peId].y.push(record[this.selectedYAxis]);
+      groupedData[seriesId].x.push(record[this.selectedXAxis]);
+      groupedData[seriesId].y.push(record[this.selectedYAxis]);
     }
 
     const traces = Object.values(groupedData).map((peData) => ({

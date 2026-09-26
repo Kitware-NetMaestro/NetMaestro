@@ -4,6 +4,7 @@
  */
 import _ from 'lodash';
 import Plotly from 'plotly';
+import { plotProfileFor } from './plotProfiles.js';
 import {
   DARK_LAYOUT,
   purgePlot,
@@ -17,16 +18,15 @@ export const heatmapPlot = () => ({
   isPlotInitialized: false,
   noData: false,
   records: [],
-  metricList: [
-    { key: 'num_messages', label: 'Num Messages', disabled: false },
-    {
-      key: 'bytes_sent',
-      label: 'Bytes Sent (not available)',
-      disabled: true,
-      tooltip: 'Message size data not available in current event trace format',
-    },
-  ],
   selectedMetric: null,
+
+  get profile() {
+    return plotProfileFor(this.$store.dataStore.simulationType).heatmap;
+  },
+
+  get metricList() {
+    return this.profile.metrics;
+  },
 
   /**
    * Initialize the component and set up watchers.
@@ -51,12 +51,8 @@ export const heatmapPlot = () => ({
     ];
     const layout = {
       ...DARK_LAYOUT,
-      xaxis: {
-        title: 'Receiving LP ID',
-      },
-      yaxis: {
-        title: 'Sending LP ID',
-      },
+      xaxis: { title: this.profile.xTitle },
+      yaxis: { title: this.profile.yTitle },
     };
     setupPlot({
       component: this,
@@ -74,8 +70,13 @@ export const heatmapPlot = () => ({
 
   async loadEventData() {
     this.noData = false;
-    const payload = await this.$store.dataStore.fetchEventData();
-    this.records = payload?.data ?? [];
+    const payload = await this.$store.dataStore.fetchRunData(this.profile.dataset);
+    const { include } = this.profile;
+    this.records = (payload?.data ?? []).filter((record) => !include || include(record));
+    // A saved metric may belong to another simulation type; use this type's first metric.
+    if (!this.metricList.some((m) => m.key === this.selectedMetric && !m.disabled)) {
+      this.selectedMetric = this.metricList[0].key;
+    }
     if (this.records.length === 0) {
       this.noData = true;
       this.purge();
@@ -92,23 +93,30 @@ export const heatmapPlot = () => ({
     if (this.records.length === 0) {
       return null;
     }
+    const { sourceKey, destKey } = this.profile;
+    const metric = this.metricList.find((m) => m.key === this.selectedMetric);
 
     const sortedSources = _(this.records)
-      .map('source_lp')
+      .map(sourceKey)
       .reject(_.isUndefined)
       .uniq()
       .sortBy()
       .value();
     const sortedDests = _(this.records)
-      .map('dest_lp')
+      .map(destKey)
       .reject(_.isUndefined)
       .uniq()
       .sortBy()
       .value();
-    const counts = _.countBy(this.records, (record) => `${record.source_lp}_${record.dest_lp}`);
+    const totals = {};
+    for (const record of this.records) {
+      const cell = `${record[sourceKey]}_${record[destKey]}`;
+      const value = metric?.aggregate === 'sum' ? (record[metric.key] ?? 0) : 1;
+      totals[cell] = (totals[cell] ?? 0) + value;
+    }
 
     const z = sortedSources.map((source) =>
-      sortedDests.map((dest) => counts[`${source}_${dest}`] ?? 0),
+      sortedDests.map((dest) => totals[`${source}_${dest}`] ?? 0),
     );
 
     return {
@@ -143,12 +151,8 @@ export const heatmapPlot = () => ({
       ],
       {
         ...DARK_LAYOUT,
-        xaxis: {
-          title: 'Receiving LP ID',
-        },
-        yaxis: {
-          title: 'Sending LP ID',
-        },
+        xaxis: { title: this.profile.xTitle },
+        yaxis: { title: this.profile.yTitle },
         coloraxis: {
           colorbar: { title: title },
         },
