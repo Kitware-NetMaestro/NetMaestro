@@ -112,3 +112,8 @@ CORS_ALLOWED_ORIGIN_REGEXES: list[str] = env.list(
 )
 
 REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = ["rest_framework.permissions.IsAuthenticated"]
+
+# Where topology YAML files are read and written. Defaults to the repo's data/topologies,
+# which holds the checked-in presets and is shared with the containers through the repo
+# mount, so saved topologies survive rebuilds and every service sees the same set.
+TOPOLOGY_DIR = Path(env.str("DJANGO_TOPOLOGY_DIR", default=str(BASE_DIR / "data" / "topologies")))
