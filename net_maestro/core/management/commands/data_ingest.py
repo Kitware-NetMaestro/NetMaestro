@@ -10,7 +10,7 @@ from pathlib import Path
 from django.core.files import File
 import djclick as click
 
-from net_maestro.core.constants import RunStatus
+from net_maestro.core.constants import RunStatus, SimulationType
 from net_maestro.core.models import EventFile, ModelFile, Run, SimulationFile
 from net_maestro.core.tasks import run_event_task, run_model_task, run_simulation_task
 
@@ -73,6 +73,7 @@ def data_ingest(  # noqa: PLR0913
         name=name,
         description=description or "",
         status=status,
+        simulation_type=SimulationType.ESNET,
     )
 
     if event_file:

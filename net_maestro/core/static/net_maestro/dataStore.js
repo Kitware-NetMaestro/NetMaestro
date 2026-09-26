@@ -71,6 +71,7 @@ export const dataStore = {
 
   // Currently selected run ID
   selectedRunId: null,
+  simulationType: null,
 
   async fetchRossData() {
     if (!this.selectedRunId) {
@@ -108,9 +109,11 @@ export const dataStore = {
   /**
    * Select a run and trigger data reload from DB records.
    * @param {number} runId - The run primary key
+   * @param {string} simulationType - The run's simulation type
    */
-  selectRun(runId) {
+  selectRun(runId, simulationType) {
     this.selectedRunId = runId;
+    this.simulationType = simulationType;
     this.loadTick++;
   },
 };
