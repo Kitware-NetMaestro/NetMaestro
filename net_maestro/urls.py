@@ -11,6 +11,9 @@ from rest_framework import permissions, routers
 from net_maestro.core.rest.component_api import ComponentModelListView
 from net_maestro.core.rest.run_api import (
     RunEventDataView,
+    RunFFWPortDataView,
+    RunFFWSwitchDataView,
+    RunFFWTerminalDataView,
     RunModelDataView,
     RunRossDataView,
 )
@@ -74,6 +77,19 @@ urlpatterns = [
         "api/v1/topologies/<slug:name>/simulation-inputs",
         TopologySimulationInputsView.as_view(),
         name="api-topology-simulation-inputs",
+    ),
+    path(
+        "api/v1/runs/<int:run_id>/ffw-switches",
+        RunFFWSwitchDataView.as_view(),
+        name="api-run-ffw-switches",
+    ),
+    path(
+        "api/v1/runs/<int:run_id>/ffw-terminals",
+        RunFFWTerminalDataView.as_view(),
+        name="api-run-ffw-terminals",
+    ),
+    path(
+        "api/v1/runs/<int:run_id>/ffw-ports", RunFFWPortDataView.as_view(), name="api-run-ffw-ports"
     ),
     path("api/docs/redoc/", schema_view.with_ui("redoc"), name="docs-redoc"),
     path("api/docs/swagger/", schema_view.with_ui("swagger"), name="docs-swagger"),
