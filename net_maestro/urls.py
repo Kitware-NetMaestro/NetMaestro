@@ -14,6 +14,7 @@ from net_maestro.core.rest.run_api import (
     RunModelDataView,
     RunRossDataView,
 )
+from net_maestro.core.rest.topology_api import TopologyDetailView
 
 from .core import views
 
@@ -54,6 +55,12 @@ urlpatterns = [
         ComponentModelListView.as_view(),
         name="api-component-models",
     ),
+    # Checked-in topology presets
+    path(
+        "api/v1/topologies/<slug:name>",
+        TopologyDetailView.as_view(),
+        name="api-topology-detail",
+    ),
     path("api/docs/redoc/", schema_view.with_ui("redoc"), name="docs-redoc"),
     path("api/docs/swagger/", schema_view.with_ui("swagger"), name="docs-swagger"),
     # Page endpoints
@@ -78,6 +85,11 @@ urlpatterns = [
         "configuration/edit/<int:component_id>",
         views.custom_component_edit,
         name="custom-component-edit",
+    ),
+    path(
+        "topology/",
+        views.topology_page,
+        name="topology-partial",
     ),
     path(
         "simulation/config",
