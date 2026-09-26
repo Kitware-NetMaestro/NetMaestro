@@ -7,7 +7,7 @@ from net_maestro.core.models import Run
 
 @admin.register(Run)
 class RunAdmin(admin.ModelAdmin):
-    list_display = ["name", "status", "created", "description"]
-    list_filter = ["status", "created"]
+    list_display = ["name", "simulation_type", "status", "created", "description"]
+    list_filter = ["status", "simulation_type", "created"]
     search_fields = ["name", "description"]
     ordering = ["-created"]

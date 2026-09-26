@@ -71,6 +71,7 @@ export const dataStore = {
 
   // Currently selected run ID
   selectedRunId: null,
+  simulationType: null,
 
   async fetchRossData() {
     if (!this.selectedRunId) {
@@ -105,12 +106,25 @@ export const dataStore = {
     return await response.json();
   },
 
+  async fetchRunData(dataset) {
+    if (!this.selectedRunId) {
+      return null;
+    }
+    const response = await fetch(`/api/v1/runs/${this.selectedRunId}/${dataset}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${dataset} data: ${response.statusText}`);
+    }
+    return await response.json();
+  },
+
   /**
    * Select a run and trigger data reload from DB records.
    * @param {number} runId - The run primary key
+   * @param {string} simulationType - The run's simulation type
    */
-  selectRun(runId) {
+  selectRun(runId, simulationType) {
     this.selectedRunId = runId;
+    this.simulationType = simulationType;
     this.loadTick++;
   },
 };

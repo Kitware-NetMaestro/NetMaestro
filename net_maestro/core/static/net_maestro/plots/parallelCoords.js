@@ -3,6 +3,7 @@
  * Displays multi-dimensional ROSS data using Plotly's parallel coordinates chart.
  */
 import Plotly from 'plotly';
+import { plotProfileFor } from './plotProfiles.js';
 import {
   DARK_LAYOUT,
   purgePlot,
@@ -18,13 +19,11 @@ export const parallelCoords = () => ({
   plotId: 'parallelCoords',
   isSyncing: false,
   records: [],
-  plotDimensions: [
-    { key: 'PE_ID', label: 'PE ID' },
-    { key: 'events_processed', label: 'Events Processed' },
-    { key: 'events_rolled_back', label: 'Events Rolled Back' },
-    { key: 'total_rollbacks', label: 'Total Rollbacks' },
-    { key: 'secondary_rollbacks', label: 'Secondary Rollbacks' },
-  ],
+  plotDimensions: [...plotProfileFor(null).simulation.parallelDimensions],
+
+  get profile() {
+    return plotProfileFor(this.$store.dataStore.simulationType).simulation;
+  },
 
   /**
    * Initialize the component and set up watchers.
@@ -101,8 +100,9 @@ export const parallelCoords = () => ({
 
   async loadRossData() {
     this.noData = false;
-    const payload = await this.$store.dataStore.fetchRossData();
+    const payload = await this.$store.dataStore.fetchRunData(this.profile.dataset);
     this.records = payload?.data ?? [];
+    this.plotDimensions.splice(0, this.plotDimensions.length, ...this.profile.parallelDimensions);
     if (this.records.length === 0) {
       this.noData = true;
       this.purge();
@@ -126,7 +126,7 @@ export const parallelCoords = () => ({
     const trace = {
       type: 'parcoords',
       line: {
-        color: this.records.map((record) => record.PE_ID),
+        color: this.records.map((record) => record[this.profile.groupBy]),
         colorscale: 'Viridis',
         showscale: true,
       },
