@@ -3,6 +3,7 @@
  * Displays ROSS simulation data as a scatter plot with configurable axes.
  */
 import Plotly from 'plotly';
+import { plotProfileFor } from './plotProfiles.js';
 import {
   axisConfig,
   createValueList,
@@ -29,8 +30,12 @@ export const scatterPlot = () => ({
   plotId: 'scatterPlot',
   isSyncing: false,
 
+  get profile() {
+    return plotProfileFor(this.$store.dataStore.simulationType).simulation;
+  },
+
   get valueList() {
-    return createValueList(this.columns, ['PE_ID', 'real_time', 'virtual_time']);
+    return createValueList(this.columns, this.profile.excludedColumns);
   },
 
   /**
@@ -90,9 +95,16 @@ export const scatterPlot = () => ({
   async loadRossData() {
     this.isLoaded = false;
     this.noData = false;
-    const payload = await this.$store.dataStore.fetchRossData();
+    const payload = await this.$store.dataStore.fetchRunData(this.profile.dataset);
     this.columns = payload?.columns ?? [];
     this.records = payload?.data ?? [];
+    // Saved axes may belong to another simulation type; fall back to this type's defaults.
+    if (this.columns.length > 0 && !this.columns.includes(this.selectedXAxis)) {
+      this.selectedXAxis = this.profile.scatterDefaults.x;
+    }
+    if (this.columns.length > 0 && !this.columns.includes(this.selectedYAxis)) {
+      this.selectedYAxis = this.profile.scatterDefaults.y;
+    }
     if (this.records.length === 0) {
       this.noData = true;
       this.purge();
@@ -117,7 +129,7 @@ export const scatterPlot = () => ({
     const yData = this.records.map((record) => record[this.selectedYAxis]);
 
     // TODO: This could be another choice we allow the user to make.
-    const colorRange = this.records.map((record) => record.PE_ID);
+    const colorRange = this.records.map((record) => record[this.profile.groupBy]);
 
     Plotly.update(
       this.scatterPlotEl,
