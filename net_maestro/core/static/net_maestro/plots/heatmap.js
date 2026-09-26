@@ -70,7 +70,10 @@ export const heatmapPlot = () => ({
 
   async loadEventData() {
     this.noData = false;
-    const payload = await this.$store.dataStore.fetchRunData(this.profile.dataset);
+    const payload = await this.$store.dataStore.fetchRunData(
+      this.profile.dataset,
+      this.profile.params,
+    );
     const { include } = this.profile;
     this.records = (payload?.data ?? []).filter((record) => !include || include(record));
     // A saved metric may belong to another simulation type; use this type's first metric.
@@ -102,12 +105,7 @@ export const heatmapPlot = () => ({
       .uniq()
       .sortBy()
       .value();
-    const sortedDests = _(this.records)
-      .map(destKey)
-      .reject(_.isUndefined)
-      .uniq()
-      .sortBy()
-      .value();
+    const sortedDests = _(this.records).map(destKey).reject(_.isUndefined).uniq().sortBy().value();
     const totals = {};
     for (const record of this.records) {
       const cell = `${record[sourceKey]}_${record[destKey]}`;
