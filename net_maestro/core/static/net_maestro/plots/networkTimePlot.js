@@ -70,7 +70,10 @@ export const networkTimePlot = () => ({
 
   async loadModelData() {
     this.noData = false;
-    const payload = await this.$store.dataStore.fetchRunData(this.profile.dataset);
+    const payload = await this.$store.dataStore.fetchRunData(
+      this.profile.dataset,
+      this.profile.params,
+    );
     this.columns = payload?.columns ?? [];
     this.records = payload?.data ?? [];
     // Saved axes may belong to another simulation type; fall back to this type's defaults.
