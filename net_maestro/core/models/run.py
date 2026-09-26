@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django.db import models
 
-from net_maestro.core.constants import RunStatus
+from net_maestro.core.constants import RunStatus, SimulationType
 
 
 class Run(models.Model):
@@ -15,3 +15,8 @@ class Run(models.Model):
 
     def __str__(self):
         return f"Run {self.id}: {self.name} ({self.status})"
+    # Which simulator produced this run. Drives how it is launched and which datasets
+    # and plots apply to it.
+    simulation_type = models.CharField(
+        max_length=32, choices=SimulationType, default=SimulationType.ESNET
+    )
