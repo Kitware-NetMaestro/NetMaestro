@@ -12,6 +12,13 @@ class RunStatus(models.TextChoices):
     CANCELLED = "cancelled"
 
 
+class SimulationType(models.TextChoices):
+    ESNET = "esnet", "ESnet"
+    PHOLD = "phold", "PHOLD"
+    FFW = "ffw", "FFW"
+
+
+
 class NodeType(models.TextChoices):
     HOST = "host"
     ROUTER = "router"

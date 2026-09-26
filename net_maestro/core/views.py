@@ -19,7 +19,7 @@ from django.views.decorators.http import require_POST
 if TYPE_CHECKING:
     from django.http import HttpRequest
 
-from .constants import RunStatus
+from .constants import RunStatus, SimulationType
 from .forms import PHOLDSimulationForm
 from .models import PHOLDSimulationConfig, Run
 from .tasks import run_phold_simulation
@@ -377,6 +377,7 @@ def _create_run_and_config(
         run = Run.objects.create(
             name=form.cleaned_data["run_identifier"],
             status=run_status,
+            simulation_type=SimulationType.PHOLD,
         )
         config = form.save(commit=False)
         config.run = run

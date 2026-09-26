@@ -19,7 +19,7 @@ import djclick as click
 if TYPE_CHECKING:
     from celery.canvas import Signature
 
-from net_maestro.core.constants import RunStatus
+from net_maestro.core.constants import RunStatus, SimulationType
 from net_maestro.core.models import EventFile, ModelFile, Run, SimulationFile
 from net_maestro.core.tasks import run_event_task, run_model_task, run_simulation_task
 from net_maestro.core.tasks.simulation import fail_run, mark_run_completed, mark_run_failed
@@ -241,6 +241,7 @@ def _create_or_update_run(
             name=name,
             description=description or "",
             status=RunStatus.RUNNING,
+            simulation_type=SimulationType.PHOLD,
         )
     return run
 
