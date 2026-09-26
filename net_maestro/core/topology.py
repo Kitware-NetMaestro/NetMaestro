@@ -37,6 +37,9 @@ _NAME_RE = re.compile(r"^[-a-zA-Z0-9_]+$")
 SWITCH_LP_NAME = "fluid-flow-wan-switch-lp"
 TERMINAL_LP_NAME = "fluid-flow-wan-terminal-lp"
 
+# The model's MAX_PORTS_PER_SWITCH and MAX_PAUSE_INGRESS_LINKS.
+MAX_LINKS_PER_SWITCH = 128
+
 
 class TopologyError(Exception):
     """Raised when a topology file is missing or is not a valid FFW topology."""
@@ -194,6 +197,16 @@ def _label_from_name(name: str) -> str:
     return " ".join(_LABELS.get(word, word.capitalize()) for word in name.split("-"))
 
 
+def _terminal_count(raw: Any, where: str) -> int:
+    try:
+        terminals = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise TopologyError(f"{where}: terminals must be a whole number") from exc
+    if terminals < 0:
+        raise TopologyError(f"{where}: terminals cannot be negative")
+    return terminals
+
+
 def _parse(topo_name: str, path: Path) -> Topology:
     """Parse one topology YAML file into a Topology."""
     try:
@@ -215,7 +228,7 @@ def _parse(topo_name: str, path: Path) -> Topology:
         switches.append(
             Switch(
                 name=str(name),
-                terminals=int(entry.get("terminals", 0)),
+                terminals=_terminal_count(entry.get("terminals", 0), f"{path.name}: {name}"),
                 terminal_bandwidth_gbps=_gigabits(
                     entry.get("terminal_bandwidth", 0),
                     f"{path.name}: {name} terminal_bandwidth",
@@ -274,20 +287,18 @@ def _switch_from_payload(entry: Any) -> tuple[Switch, list[Link]]:
     if not name:
         raise TopologyError("Every switch needs a name")
 
-    try:
-        terminals = int(entry.get("terminals", 0))
-    except (TypeError, ValueError) as exc:
-        raise TopologyError(f"Switch {name}: terminals must be a whole number") from exc
-    if terminals < 0:
-        raise TopologyError(f"Switch {name}: terminals cannot be negative")
+    terminals = _terminal_count(entry.get("terminals", 0), f"Switch {name}")
 
-    links = []
+    links: list[Link] = []
     for connection in entry.get("connections") or []:
         if not isinstance(connection, dict):
             raise TopologyError(f"Switch {name}: each connection must be an object")
         target = str(connection.get("target", "")).strip()
         if not target:
             raise TopologyError(f"Switch {name}: every connection needs a target")
+        # The YAML keys connections by target, so a second one would silently replace the first.
+        if any(link.target == target for link in links):
+            raise TopologyError(f"Switch {name}: more than one connection to {target}")
         links.append(
             Link(
                 source=name,
@@ -314,9 +325,9 @@ def _switch_from_payload(entry: Any) -> tuple[Switch, list[Link]]:
 def from_payload(payload: Any) -> Topology:
     """Build a Topology from a posted payload, the inverse of `as_dict`.
 
-    Only checks what has to hold for the file to load again afterwards: a
-    usable name, unique switch names, and links that land on a known switch.
-    Anything else the FFW model accepts is passed through.
+    Only checks what the YAML file needs to be written at all: a usable name,
+    unique switch names, one connection per target, and links that land on a
+    known switch. `save_topology` then applies the model's own rules.
     """
     if not isinstance(payload, dict):
         raise TopologyError("Expected a topology object")
@@ -374,6 +385,39 @@ def _to_document(topology: Topology) -> dict[str, Any]:
     }
 
 
+def check_model_rules(topology: Topology) -> None:
+    """Raise TopologyError for a topology the FFW model refuses to load.
+
+    Mirrors the model's own load-time errors and nothing stricter, so anything
+    the model would run can be saved.
+    """
+    if topology.terminal_count < 2:
+        raise TopologyError("A topology needs at least two terminals in total")
+    pairs = {(link.source, link.target) for link in topology.links}
+    for switch in topology.switches:
+        # The model reads each YAML line as `key: value`, splitting at the first colon.
+        if ":" in switch.name:
+            raise TopologyError(f"Switch {switch.name}: names cannot contain a colon")
+        outgoing = sum(1 for source, _ in pairs if source == switch.name)
+        incoming = sum(
+            1 for source, target in pairs if target == switch.name and source != switch.name
+        )
+        if switch.terminals + outgoing > MAX_LINKS_PER_SWITCH:
+            raise TopologyError(
+                f"Switch {switch.name}: terminals plus outgoing connections is more than "
+                f"{MAX_LINKS_PER_SWITCH}"
+            )
+        if switch.terminals + incoming > MAX_LINKS_PER_SWITCH:
+            raise TopologyError(
+                f"Switch {switch.name}: terminals plus incoming connections is more than "
+                f"{MAX_LINKS_PER_SWITCH}"
+            )
+        if switch.terminals + incoming == 0:
+            raise TopologyError(
+                f"Switch {switch.name} needs at least one terminal or incoming connection"
+            )
+
+
 def save_topology(topology: Topology) -> Topology:
     """Write a new topology file and return it as reparsed from disk.
 
@@ -394,6 +438,7 @@ def save_topology(topology: Topology) -> Topology:
     without complaint. Whoever adds one has to regenerate or invalidate the
     traces bound to that topology as part of the save.
     """
+    check_model_rules(topology)
     path = topology_dir() / f"{topology.name}.yaml"
     body = yaml.safe_dump(_to_document(topology), sort_keys=False, default_flow_style=False)
     try:

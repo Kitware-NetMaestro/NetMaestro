@@ -163,6 +163,18 @@ def test_unparseable_yaml_does_not_break_the_listing(
     assert [t.name for t in topology.list_topologies()] == ["two-switch"]
 
 
+@pytest.mark.parametrize("terminals", ["lots", -1])
+def test_bad_terminal_counts_do_not_break_the_listing(
+    api_client: APIClient, topology_dir: Path, terminals: object
+) -> None:
+    (topology_dir / "bad-terminals.yaml").write_text(
+        f"topology:\n  switches:\n    A:\n      terminals: {terminals}\n"
+    )
+    api_client.post(URL, PAYLOAD, format="json")
+
+    assert [t.name for t in topology.list_topologies()] == ["two-switch"]
+
+
 def test_topologies_are_listed_by_switch_count_then_name(
     api_client: APIClient, topology_dir: Path
 ) -> None:
@@ -189,7 +201,7 @@ def test_duplicate_name_is_rejected(api_client: APIClient, topology_dir: Path) -
     api_client.post(URL, PAYLOAD, format="json")
     before = (topology_dir / "two-switch.yaml").read_text()
 
-    resp = api_client.post(URL, {**PAYLOAD, "switches": PAYLOAD["switches"][1:]}, format="json")
+    resp = api_client.post(URL, {**PAYLOAD, "switches": [_switch()]}, format="json")
 
     assert resp.status_code == 409
     assert (topology_dir / "two-switch.yaml").read_text() == before
@@ -251,3 +263,84 @@ def test_invalid_topology_is_rejected(
     assert resp.status_code == 400
     assert message in str(resp.data[0])
     assert list(topology_dir.iterdir()) == []
+
+
+SWITCH_B = PAYLOAD["switches"][1]
+
+
+@pytest.mark.parametrize(
+    ("invalid", "message"),
+    [
+        ({"switches": [_switch(terminals=1)]}, "at least two terminals"),
+        ({"switches": [_switch(name="A:1")]}, "cannot contain a colon"),
+        (
+            {
+                "switches": [
+                    _switch(
+                        connections=[
+                            {"target": "B", "bandwidth_gbps": 1},
+                            {"target": "B", "bandwidth_gbps": 2},
+                        ]
+                    ),
+                    SWITCH_B,
+                ]
+            },
+            "more than one connection to B",
+        ),
+        (
+            {
+                "switches": [
+                    _switch(terminals=128, connections=[{"target": "B", "bandwidth_gbps": 1}]),
+                    SWITCH_B,
+                ]
+            },
+            "outgoing connections is more than 128",
+        ),
+        (
+            {"switches": [PAYLOAD["switches"][0], {**SWITCH_B, "terminals": 128}]},
+            "incoming connections is more than 128",
+        ),
+        (
+            {"switches": [_switch(), {**SWITCH_B, "terminals": 0}]},
+            "needs at least one terminal or incoming connection",
+        ),
+    ],
+)
+def test_topologies_the_model_rejects_are_not_saved(
+    api_client: APIClient,
+    topology_dir: Path,
+    invalid: dict[str, Any],
+    message: str,
+) -> None:
+    resp = api_client.post(URL, {**PAYLOAD, **invalid}, format="json")
+
+    assert resp.status_code == 400
+    assert message in str(resp.data[0])
+    assert list(topology_dir.iterdir()) == []
+
+
+@pytest.mark.parametrize(
+    "tolerated",
+    [
+        pytest.param({"switches": [_switch()]}, id="single switch"),
+        pytest.param(
+            {"switches": [_switch(terminal_bandwidth_gbps=0, switch_buffer_gb=0)]},
+            id="zero rates",
+        ),
+        pytest.param(
+            {"switches": [_switch(connections=[{"target": "A", "bandwidth_gbps": 1}])]},
+            id="self loop",
+        ),
+        pytest.param(
+            {"switches": [PAYLOAD["switches"][0], {**SWITCH_B, "terminals": 0}]},
+            id="transit switch fed by a connection",
+        ),
+    ],
+)
+def test_topologies_the_model_accepts_are_saved(
+    api_client: APIClient, topology_dir: Path, tolerated: dict[str, Any]
+) -> None:
+    """Only the model's own rules are enforced; these all load and run."""
+    resp = api_client.post(URL, {**PAYLOAD, **tolerated}, format="json")
+
+    assert resp.status_code == 201
