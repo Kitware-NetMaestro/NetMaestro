@@ -230,7 +230,7 @@ def run_ffw_simulation(  # noqa: PLR0913
     run_id: int,
     np: int = 1,
     sync: int = 1,
-    model_stats: int = 3,
+    model_stats: int = 4,
     num_gvt: int = 1,
     rt_interval: int = 1,
     vt_interval: int = 1e8,

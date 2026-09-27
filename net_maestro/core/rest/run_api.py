@@ -102,10 +102,10 @@ class RunModelDataView(APIView):
 
 
 def _filter_stats_type(queryset: Any, request: Request, prefix: str = "") -> Any:
-    """Restrict FFW rows to one sampling mode (gvt, rt or vt) when ?stats_type= is given."""
-    stats_type = request.query_params.get("stats_type")
-    if stats_type:
-        queryset = queryset.filter(**{f"{prefix}stats_type": stats_type})
+    """Restrict FFW rows to the sampling modes in ?stats_type= (comma-separated gvt, rt, vt)."""
+    stats_types = [s for s in request.query_params.get("stats_type", "").split(",") if s]
+    if stats_types:
+        queryset = queryset.filter(**{f"{prefix}stats_type__in": stats_types})
     return queryset
 
 

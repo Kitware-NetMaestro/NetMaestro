@@ -63,10 +63,14 @@ const FFW_SAMPLE_COLUMNS = [
   'lpid',
 ];
 const FFW_TIME_AXES = [
-  { key: 'ts', label: 'Virtual Time' },
+  { key: 'ts', label: 'Virtual Time', statsType: 'vt' },
+  { key: 'real_time', label: 'Real Time (s)', statsType: 'rt' },
 ];
 // biome-ignore lint/style/useNamingConvention: matches the API's ?stats_type= query param
 const FFW_PARAMS = { stats_type: 'vt' };
+// Time plots fetch both clocks and pick rows per x-axis (see FFW_TIME_AXES statsType).
+// biome-ignore lint/style/useNamingConvention: matches the API's ?stats_type= query param
+const FFW_TIME_PARAMS = { stats_type: 'vt,rt' };
 
 const FFW_PROFILE = {
   heatmap: {
@@ -86,7 +90,7 @@ const FFW_PROFILE = {
   },
   networkTime: {
     dataset: 'ffw-terminals',
-    params: FFW_PARAMS,
+    timeParams: FFW_TIME_PARAMS,
     groupBy: 'terminal_id',
     excludedColumns: [...FFW_SAMPLE_COLUMNS, 'terminal_id', 'attached_switch'],
     timeAxes: FFW_TIME_AXES,
@@ -95,6 +99,7 @@ const FFW_PROFILE = {
   simulation: {
     dataset: 'ffw-switches',
     params: FFW_PARAMS,
+    timeParams: FFW_TIME_PARAMS,
     groupBy: 'switch_id',
     excludedColumns: [...FFW_SAMPLE_COLUMNS, 'switch_id', 'num_ports'],
     timeAxes: FFW_TIME_AXES,
