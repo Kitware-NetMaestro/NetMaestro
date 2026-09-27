@@ -12,12 +12,11 @@ class Run(models.Model):
     # Defaults to SAVED because a Run only becomes PENDING once a simulation is actually
     # queued to execute. Immediately queued simulations must pass an explicit status.
     status = models.CharField(max_length=20, choices=RunStatus, default=RunStatus.SAVED)
-
-    def __str__(self):
-        return f"Run {self.id}: {self.name} ({self.status})"
-
     # Which simulator produced this run. Drives how it is launched and which datasets
     # and plots apply to it.
     simulation_type = models.CharField(
         max_length=32, choices=SimulationType, default=SimulationType.ESNET
     )
+
+    def __str__(self):
+        return f"Run {self.id}: {self.name} ({self.status})"
