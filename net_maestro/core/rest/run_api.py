@@ -1,6 +1,6 @@
 """REST API endpoints for serving parsed data by Run ID.
 
-Queries database records (EventRecord, ModelRecord, SimulationPeRecord)
+Queries database records (EventRecord, ModelRecord, SimulationPeRecord, FFWRecords)
 that were ingested via the data_ingest management command.
 """
 
@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from django.db.models import F
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,6 +19,9 @@ if TYPE_CHECKING:
 
 from net_maestro.core.models import (
     EventRecord,
+    FFWPortRecord,
+    FFWSwitchRecord,
+    FFWTerminalRecord,
     ModelRecord,
     Run,
     SimulationPeRecord,
@@ -94,4 +98,55 @@ class RunModelDataView(APIView):
         queryset = ModelRecord.objects.filter(
             model_file__run=run,
         ).order_by("virtual_time")
+        return Response(_queryset_to_response(queryset, columns))
+
+
+def _filter_stats_type(queryset: Any, request: Request, prefix: str = "") -> Any:
+    """Restrict FFW rows to the sampling modes in ?stats_type= (comma-separated gvt, rt, vt)."""
+    stats_types = [s for s in request.query_params.get("stats_type", "").split(",") if s]
+    if stats_types:
+        queryset = queryset.filter(**{f"{prefix}stats_type__in": stats_types})
+    return queryset
+
+
+class RunFFWSwitchDataView(APIView):
+    """Return FFW switch records for a given run."""
+
+    def get(self, request: Request, run_id: int) -> Response:
+        run = get_object_or_404(Run, pk=run_id)
+        columns = _fields_for_model(FFWSwitchRecord, exclude=("id", "result_file"))
+        queryset = _filter_stats_type(
+            FFWSwitchRecord.objects.filter(result_file__run=run), request
+        ).order_by("ts", "switch_id")
+        return Response(_queryset_to_response(queryset, columns))
+
+
+class RunFFWTerminalDataView(APIView):
+    """Return FFW terminal records for a given run."""
+
+    def get(self, request: Request, run_id: int) -> Response:
+        run = get_object_or_404(Run, pk=run_id)
+        columns = _fields_for_model(FFWTerminalRecord, exclude=("id", "result_file"))
+        queryset = _filter_stats_type(
+            FFWTerminalRecord.objects.filter(result_file__run=run), request
+        ).order_by("ts", "terminal_id")
+        return Response(_queryset_to_response(queryset, columns))
+
+
+class RunFFWPortDataView(APIView):
+    """Return FFW port records for a given run, flattened with their switch sample's fields."""
+
+    def get(self, request: Request, run_id: int) -> Response:
+        run = get_object_or_404(Run, pk=run_id)
+        sample_fields = ["switch_id", "stats_type", "ts", "real_time"]
+        columns = sample_fields + _fields_for_model(FFWPortRecord, exclude=("id", "switch_record"))
+        queryset = (
+            _filter_stats_type(
+                FFWPortRecord.objects.filter(switch_record__result_file__run=run),
+                request,
+                prefix="switch_record__",
+            )
+            .annotate(**{f: F(f"switch_record__{f}") for f in sample_fields})
+            .order_by("ts", "switch_id", "port_index")
+        )
         return Response(_queryset_to_response(queryset, columns))

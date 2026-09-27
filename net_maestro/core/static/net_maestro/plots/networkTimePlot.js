@@ -1,11 +1,13 @@
 import Plotly from 'plotly';
 import { plotProfileFor } from './plotProfiles.js';
 import {
+  availableTimeAxes,
   axisConfig,
   createValueList,
   DARK_LAYOUT,
   getLabel,
   purgePlot,
+  recordsForTimeAxis,
   setupAxisState,
   setupLoadWatcher,
   setupPlot,
@@ -26,7 +28,7 @@ export const networkTimePlot = () => ({
   },
 
   get xAxisValues() {
-    return this.profile.timeAxes;
+    return availableTimeAxes(this.profile.timeAxes, this.records);
   },
   get yAxisValues() {
     return createValueList(this.columns, this.profile.excludedColumns);
@@ -70,11 +72,20 @@ export const networkTimePlot = () => ({
 
   async loadModelData() {
     this.noData = false;
-    const payload = await this.$store.dataStore.fetchRunData(this.profile.dataset);
+    const payload = await this.$store.dataStore.fetchRunData(
+      this.profile.dataset,
+      this.profile.timeParams ?? this.profile.params,
+    );
     this.columns = payload?.columns ?? [];
     this.records = payload?.data ?? [];
     // Saved axes may belong to another simulation type; fall back to this type's defaults.
-    if (this.columns.length > 0 && !this.columns.includes(this.selectedXAxis)) {
+    if (
+      this.columns.length > 0 &&
+      !(
+        this.columns.includes(this.selectedXAxis) &&
+        this.xAxisValues.some((axis) => axis.key === this.selectedXAxis)
+      )
+    ) {
       this.selectedXAxis = this.profile.defaults.x;
     }
     if (this.columns.length > 0 && !this.columns.includes(this.selectedYAxis)) {
@@ -103,7 +114,8 @@ export const networkTimePlot = () => ({
 
     const groupedData = {};
 
-    for (const record of this.records) {
+    const records = recordsForTimeAxis(this.records, this.xAxisValues, this.selectedXAxis);
+    for (const record of records) {
       const seriesId = record[this.profile.groupBy];
       if (!groupedData[seriesId]) {
         groupedData[seriesId] = {

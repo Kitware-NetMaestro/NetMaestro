@@ -10,6 +10,9 @@ from rest_framework import permissions, routers
 
 from net_maestro.core.rest.run_api import (
     RunEventDataView,
+    RunFFWPortDataView,
+    RunFFWSwitchDataView,
+    RunFFWTerminalDataView,
     RunModelDataView,
     RunRossDataView,
 )
@@ -48,6 +51,19 @@ urlpatterns = [
     path("api/v1/runs/<int:run_id>/ross", RunRossDataView.as_view(), name="api-run-ross"),
     path("api/v1/runs/<int:run_id>/event", RunEventDataView.as_view(), name="api-run-event"),
     path("api/v1/runs/<int:run_id>/model", RunModelDataView.as_view(), name="api-run-model"),
+    path(
+        "api/v1/runs/<int:run_id>/ffw-switches",
+        RunFFWSwitchDataView.as_view(),
+        name="api-run-ffw-switches",
+    ),
+    path(
+        "api/v1/runs/<int:run_id>/ffw-terminals",
+        RunFFWTerminalDataView.as_view(),
+        name="api-run-ffw-terminals",
+    ),
+    path(
+        "api/v1/runs/<int:run_id>/ffw-ports", RunFFWPortDataView.as_view(), name="api-run-ffw-ports"
+    ),
     path("api/docs/redoc/", schema_view.with_ui("redoc"), name="docs-redoc"),
     path("api/docs/swagger/", schema_view.with_ui("swagger"), name="docs-swagger"),
     # Page endpoints

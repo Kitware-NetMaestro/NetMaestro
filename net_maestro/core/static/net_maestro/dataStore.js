@@ -106,11 +106,13 @@ export const dataStore = {
     return await response.json();
   },
 
-  async fetchRunData(dataset) {
+  async fetchRunData(dataset, params = {}) {
     if (!this.selectedRunId) {
       return null;
     }
-    const response = await fetch(`/api/v1/runs/${this.selectedRunId}/${dataset}`);
+    const query = new URLSearchParams(params).toString();
+    const url = `/api/v1/runs/${this.selectedRunId}/${dataset}${query ? `?${query}` : ''}`;
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch ${dataset} data: ${response.statusText}`);
     }

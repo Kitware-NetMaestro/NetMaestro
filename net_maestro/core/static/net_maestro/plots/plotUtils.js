@@ -338,6 +338,40 @@ export function createValueList(columns, excludedColumns = []) {
 }
 
 /**
+ * Returns the time axes the records can be plotted against. An axis with a statsType is
+ * only available when some record was sampled on that clock (e.g. FFW real time needs 'rt').
+ * @param {Array} timeAxes - Array of {key, label, statsType?} objects
+ * @param {Array} records - Data records
+ * @returns {Array} The available time axes
+ */
+export function availableTimeAxes(timeAxes, records) {
+  return timeAxes.filter(
+    (axis) => !axis.statsType || records.some((record) => record.stats_type === axis.statsType),
+  );
+}
+
+/**
+ * Returns the records to plot against a time axis, sorted by that axis. Records are limited
+ * to the axis's statsType, if it has one, and real time is shifted so the first sample is 0.
+ * @param {Array} records - Data records
+ * @param {Array} timeAxes - Array of {key, label, statsType?} objects
+ * @param {string} xKey - Selected time axis key
+ * @returns {Array} Records for the axis, in ascending order of xKey
+ */
+export function recordsForTimeAxis(records, timeAxes, xKey) {
+  const statsType = timeAxes.find((axis) => axis.key === xKey)?.statsType;
+  let rows = statsType ? records.filter((record) => record.stats_type === statsType) : records;
+  if (statsType && xKey === 'real_time' && rows.length > 0) {
+    const start = rows.reduce(
+      (min, record) => Math.min(min, record[xKey]),
+      Number.POSITIVE_INFINITY,
+    );
+    rows = rows.map((record) => ({ ...record, [xKey]: record[xKey] - start }));
+  }
+  return rows.toSorted((a, b) => a[xKey] - b[xKey]);
+}
+
+/**
  * Gets label for a key from a value list, with fallback.
  * @param {Array} valueList - Array of {key, label} objects
  * @param {string} key - Key to look up

@@ -51,9 +51,75 @@ const ROSS_PROFILE = {
   },
 };
 
+// Fluid-flow WAN model stats: switch, per-port and terminal samples from the analysis LPs.
+const FFW_SAMPLE_COLUMNS = [
+  'stats_type',
+  'ts',
+  'real_time',
+  'gvt',
+  'end_time',
+  'peid',
+  'kpid',
+  'lpid',
+];
+const FFW_TIME_AXES = [
+  { key: 'ts', label: 'Virtual Time', statsType: 'vt' },
+  { key: 'real_time', label: 'Real Time (s)', statsType: 'rt' },
+];
+// biome-ignore lint/style/useNamingConvention: matches the API's ?stats_type= query param
+const FFW_PARAMS = { stats_type: 'vt' };
+// Time plots fetch both clocks and pick rows per x-axis (see FFW_TIME_AXES statsType).
+// biome-ignore lint/style/useNamingConvention: matches the API's ?stats_type= query param
+const FFW_TIME_PARAMS = { stats_type: 'vt,rt' };
+
+const FFW_PROFILE = {
+  heatmap: {
+    dataset: 'ffw-ports',
+    params: FFW_PARAMS,
+    sourceKey: 'switch_id',
+    destKey: 'target_index',
+    // Switch-to-switch links only; terminal-facing ports would mix terminal and switch IDs.
+    include: (record) => !record.is_terminal,
+    xTitle: 'Destination Switch',
+    yTitle: 'Source Switch',
+    metrics: [
+      { key: 'port_sent_mbit', label: 'Sent (Mbit)', aggregate: 'sum' },
+      { key: 'port_queued_mbit', label: 'Queued (Mbit)', aggregate: 'sum' },
+      { key: 'port_pause_time_ns', label: 'Pause Time (ns)', aggregate: 'sum' },
+    ],
+  },
+  networkTime: {
+    dataset: 'ffw-terminals',
+    timeParams: FFW_TIME_PARAMS,
+    groupBy: 'terminal_id',
+    excludedColumns: [...FFW_SAMPLE_COLUMNS, 'terminal_id', 'attached_switch'],
+    timeAxes: FFW_TIME_AXES,
+    defaults: { x: 'ts', y: 'send_rate_sum_mbps' },
+  },
+  simulation: {
+    dataset: 'ffw-switches',
+    params: FFW_PARAMS,
+    timeParams: FFW_TIME_PARAMS,
+    groupBy: 'switch_id',
+    excludedColumns: [...FFW_SAMPLE_COLUMNS, 'switch_id', 'num_ports'],
+    timeAxes: FFW_TIME_AXES,
+    scatterDefaults: { x: 'shared_buffer_occupancy_mbit', y: 'sent_mbit' },
+    timeDefaults: { x: 'ts', y: 'sent_mbit' },
+    parallelDimensions: [
+      { key: 'switch_id', label: 'Switch ID' },
+      { key: 'sent_mbit', label: 'Sent (Mbit)' },
+      { key: 'delivered_local_mbit', label: 'Delivered Local (Mbit)' },
+      { key: 'dropped_mbit', label: 'Dropped (Mbit)' },
+      { key: 'shared_buffer_occupancy_mbit', label: 'Buffer Occupancy (Mbit)' },
+      { key: 'pause_frames_sent', label: 'Pause Frames Sent' },
+    ],
+  },
+};
+
 const PLOT_PROFILES = {
   phold: ROSS_PROFILE,
   esnet: ROSS_PROFILE,
+  ffw: FFW_PROFILE,
 };
 
 /** Return the plot profile for a simulation type, defaulting to the ROSS profile. */

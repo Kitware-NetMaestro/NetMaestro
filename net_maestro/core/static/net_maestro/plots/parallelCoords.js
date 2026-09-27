@@ -100,7 +100,10 @@ export const parallelCoords = () => ({
 
   async loadRossData() {
     this.noData = false;
-    const payload = await this.$store.dataStore.fetchRunData(this.profile.dataset);
+    const payload = await this.$store.dataStore.fetchRunData(
+      this.profile.dataset,
+      this.profile.params,
+    );
     this.records = payload?.data ?? [];
     this.plotDimensions.splice(0, this.plotDimensions.length, ...this.profile.parallelDimensions);
     if (this.records.length === 0) {
