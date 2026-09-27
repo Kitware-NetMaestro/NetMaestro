@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import csv
 import logging
-from pathlib import Path
 import subprocess
-import tempfile
 from typing import TYPE_CHECKING, Any
 
 import yaml
@@ -13,29 +11,14 @@ from net_maestro.core.constants import FFWTrafficMode
 from net_maestro.core.topology import SWITCH_LP_NAME
 
 if TYPE_CHECKING:
-    from net_maestro.core.topology import Topology
+    from pathlib import Path
 
-from django.conf import settings
+    from net_maestro.core.topology import Topology
 
 logger = logging.getLogger(__name__)
 
 
-# TODO: Revisit whether this belongs in the simulation task or the management command.
-def _find_output_directory(output_dir: Path) -> Path:
-    """Find the actual FFW output directory (FFW creates a random suffix).
-
-    Args:
-        output_dir: The specified output directory
-
-    Returns:
-        The actual output directory (either the most recent phold_output-* or the specified dir)
-    """
-    ffw_output_dirs = sorted(
-        Path(tempfile.gettempdir()).glob("ffw_output-*"),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )
-    return ffw_output_dirs[0] if ffw_output_dirs else output_dir
+FFW_STATS_FILES = ("ross-stats-model.bin", "ross-stats-analysis-lps.bin")
 
 
 # The settings naming the stock binary and template traffic config for each traffic mode.
@@ -136,9 +119,17 @@ def execute_ffw_model(  # noqa: PLR0913
     config_path: str,
     working_dir: str,
     binary_path: str,
+    stats_dir: Path,
 ) -> Path:
-    stats_output = settings.FFW_OUTPUT_DIR
-    actual_output_dir = _find_output_directory(stats_output)
+    """Run the model, writing its ROSS stats into `stats_dir`, and return that directory.
+
+    `stats_dir` must not exist yet: ROSS creates it, but if it already exists ROSS
+    quietly writes to `<stats_dir>-<pid>-<time>` instead, and the results would be
+    read from the wrong place.
+    """
+    if stats_dir.exists():
+        raise FileExistsError(f"FFW stats directory {stats_dir} already exists")
+    stats_dir.parent.mkdir(parents=True, exist_ok=True)
     cmd = [
         "mpirun",
         "-np",
@@ -150,15 +141,30 @@ def execute_ffw_model(  # noqa: PLR0913
         f"--rt-interval={rt_interval}",
         f"--vt-interval={vt_interval}",
         f"--vt-samp-end={vt_samp_end}",
-        f"--stats-path={actual_output_dir}",
+        f"--stats-path={stats_dir}",
         "--",
         config_path,
     ]
     try:
         result = subprocess.run(cmd, cwd=working_dir, check=True, capture_output=True, text=True)  # noqa: S603
     except subprocess.CalledProcessError as e:
-        logger.exception("FFW simulation failed with error code %s", e.returncode)
-        logger.info("FFW simulation stderr: %s", e.stderr)
+        # The model's own error message is at the end of its output. No traceback here:
+        # run_ffw_simulation logs it once.
+        logger.error(  # noqa: TRY400
+            "FFW simulation exited with code %s.\n--- last lines of stdout ---\n%s\n"
+            "--- last lines of stderr ---\n%s",
+            e.returncode,
+            _tail(e.stdout),
+            _tail(e.stderr),
+        )
         raise
-    logger.info("FFW simulation stdout: %s", result.stdout)
-    return actual_output_dir
+    logger.info("FFW simulation finished; full output is logged at DEBUG level")
+    logger.debug("FFW simulation output:\n%s", result.stdout)
+    missing = [name for name in FFW_STATS_FILES if not (stats_dir / name).is_file()]
+    if missing:
+        raise FileNotFoundError(f"FFW finished but wrote no {', '.join(missing)} in {stats_dir}")
+    return stats_dir
+
+
+def _tail(text: str | None, lines: int = 20) -> str:
+    return "\n".join((text or "").splitlines()[-lines:])

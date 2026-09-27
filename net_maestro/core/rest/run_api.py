@@ -6,6 +6,7 @@ that were ingested via the data_ingest management command.
 
 from __future__ import annotations
 
+from math import isfinite
 from typing import TYPE_CHECKING, Any
 
 from django.db.models import F
@@ -48,8 +49,18 @@ def _queryset_to_response(
     queryset: Any,
     columns: list[str],
 ) -> dict[str, Any]:
-    """Convert a queryset to the standard {columns, data} response format."""
-    records = list(queryset.values(*columns))
+    """Convert a queryset to the standard {columns, data} response format.
+
+    JSON has no infinity or NaN, so those become null. ROSS reports GVT as infinity once
+    a simulation has finished, so the last GVT sample of every FFW run has one.
+    """
+    records = [
+        {
+            key: None if isinstance(value, float) and not isfinite(value) else value
+            for key, value in record.items()
+        }
+        for record in queryset.values(*columns)
+    ]
     return {
         "columns": columns,
         "data": records,

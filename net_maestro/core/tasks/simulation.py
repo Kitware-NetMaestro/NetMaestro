@@ -4,6 +4,7 @@ from collections import defaultdict
 import logging
 from pathlib import Path
 import tempfile
+from uuid import uuid4
 
 from celery import shared_task
 from django.conf import settings
@@ -20,6 +21,7 @@ from net_maestro.core.models.simulation_pe_record import SimulationPeRecord
 from net_maestro.core.parsers.ross_binary_file import RecordType
 from net_maestro.core.parsers.ross_binary_file import ROSSFile as SimulationFileParser
 from net_maestro.core.services.ffw import (
+    FFW_STATS_FILES,
     FFW_TRAFFIC_DEFAULTS,
     execute_ffw_model,
     point_traffic_config_at_topology,
@@ -263,36 +265,29 @@ def run_ffw_simulation(  # noqa: PLR0913
         point_traffic_config_at_topology(
             topology=get_topology(topology_name), config_path=ffw_config_path
         )
-        output_dir = Path(
-            execute_ffw_model(
-                np=np,
-                sync=sync,
-                model_stats=model_stats,
-                num_gvt=num_gvt,
-                rt_interval=rt_interval,
-                vt_interval=vt_interval,
-                vt_samp_end=vt_samp_end,
-                config_path=str(ffw_config_path),
-                working_dir=str(ffw_config_path.parent),
-                binary_path=ffw_binary_path,
-            )
+        stats_dir = execute_ffw_model(
+            np=np,
+            sync=sync,
+            model_stats=model_stats,
+            num_gvt=num_gvt,
+            rt_interval=rt_interval,
+            vt_interval=vt_interval,
+            vt_samp_end=vt_samp_end,
+            config_path=str(ffw_config_path),
+            working_dir=str(ffw_config_path.parent),
+            binary_path=ffw_binary_path,
+            stats_dir=Path(settings.FFW_OUTPUT_DIR) / f"run-{run.id}-{uuid4().hex[:8]}",
         )
-        ffw_model_result_file = FFWResultFile.objects.create(
-            run=run,
-            file=File(open(output_dir / "ross-stats-model.bin", "rb"), name="ross-stats-model.bin"),
-        )
-
-        ffw_analysis_result_file = FFWResultFile.objects.create(
-            run=run,
-            file=File(
-                open(output_dir / "ross-stats-analysis-lps.bin", "rb"),
-                name="ross-stats-analysis-lps.bin",
-            ),
-        )
-
-        ffw_model_result_file.save()
-        ffw_analysis_result_file.save()
-        run_ffw_ingest_task([ffw_model_result_file.pk, ffw_analysis_result_file.pk])
+        with transaction.atomic():
+            # A re-run replaces the run's previous results rather than adding to them.
+            run.ffw_result_files.all().delete()
+            result_files = []
+            for name in FFW_STATS_FILES:
+                with (stats_dir / name).open("rb") as stream:
+                    result_files.append(
+                        FFWResultFile.objects.create(run=run, file=File(stream, name=name))
+                    )
+        run_ffw_ingest_task([result_file.pk for result_file in result_files])
         run.status = RunStatus.COMPLETED
         run.save()
         logger.info("FFW simulation finished for run %s", run_id)

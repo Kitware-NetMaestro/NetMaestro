@@ -60,6 +60,10 @@ SHELL_PLUS_IMPORTS = [
 
 REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = ["rest_framework.permissions.AllowAny"]
 
+# runserver_plus handles each request on a new thread, so persistent connections are never
+# reused and pile up until Postgres runs out of slots. Close each one after its request.
+DATABASES["default"]["CONN_MAX_AGE"] = 0
+
 # PHOLD simulation configuration
 # The PHOLD binary path must be set via environment variable.
 PHOLD_BINARY_PATH = env.str("DJANGO_PHOLD_BINARY_PATH", default="")

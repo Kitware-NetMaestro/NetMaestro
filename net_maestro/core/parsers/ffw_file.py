@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Reference parser for the ROSS model-level stats binaries produced by CODES runs.
 
 Parses the two files written when a simulation runs with --model-stats:
@@ -17,17 +16,14 @@ parametric in the topology's max port count, which is inferred from the payload 
 flag needed. Unknown payload sizes are reported (and dumped as hex with --dump-unknown) but
 do not fail the parse.
 
-Output: one CSV per LP type to stdout (or to <prefix>-<type>.csv with --csv-prefix).
-Exits non-zero on framing errors or truncated input so tests can assert parseability.
+Raises FormatError on framing errors or truncated input.
 
 stdlib only -- no numpy/pandas required.
 """
 
 from __future__ import annotations
 
-import csv
 import struct
-import sys
 
 from net_maestro.core.models import FFWResultFile
 
@@ -60,6 +56,7 @@ def _decode_svr_model(payload):
                 "rtt_count",
             ),
             vals,
+            strict=False,
         )
     )
 
@@ -132,6 +129,7 @@ def _decode_svr_vt(payload):
                 "end_time",
             ),
             vals,
+            strict=False,
         )
     )
 
@@ -205,7 +203,9 @@ FFW_SWITCH_VT_TRAILER = 72  # scalar part of the trailing rollback block
 FFW_PORT_STRIDE = 48  # 4 f64 + 4 i32 per port, in both payloads
 FFW_VT_PORT_TRAILER_STRIDE = 16  # 2 more f64 per port in the VT rollback block
 
-FFW_TERMINAL_MODEL = struct.Struct("<Q4i6d4Q")
+# The frame counters are deltas since the previous sample. The model writes them as u64,
+# but after an optimistic rollback a delta is legitimately negative, so read them signed.
+FFW_TERMINAL_MODEL = struct.Struct("<Q4i6d4q")
 FFW_TERMINAL_MODEL_FIELDS = (
     "terminal_id",
     "attached_switch",
@@ -223,7 +223,7 @@ FFW_TERMINAL_MODEL_FIELDS = (
     "pause_updates_received",
     "rate_updates_received",
 )
-FFW_TERMINAL_VT = struct.Struct("<Q6d4Qd4i")
+FFW_TERMINAL_VT = struct.Struct("<Q6d4qd4i")
 FFW_SWITCH_SCALARS = (
     "shared_buffer_capacity_mbit",
     "shared_buffer_occupancy_mbit",
@@ -238,13 +238,13 @@ FFW_SWITCH_SCALARS = (
     "resume_frames_received",
     "pause_updates_received",
 )
-FFW_SWITCH_MODEL_HEAD = struct.Struct("<Q2i6d6Q")
-FFW_SWITCH_VT_HEAD = struct.Struct("<Q6d6Qd2i")
+FFW_SWITCH_MODEL_HEAD = struct.Struct("<Q2i6d6q")
+FFW_SWITCH_VT_HEAD = struct.Struct("<Q6d6qd2i")
 
 
 def _decode_ffw_terminal_model(payload):
     vals = FFW_TERMINAL_MODEL.unpack_from(payload)
-    row = dict(zip(FFW_TERMINAL_MODEL_FIELDS, vals))
+    row = dict(zip(FFW_TERMINAL_MODEL_FIELDS, vals, strict=False))
     del row["reserved"]
     return row
 
@@ -272,6 +272,7 @@ def _decode_ffw_terminal_vt(payload):
                 "reserved",
             ),
             vals,
+            strict=False,
         )
     )
     del row["reserved"]
@@ -304,7 +305,7 @@ def _decode_ffw_port_block(payload, off, ports, row):
 
 def _decode_ffw_switch_model(payload, ports):
     vals = FFW_SWITCH_MODEL_HEAD.unpack_from(payload, 0)
-    row = dict(zip(("switch_id", "num_ports", "reserved") + FFW_SWITCH_SCALARS, vals))
+    row = dict(zip(("switch_id", "num_ports", "reserved", *FFW_SWITCH_SCALARS), vals, strict=False))
     del row["reserved"]
     _decode_ffw_port_block(payload, FFW_SWITCH_MODEL_HEADER, ports, row)
     return row
@@ -314,8 +315,9 @@ def _decode_ffw_switch_vt(payload, ports):
     vals = FFW_SWITCH_VT_HEAD.unpack_from(payload, 0)
     row = dict(
         zip(
-            ("switch_id",) + FFW_SWITCH_SCALARS + ("end_time", "num_ports", "reserved"),
+            ("switch_id", *FFW_SWITCH_SCALARS, "end_time", "num_ports", "reserved"),
             vals,
+            strict=False,
         )
     )
     del row["reserved"]
@@ -483,29 +485,6 @@ def parse_vt_file(path, dispatch, rows, unknown, family="auto"):
         row.update(decoder(payload))
         rows.setdefault(lp_type, []).append(row)
     return n
-
-
-def write_csv(rows, csv_prefix):
-    for lp_type, entries in sorted(rows.items()):
-        entries.sort(key=lambda r: (r["ts"], r["lpid"]))
-        # union of keys across entries, preserving first-seen order (vt rows have extras)
-        fields = []
-        for r in entries:
-            for k in r:
-                if k not in fields:
-                    fields.append(k)
-        if csv_prefix:
-            dir = "/tmp/ffw/"
-            out = open(f"{dir}{csv_prefix}-{lp_type}.csv", "w", newline="")
-            # out = open(f"{csv_prefix}-{lp_type}.csv", "w", newline="")
-        else:
-            out = sys.stdout
-            out.write(f"# --- {lp_type} ({len(entries)} records) ---\n")
-        writer = csv.DictWriter(out, fieldnames=fields, restval="")
-        writer.writeheader()
-        writer.writerows(entries)
-        if csv_prefix:
-            out.close()
 
 
 def parse_ffw_files(
