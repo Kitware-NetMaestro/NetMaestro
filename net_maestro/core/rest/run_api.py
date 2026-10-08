@@ -6,6 +6,7 @@ that were ingested via the data_ingest management command.
 
 from __future__ import annotations
 
+import logging
 from math import isfinite
 from typing import TYPE_CHECKING, Any
 
@@ -18,6 +19,8 @@ if TYPE_CHECKING:
     from django.db.models import Model
     from rest_framework.request import Request
 
+    from net_maestro.core.topology import Topology
+
 from net_maestro.core.models import (
     EventRecord,
     FFWPortRecord,
@@ -27,6 +30,11 @@ from net_maestro.core.models import (
     Run,
     SimulationPeRecord,
 )
+from django.urls import reverse
+
+from net_maestro.core.topology import TopologyError, get_topology
+
+logger = logging.getLogger(__name__)
 
 
 def _fields_for_model(
@@ -161,3 +169,73 @@ class RunFFWPortDataView(APIView):
             .order_by("ts", "switch_id", "port_index")
         )
         return Response(_queryset_to_response(queryset, columns))
+
+
+class RunDatasetsView(APIView):
+    """Report which datasets hold rows for a run, so the UI can pick a source per plot.
+
+    A single run can carry both FFW model stats and ROSS engine stats, so the
+    analysis page resolves each plot's dataset from this rather than from
+    Run.simulation_type.
+    """
+
+    def get(self, _request: Request, run_id: int) -> Response:
+        run = get_object_or_404(Run, pk=run_id)
+        topology = _topology_for(run)
+        counts = {
+            "event": EventRecord.objects.filter(event_file__run=run).count(),
+            "model": ModelRecord.objects.filter(model_file__run=run).count(),
+            "ross": SimulationPeRecord.objects.filter(simulation_file__run=run).count(),
+            "ffw-switches": FFWSwitchRecord.objects.filter(result_file__run=run).count(),
+            "ffw-terminals": FFWTerminalRecord.objects.filter(result_file__run=run).count(),
+            "ffw-ports": FFWPortRecord.objects.filter(switch_record__result_file__run=run).count(),
+        }
+        return Response(
+            {
+                "simulation_type": run.simulation_type,
+                "datasets": counts,
+                "available": sorted(name for name, count in counts.items() if count),
+                "switch_names": [switch.name for switch in topology.switches] if topology else [],
+                "topology": _topology_link(topology),
+            }
+        )
+
+
+def _topology_link(topology: Topology | None) -> dict[str, str] | None:
+    """Return where to fetch the run's topology from, for the views that draw it.
+
+    The switches and links live in the topology file rather than in the run's own
+    records, so a plot that draws the network has to go and get them.
+    """
+    if topology is None:
+        return None
+    return {
+        "name": topology.name,
+        "url": reverse("api-topology-detail", kwargs={"name": topology.name}),
+    }
+
+
+def _topology_for(run: Run) -> Topology | None:
+    """Return the topology the run was configured with, or None when unreadable.
+
+    The model numbers switch LPs by walking the topology file in order, so a
+    switch's position in `topology.switches` is its `switch_id`. None when the
+    run has no FFW config or its topology file is gone, in which case plots keep
+    using the numeric ids and the network view has nothing to draw.
+
+    TODO: Read this from the run's own copy of the topology once runs keep one;
+    today's lookup is by name, so editing a preset renames a past run's switches.
+    """
+    config = run.ffw_configs.order_by("-id").first()
+    if config is None:
+        return None
+    try:
+        return get_topology(config.topology_name)
+    except TopologyError:
+        logger.warning(
+            "Run %s names topology %r, which is no longer readable; "
+            "plots will fall back to switch ids.",
+            run.pk,
+            config.topology_name,
+        )
+        return None

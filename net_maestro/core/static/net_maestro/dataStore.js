@@ -1,3 +1,5 @@
+import { sourcesForSlot } from './plots/plotProfiles.js';
+
 /**
  * Coordinates zoom/pan across plots that share the same axis parameter.
  *
@@ -73,6 +75,19 @@ export const dataStore = {
   selectedRunId: null,
   simulationType: null,
 
+  // Row counts per dataset for the selected run, from /api/v1/runs/<id>/datasets.
+  // A run can hold both FFW model stats and ROSS engine stats, so plots resolve
+  // their dataset from this rather than from simulationType.
+  datasets: null,
+  // Switch names from the run's topology, indexed by switch_id. Empty when the run
+  // has no topology to read, and plots then fall back to the numeric ids.
+  switchNames: [],
+  // Where to fetch the run's topology from, as { name, url }, or null when the run
+  // names none. The network view needs it to know what to draw.
+  topology: null,
+  // Per-slot source override chosen in the UI, e.g. { simulation: 'ffw' }.
+  slotSources: {},
+
   async fetchRossData() {
     if (!this.selectedRunId) {
       return null;
@@ -127,6 +142,51 @@ export const dataStore = {
   selectRun(runId, simulationType) {
     this.selectedRunId = runId;
     this.simulationType = simulationType;
+    this.datasets = null;
+    this.switchNames = [];
+    this.topology = null;
+    this.slotSources = {};
+    // Plots load once the manifest lands, so they resolve against the real datasets.
+    this.fetchDatasets();
+  },
+
+  /** Load which datasets this run holds, then trigger the plots. */
+  async fetchDatasets() {
+    const runId = this.selectedRunId;
+    try {
+      const response = await fetch(`/api/v1/runs/${runId}/datasets`);
+      if (response.ok && runId === this.selectedRunId) {
+        const manifest = await response.json();
+        this.datasets = manifest.datasets;
+        this.switchNames = manifest.switch_names ?? [];
+        this.topology = manifest.topology ?? null;
+      }
+    } catch (error) {
+      console.warn('Failed to fetch run datasets; falling back to simulation type', error);
+    }
+    this.loadTick++;
+  },
+
+  /** A switch's name from the run's topology, or its id when there is no name for it. */
+  switchLabel(switchId) {
+    return this.switchNames[switchId] ?? switchId;
+  },
+
+  /** The sources this run has data for, for one plot slot (used by the tab's toggle). */
+  slotOptions(slot) {
+    return sourcesForSlot(slot, this.datasets);
+  },
+
+  /** The source a slot is currently reading from. */
+  activeSlotSource(slot) {
+    const options = this.slotOptions(slot);
+    const chosen = this.slotSources[slot];
+    return (options.find((o) => o.source === chosen) ?? options[0])?.source ?? null;
+  },
+
+  /** Choose which source a plot slot reads from, and reload the plots. */
+  setSlotSource(slot, source) {
+    this.slotSources = { ...this.slotSources, [slot]: source };
     this.loadTick++;
   },
 };

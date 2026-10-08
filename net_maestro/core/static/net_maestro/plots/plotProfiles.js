@@ -1,12 +1,21 @@
+import { SECONDS_FROM_NS } from './plotUtils.js';
+
 /**
  * Per-simulation-type plot settings, keyed by Run.simulation_type.
  * Add an entry when a new simulation type is added, affecting the generation of plots
+ *
+ * `timeKey` names the column holding virtual time. It is what the shared time
+ * window filters on, so a profile without one cannot be replayed and its plot
+ * keeps aggregating over the whole run. `timeUnit` says how to show that
+ * column's values; leaving it off shows them as they come.
  */
 
 // Event trace, CODES model stats and ROSS engine stats: produced by PHOLD and ingested ESnet runs.
 const ROSS_PROFILE = {
   heatmap: {
     dataset: 'event',
+    timeKey: 'virtual_receive',
+    title: 'Event Heatmap',
     sourceKey: 'source_lp',
     destKey: 'dest_lp',
     xTitle: 'Receiving LP ID',
@@ -23,6 +32,7 @@ const ROSS_PROFILE = {
   },
   networkTime: {
     dataset: 'model',
+    timeKey: 'virtual_time',
     groupBy: 'lp_id',
     excludedColumns: ['lp_id', 'component_id', 'real_time', 'virtual_time'],
     timeAxes: [
@@ -33,6 +43,7 @@ const ROSS_PROFILE = {
   },
   simulation: {
     dataset: 'ross',
+    timeKey: 'virtual_time',
     groupBy: 'PE_ID',
     excludedColumns: ['PE_ID', 'real_time', 'virtual_time'],
     timeAxes: [
@@ -63,7 +74,7 @@ const FFW_SAMPLE_COLUMNS = [
   'lpid',
 ];
 const FFW_TIME_AXES = [
-  { key: 'ts', label: 'Virtual Time', statsType: 'vt' },
+  { key: 'ts', label: 'Virtual Time (s)', statsType: 'vt' },
   { key: 'real_time', label: 'Real Time (s)', statsType: 'rt' },
 ];
 // biome-ignore lint/style/useNamingConvention: matches the API's ?stats_type= query param
@@ -76,12 +87,19 @@ const FFW_PROFILE = {
   heatmap: {
     dataset: 'ffw-ports',
     params: FFW_PARAMS,
+    timeKey: 'ts',
+    timeUnit: SECONDS_FROM_NS,
+    title: 'Switch Link Heatmap',
     sourceKey: 'switch_id',
     destKey: 'target_index',
+    // Both axes are switch ids, so both read better as the topology's switch names.
+    axisLabels: 'switches',
     // Switch-to-switch links only; terminal-facing ports would mix terminal and switch IDs.
     include: (record) => !record.is_terminal,
-    xTitle: 'Destination Switch',
-    yTitle: 'Source Switch',
+    // A port's sample counts what its own switch sent towards the target, so the row
+    // is the sender and the column the receiver.
+    xTitle: 'Receiving Switch',
+    yTitle: 'Sending Switch',
     metrics: [
       { key: 'port_sent_mbit', label: 'Sent (Mbit)', aggregate: 'sum' },
       { key: 'port_queued_mbit', label: 'Queued (Mbit)', aggregate: 'sum' },
@@ -91,6 +109,8 @@ const FFW_PROFILE = {
   networkTime: {
     dataset: 'ffw-terminals',
     timeParams: FFW_TIME_PARAMS,
+    timeKey: 'ts',
+    timeUnit: SECONDS_FROM_NS,
     groupBy: 'terminal_id',
     excludedColumns: [...FFW_SAMPLE_COLUMNS, 'terminal_id', 'attached_switch'],
     timeAxes: FFW_TIME_AXES,
@@ -100,6 +120,8 @@ const FFW_PROFILE = {
     dataset: 'ffw-switches',
     params: FFW_PARAMS,
     timeParams: FFW_TIME_PARAMS,
+    timeKey: 'ts',
+    timeUnit: SECONDS_FROM_NS,
     groupBy: 'switch_id',
     excludedColumns: [...FFW_SAMPLE_COLUMNS, 'switch_id', 'num_ports'],
     timeAxes: FFW_TIME_AXES,
@@ -125,4 +147,93 @@ const PLOT_PROFILES = {
 /** Return the plot profile for a simulation type, defaulting to the ROSS profile. */
 export function plotProfileFor(simulationType) {
   return PLOT_PROFILES[simulationType] ?? ROSS_PROFILE;
+}
+
+// Switch samples plotted over time. Switches are model data from the same FFW files as
+// terminals and ports, so they belong on the Network Performance tab.
+const FFW_SWITCH_TIME = {
+  dataset: 'ffw-switches',
+  params: FFW_PARAMS,
+  timeParams: FFW_TIME_PARAMS,
+  timeKey: 'ts',
+  timeUnit: SECONDS_FROM_NS,
+  groupBy: 'switch_id',
+  excludedColumns: [...FFW_SAMPLE_COLUMNS, 'switch_id', 'num_ports'],
+  timeAxes: FFW_TIME_AXES,
+  defaults: { x: 'ts', y: 'shared_buffer_occupancy_mbit' },
+};
+
+// A run can hold both FFW model stats and ROSS engine stats, so each plot slot picks its
+// dataset from what the run actually has rather than from the run's simulation type.
+//
+// `fallbackOnly` sources are used when nothing better has data, but are not offered as a
+// choice: FFW switch data backs the simulation slot so that an FFW run with no engine
+// stats still fills the Simulation Performance tab.
+export const SLOT_SOURCES = {
+  heatmap: [
+    {
+      source: 'ffw-ports',
+      dataset: 'ffw-ports',
+      label: 'Switch links',
+      profile: FFW_PROFILE.heatmap,
+    },
+    { source: 'event', dataset: 'event', label: 'Events', profile: ROSS_PROFILE.heatmap },
+  ],
+  networkTime: [
+    {
+      source: 'ffw-switches',
+      dataset: 'ffw-switches',
+      label: 'Switches',
+      profile: FFW_SWITCH_TIME,
+    },
+    {
+      source: 'ffw-terminals',
+      dataset: 'ffw-terminals',
+      label: 'Terminals',
+      profile: FFW_PROFILE.networkTime,
+    },
+    { source: 'model', dataset: 'model', label: 'Model stats', profile: ROSS_PROFILE.networkTime },
+  ],
+  simulation: [
+    {
+      source: 'ross',
+      dataset: 'ross',
+      label: 'Engine (PE/KP/LP)',
+      profile: ROSS_PROFILE.simulation,
+    },
+    {
+      source: 'ffw-switches',
+      dataset: 'ffw-switches',
+      label: 'Switches',
+      profile: FFW_PROFILE.simulation,
+      fallbackOnly: true,
+    },
+  ],
+};
+
+/** Sources for a slot that the run has data for, in preference order. */
+function resolvableSources(slot, datasets) {
+  const options = SLOT_SOURCES[slot] ?? [];
+  if (!datasets) {
+    return options;
+  }
+  return options.filter((option) => (datasets[option.dataset] ?? 0) > 0);
+}
+
+/**
+ * The sources to offer as a choice for a slot. Empty or single-entry means no toggle:
+ * fallbackOnly sources never appear, and they are dropped entirely once a real source
+ * has data, so the Simulation tab shows engine metrics alone.
+ */
+export function sourcesForSlot(slot, datasets) {
+  const available = resolvableSources(slot, datasets);
+  const offered = available.filter((option) => !option.fallbackOnly);
+  return offered.length > 0 ? offered : available;
+}
+
+/** Resolve a slot's profile: the chosen source if it has data, else the preferred one. */
+export function profileForSlot(slot, datasets, chosenSource) {
+  const available = sourcesForSlot(slot, datasets);
+  const picked = available.find((option) => option.source === chosenSource) ?? available[0];
+  return picked?.profile ?? ROSS_PROFILE[slot] ?? null;
 }

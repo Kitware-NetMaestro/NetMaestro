@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from django.urls import reverse
 import pytest
 import yaml
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from django.test import Client
     from pytest_django.fixtures import SettingsWrapper
     from rest_framework.test import APIClient
 
@@ -185,6 +187,80 @@ def test_topologies_are_listed_by_switch_count_then_name(
     api_client.post(URL, {**PAYLOAD, "name": "trio", "switches": three_switches}, format="json")
 
     assert [t.name for t in topology.list_topologies()] == ["alpha", "zulu", "trio"]
+
+
+def test_family_narrows_the_list_to_matching_names(
+    api_client: APIClient, topology_dir: Path
+) -> None:
+    """The Available Models page opens the topology page on one model's presets."""
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-fabric-5-site"}, format="json")
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-fabric-2-site"}, format="json")
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-8-switch"}, format="json")
+
+    names = [t.name for t in topology.list_topologies(family="fabric")]
+
+    assert names == ["ffw-fabric-2-site", "ffw-fabric-5-site"]
+
+
+def test_family_matches_whole_words_only(api_client: APIClient, topology_dir: Path) -> None:
+    """`fabric` must not also pull in a name that merely starts with it."""
+    api_client.post(URL, {**PAYLOAD, "name": "fabricated-topology"}, format="json")
+
+    assert topology.list_topologies(family="fabric") == ()
+
+
+def test_no_family_lists_everything(api_client: APIClient, topology_dir: Path) -> None:
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-fabric-5-site"}, format="json")
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-8-switch"}, format="json")
+
+    assert len(topology.list_topologies()) == 2
+
+
+def test_family_label_keeps_fabric_uppercase() -> None:
+    assert topology.family_label("fabric") == "FABRIC"
+    assert topology.family_label("wan") == "WAN"
+    assert topology.family_label("dragonfly") == "Dragonfly"
+
+
+def test_topology_page_honours_the_family_parameter(
+    api_client: APIClient, client: Client, topology_dir: Path
+) -> None:
+    """Arriving from the NSF FABRIC Testbed card shows the FABRIC presets alone."""
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-fabric-5-site"}, format="json")
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-8-switch"}, format="json")
+
+    resp = client.get(reverse("topology-partial"), {"family": "fabric"})
+    content = resp.content.decode()
+
+    assert resp.status_code == 200
+    assert [t.name for t in resp.context["topologies"]] == ["ffw-fabric-5-site"]
+    assert "Showing FABRIC topologies only." in content
+    assert "ffw-8-switch" not in content
+
+
+def test_topology_page_offers_a_run_link_carrying_the_picker(
+    api_client: APIClient, client: Client, topology_dir: Path
+) -> None:
+    """The run link sends the picker's current value, so it follows the selection."""
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-fabric-5-site"}, format="json")
+
+    content = client.get(reverse("topology-partial")).content.decode()
+
+    assert 'hx-get="{}"'.format(reverse("new-ffw-simulation-config")) in content
+    assert 'hx-include="#topology-picker"' in content
+    assert 'id="topology-picker"' in content
+
+
+def test_topology_page_without_a_family_shows_everything(
+    api_client: APIClient, client: Client, topology_dir: Path
+) -> None:
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-fabric-5-site"}, format="json")
+    api_client.post(URL, {**PAYLOAD, "name": "ffw-8-switch"}, format="json")
+
+    resp = client.get(reverse("topology-partial"))
+
+    assert len(resp.context["topologies"]) == 2
+    assert "Showing" not in resp.content.decode()
 
 
 def test_anonymous_requests_cannot_save(api_client: APIClient, topology_dir: Path) -> None:
