@@ -225,7 +225,7 @@ def test_family_label_keeps_fabric_uppercase() -> None:
 def test_topology_page_honours_the_family_parameter(
     api_client: APIClient, client: Client, topology_dir: Path
 ) -> None:
-    """Arriving from the NSF FABRIC Testbed card shows the FABRIC presets alone."""
+    """Arriving from the FABRIC Testbed card shows the FABRIC presets alone."""
     api_client.post(URL, {**PAYLOAD, "name": "ffw-fabric-5-site"}, format="json")
     api_client.post(URL, {**PAYLOAD, "name": "ffw-8-switch"}, format="json")
 

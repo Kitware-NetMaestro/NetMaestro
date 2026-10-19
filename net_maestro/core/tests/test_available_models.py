@@ -20,12 +20,12 @@ class TestSimulationModelsData:
         assert len(SIMULATION_MODELS) == 5
 
     def test_fabric_is_first(self) -> None:
-        assert SIMULATION_MODELS[0]["name"] == "NSF FABRIC Testbed"
+        assert SIMULATION_MODELS[0]["name"] == "FABRIC Testbed"
 
     def test_order(self) -> None:
         names = [m["name"] for m in SIMULATION_MODELS]
         assert names == [
-            "NSF FABRIC Testbed",
+            "FABRIC Testbed",
             "Fluid Flow WAN",
             "PHOLD",
             "Ping Pong",
@@ -93,7 +93,7 @@ class TestModelsListView:
         response = client.get(reverse("models-list-partial"))
         content = response.content.decode()
 
-        assert 'aria-label="Toggle NSF FABRIC Testbed details" checked' in content
+        assert 'aria-label="Toggle FABRIC Testbed details" checked' in content
         assert 'aria-label="Toggle Fluid Flow WAN details" checked' not in content
 
     def test_component_models_rendered_inside_ffw(self, client: Client) -> None:
