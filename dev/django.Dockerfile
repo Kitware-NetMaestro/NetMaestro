@@ -1,10 +1,14 @@
 # Pin to a specific ROSS and CODES commits for reproducible builds.
 ARG ROSS_GIT_REF=dc3a6a056cfc7a5e68f7141f88d8833407599ef8
 ARG CODES_GIT_REF=a5958cfaee6dcc73a98d084005e3412da773fb35
+# PIN to a specific CODES Branch for FFW
+# This points to a forked repo and should be updated/removed when merged into CODES proper
+ARG FFW_GIT_REF=13acd9cbbd57efa80ff073b1826f3a0b9f49922d
 
 FROM ubuntu:24.04 AS ross-builder
 ARG ROSS_GIT_REF
 ARG CODES_GIT_REF
+ARG FFW_GIT_REF
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates git \
@@ -55,6 +59,19 @@ RUN cmake -S /opt/codes -B /opt/codes/build \
     && cmake --build opt/codes/build \
     && cmake --install opt/codes/build/
 
+# TODO: Points to forked repo and should be changed/removed when merged
+RUN git clone https://github.com/caitlinross/codes.git opt/FFW \
+    && cd opt/FFW \
+    && git checkout "${FFW_GIT_REF}" \
+    && git submodule update --init --recursive
+
+RUN cmake -S opt/FFW -B opt/FFW/build/local \
+        -DROSS_DIR=/ross/install/lib \
+    && cmake --build opt/FFW/build/local -j"$(nproc)" \
+    --target model-net-fluid-flow-wan-random-traffic \
+    model-net-fluid-flow-wan-trace-traffic
+
+
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
 # Declared (empty by default) so the LD_LIBRARY_PATH append below references a
@@ -75,6 +92,8 @@ ENV PATH=/opt/mpich/bin:$PATH \
 # of relying on a host `ross` checkout bind-mounted at runtime.
 COPY --from=ross-builder --chown=vscode:vscode /ross/build/models/phold/phold /opt/ross/phold
 COPY --from=ross-builder --chown=vscode:vscode /opt/codes /opt/codes
+# TODO: This may change once the FFW changes land in the main repo
+COPY --from=ross-builder --chown=vscode:vscode /opt/FFW /opt/FFW
 # Ensure Python output appears immediately in container logs.
 ENV PYTHONUNBUFFERED=1
 
