@@ -18,6 +18,7 @@ from net_maestro.core.models.simulation_lp_record import PHOLDSimulationLpRecord
 from net_maestro.core.models.simulation_pe_record import SimulationPeRecord
 from net_maestro.core.parsers.ross_binary_file import RecordType
 from net_maestro.core.parsers.ross_binary_file import ROSSFile as SimulationFileParser
+from net_maestro.core.services.ffw import execute_ffw_model
 
 logger = logging.getLogger(__name__)
 
@@ -219,3 +220,51 @@ def run_phold_simulation(  # noqa: PLR0913
         # Update status to FAILED
         run.status = RunStatus.FAILED
         run.save()
+
+
+@shared_task
+def run_ffw_simulation(  # noqa: PLR0913
+    *,
+    run_id: int,
+    np: int = 1,
+    sync: int = 1,
+    model_stats: int = 3,
+    num_gvt: int = 1,
+    rt_interval: int = 1,
+    vt_interval: int = 1e8,
+    vt_samp_end: int = 1.7e10,
+    working_dir: str = "",
+    binary_path: str = "",
+    config_path: str = "",
+) -> None:
+    """Execute FFW simulation with given parameters and update run status."""
+    run = Run.objects.get(pk=run_id)
+    run.status = RunStatus.RUNNING
+    run.save()
+
+    # Use example defaults if values not provided
+    ffw_working_dir = working_dir or getattr(settings, "FFW_BUILD_PATH", "")
+    ffw_binary_path = binary_path or getattr(settings, "FFW_BINARY_PATH", "")
+    ffw_config_path = config_path or getattr(settings, "FFW_CONFIG_PATH", "")
+
+    try:
+        execute_ffw_model(
+            np=np,
+            sync=sync,
+            model_stats=model_stats,
+            num_gvt=num_gvt,
+            rt_interval=rt_interval,
+            vt_interval=vt_interval,
+            vt_samp_end=vt_samp_end,
+            config_path=ffw_config_path,
+            working_dir=ffw_working_dir,
+            binary_path=ffw_binary_path,
+        )
+        run.status = RunStatus.COMPLETED
+        run.save()
+        logger.info("FFW simulation finished for run %s", run_id)
+
+    except Exception:
+        run.status = RunStatus.FAILED
+        run.save()
+        logger.exception("FFW simulation failed for run %s", run_id)
