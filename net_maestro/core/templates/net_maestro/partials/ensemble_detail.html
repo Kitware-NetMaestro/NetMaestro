@@ -18,19 +18,30 @@
         </div>
         <div class="flex flex-row items-center gap-3 mt-2">
           <h1 class="text-3xl font-semibold">{{ ensemble.name }}</h1>
-          {% include "net_maestro/partials/ensemble_status_badge.html" with status=ensemble.status %}
+          {# Refreshed out of band by each poll of the member table, so the header #}
+          {# follows the members from Running to Completed without its own request. #}
+          <span id="ensemble-header-status">
+            {% include "net_maestro/partials/ensemble_status_badge.html" with status=ensemble.status %}
+          </span>
         </div>
         {% if ensemble.description %}
         <p class="text-base-content/70 mt-2">{{ ensemble.description }}</p>
         {% endif %}
       </div>
-      <form method="post" action="{% url 'run-ensemble' ensemble.pk %}" class="inline-flex">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-primary">
-          <i class="ri-play-line" aria-hidden="true"></i>
-          Run
-        </button>
-      </form>
+      <div class="flex flex-row items-center gap-2">
+        {# A plain download, not an HTMX swap. #}
+        <a href="{% url 'ensemble-export' ensemble.pk %}" class="btn btn-ghost" download>
+          <i class="ri-download-2-line" aria-hidden="true"></i>
+          Export CSV
+        </a>
+        <form method="post" action="{% url 'run-ensemble' ensemble.pk %}" class="inline-flex">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-primary">
+            <i class="ri-play-line" aria-hidden="true"></i>
+            Run
+          </button>
+        </form>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
@@ -82,11 +93,12 @@
       </div>
     </div>
 
-    <div class="card bg-base-100 shadow-sm mt-6">
-      <div class="card-body">
-        <h2 class="card-title mb-2">Members</h2>
-        {% include "net_maestro/partials/ensemble_members.html" %}
-      </div>
+    <div class="mt-6">
+      {% include "net_maestro/partials/ensemble_members.html" %}
+    </div>
+
+    <div class="mt-6">
+      {% include "net_maestro/partials/ensemble_effects.html" %}
     </div>
   </div>
 </div>

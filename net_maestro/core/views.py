@@ -5,27 +5,33 @@ Provides page views for configuration and analysis.
 
 from __future__ import annotations
 
+from collections import Counter
+import csv
 import json
 import logging
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
 if TYPE_CHECKING:
     from django import forms
     from django.http import HttpRequest
 
+from . import ensemble_stats
 from .base_models import BASE_MODEL_BY_NAME, BASE_MODEL_REGISTRY
 from .constants import FFWTrafficMode, RunStatus, SimulationType, SynchProtocol
 from .forms import ComponentModelForm, EnsembleForm, FFWSimulationForm, PHOLDSimulationForm
 from .models import ComponentModel, Ensemble, FFWSimulationConfig, PHOLDSimulationConfig, Run
 from .services.ensembles import create_ensemble, launch_ensemble
 from .simulation_models import SIMULATION_MODELS
+from .summaries import HEADLINE_METRICS, Metric, metrics_for
 from .sweeps import MAX_ENSEMBLE_MEMBERS, SweepError, axes_as_json
 from .tasks import run_ffw_simulation, run_phold_simulation
 from .topology import TopologyError, family_label, get_topology, list_topologies
@@ -597,35 +603,280 @@ def _axis_summaries(ensemble: Ensemble) -> list[dict[str, object]]:
     return summaries
 
 
-def _members_context(ensemble: Ensemble) -> dict[str, object]:
-    """Return the member rows and whether the table should keep polling.
+# The element ids that poll the results partials. A request they trigger is a
+# refresh, not a choice the user made, so it must not rewrite the address bar
+# with the (possibly older) state baked into its URL.
+_POLLING_TRIGGERS = frozenset({"ensemble-members", "ensemble-effects"})
+
+_EN_DASH = "\N{EN DASH}"
+
+# The detail value that says where a metric's extreme happened, shown as the
+# cell's tooltip: a peak buffer means little without the switch it was on.
+_METRIC_DETAILS = {
+    "peak_buffer_occupancy_frac": "peak_buffer_switch",
+    "bottleneck_peak_utilization": "bottleneck_link",
+    "bottleneck_mean_utilization": "bottleneck_link",
+}
+
+
+def _metric_registry(ensemble: Ensemble, members: list[Run]) -> list[Metric]:
+    """Return the metrics this ensemble's members can have.
+
+    Engine metrics exist only for runs that collected engine stats, so they are
+    offered only when some member has one; otherwise they would be columns of dashes.
+    """
+    without = metrics_for(ensemble.simulation_type, with_engine=False)
+    with_engine = metrics_for(ensemble.simulation_type, with_engine=True)
+    plain = {metric.key for metric in without}
+    engine_keys = [metric.key for metric in with_engine if metric.key not in plain]
+    has_engine = any(
+        ensemble_stats.metric_value(run, key) is not None for run in members for key in engine_keys
+    )
+    return with_engine if has_engine else without
+
+
+def _requested_extra_metrics(
+    request: HttpRequest, known: dict[str, Metric], shown: list[str]
+) -> list[str]:
+    """Read `?metrics=a,b`, keeping registry keys not already shown, in order.
+
+    Unknown keys are dropped rather than rejected: the parameter lives in a
+    URL someone may have kept from before the registry changed.
+    """
+    keys: list[str] = []
+    for raw in request.GET.getlist("metrics"):
+        for part in raw.split(","):
+            key = part.strip()
+            if key in known and key not in shown and key not in keys:
+                keys.append(key)
+    return keys
+
+
+def _with_query(request: HttpRequest, **changes: str) -> str:
+    """Return the request's query string with some parameters replaced."""
+    query = request.GET.copy()
+    for key, value in changes.items():
+        query[key] = value
+    return query.urlencode()
+
+
+def _health_view(run: Run, health: dict[str, Any] | None) -> dict[str, str] | None:
+    """Return the health icon for a member and the text its tooltip shows.
+
+    A failed member has no summary worth checking, so its icon carries the
+    first line of why it failed instead.
+    """
+    if run.status == RunStatus.FAILED:
+        reason = (getattr(run, "failure_reason", "") or "").strip()
+        return {"icon": "failed", "title": reason.splitlines()[0] if reason else "Failed"}
+    if not health:
+        return None
+    if health.get("ok"):
+        return {"icon": "ok", "title": "All checks passed"}
+    failed = [
+        f"{check.get('label', check.get('key', ''))}: {check.get('detail', '')}".strip(": ")
+        for check in health.get("checks", [])
+        if not check.get("ok")
+    ]
+    return {"icon": "warn", "title": "; ".join(failed) or "A check failed"}
+
+
+def _metric_cell(run: Run, metric: Metric, row: dict[str, Any], *, delta: bool) -> dict[str, str]:
+    """Format one member's value (or its delta) and the tooltip that explains it.
+
+    In delta mode the baseline row keeps its own values, so the reference the
+    other rows are measured against stays on screen.
+    """
+    value = row["values"][metric.key]
+    if delta and not row["is_baseline"]:
+        display = ensemble_stats.format_metric(
+            metric, row["delta_vs_baseline"][metric.key], signed=True
+        )
+    else:
+        display = ensemble_stats.format_metric(metric, value)
+    title = ""
+    detail_key = _METRIC_DETAILS.get(metric.key)
+    if detail_key and row["details"].get(detail_key):
+        title = str(row["details"][detail_key])
+    elif metric.key == "dropped_mbit":
+        delivered = ensemble_stats.metric_value(run, "delivered_frac")
+        if delivered is not None:
+            title = f"Delivered {delivered * 100:.1f}%"
+    return {"display": display, "title": title}
+
+
+def _stat_tiles(
+    ensemble: Ensemble, members: list[Run], headline_metrics: list[Metric]
+) -> dict[str, object]:
+    """Return the numbers for the tiles above the member table."""
+    counts = Counter(run.status for run in members)
+    times = [t for run in members if (t := ensemble_stats.wall_time(run)) is not None]
+    eta = ensemble_stats.eta_seconds(ensemble, members=members)
+    metric_tiles = []
+    for metric in headline_metrics:
+        tile: dict[str, object] = {"metric": metric, "value": "—", "desc": "No results yet"}
+        result = ensemble_stats.spread(ensemble, metric.key, members=members)
+        suffix = ensemble_stats.unit_suffix(metric)
+        if result is not None:
+            low = ensemble_stats.format_number(metric, result["min"])
+            high = ensemble_stats.format_number(metric, result["max"])
+            tile["desc"] = f"range {low} {_EN_DASH} {high}{suffix}"
+            best = result["best"]
+            if best is not None:
+                value = ensemble_stats.format_metric(metric, best["value"])
+                tile["value"] = f"#{best['run'].member_index}: {value}"
+                tile["title"] = "Best member"
+            else:
+                tile["value"] = f"{low} {_EN_DASH} {high}{suffix}"
+        else:
+            present = [
+                (run, v)
+                for run in members
+                if (v := ensemble_stats.metric_value(run, metric.key)) is not None
+            ]
+            if present:
+                first, first_value = present[0]
+                shown = ensemble_stats.format_metric(metric, first_value)
+                tile["value"] = f"#{first.member_index}: {shown}"
+                tile["desc"] = "One member so far"
+        metric_tiles.append(tile)
+    return {
+        "total": len(members),
+        "completed": counts[RunStatus.COMPLETED],
+        "failed": counts[RunStatus.FAILED],
+        "pending": counts[RunStatus.PENDING] + counts[RunStatus.RUNNING],
+        "running": counts[RunStatus.RUNNING],
+        "saved": counts[RunStatus.SAVED],
+        "wall_time": ensemble_stats.format_duration(sum(times)) if times else "—",
+        "eta": ensemble_stats.format_duration(eta) if eta is not None else "",
+        "metrics": metric_tiles,
+    }
+
+
+def _results_context(request: HttpRequest, ensemble: Ensemble) -> dict[str, object]:
+    """Return everything the member table, its tiles, and the effect card show.
+
+    The detail page and both partials build the same context from the same
+    query parameters (`metric`, `delta`, `metrics`), so a partial refreshed on
+    its own renders exactly what the full page would.
 
     The rows carry each member's values in axis order because a template cannot
     index `member_params` by a key held in a variable.
     """
     axes = _axis_summaries(ensemble)
-    members = list(ensemble.members)
+    members = ensemble_stats.load_members(ensemble)
+    registry = _metric_registry(ensemble, members)
+    by_key = {metric.key: metric for metric in registry}
+    headline_keys = [key for key in HEADLINE_METRICS if key in by_key]
+    default_metric = "dropped_mbit" if "dropped_mbit" in by_key else next(iter(headline_keys), "")
+    requested = request.GET.get("metric", "")
+    headline = requested if requested in by_key else default_metric
+    delta = request.GET.get("delta") == "1"
+    extra_metrics = _requested_extra_metrics(request, by_key, headline_keys)
+    columns = [by_key[key] for key in [*headline_keys, *extra_metrics]]
+
+    baseline = ensemble_stats.baseline_member(ensemble, members=members)
+    metric_rows = ensemble_stats.member_metrics(
+        ensemble, [metric.key for metric in columns], members=members, baseline=baseline
+    )
     rows = []
-    for run in members:
+    for run, metric_row in zip(members, metric_rows, strict=True):
         params = run.member_params or {}
         values = []
         for axis in axes:
             value = params.get(str(axis["key"]))
             labels = cast("dict[str, object]", axis["labels"])
             values.append(labels.get(str(value), value))
-        rows.append({"run": run, "values": values})
+        rows.append(
+            {
+                "run": run,
+                "values": values,
+                "metrics": [_metric_cell(run, m, metric_row, delta=delta) for m in columns],
+                "health": _health_view(run, metric_row["health"]),
+                "is_baseline": metric_row["is_baseline"],
+            }
+        )
+
+    extra_param = ",".join(extra_metrics)
     return {
         "ensemble": ensemble,
         "axes": axes,
         "member_rows": rows,
         "polling": any(run.status in _ACTIVE_STATUSES for run in members),
+        "query": request.GET.urlencode(),
+        "headline": headline,
+        "headline_metric": by_key.get(headline),
+        "delta": delta,
+        "baseline": baseline,
+        "metric_columns": columns,
+        # #, health, status, and Analyze, around one column per axis and metric.
+        "column_count": len(axes) + len(columns) + 4,
+        "extra_metrics": extra_metrics,
+        "extra_metrics_param": extra_param,
+        "extra_columns": [
+            {
+                "metric": by_key[key],
+                "remove_query": _with_query(
+                    request, metrics=",".join(k for k in extra_metrics if k != key)
+                ),
+            }
+            for key in extra_metrics
+        ],
+        "add_metric_options": [
+            {
+                "key": metric.key,
+                "label": metric.label,
+                "value": ",".join([*extra_metrics, metric.key]),
+            }
+            for metric in registry
+            if metric.key not in headline_keys and metric.key not in extra_metrics
+        ],
+        "metric_registry": [{"key": metric.key, "label": metric.label} for metric in registry],
+        "stats": _stat_tiles(ensemble, members, [by_key[key] for key in headline_keys]),
+        "effects": _effects_view(ensemble, headline, by_key.get(headline), members),
     }
 
 
+def _effects_view(
+    ensemble: Ensemble, metric_key: str, metric: Metric | None, members: list[Run]
+) -> dict[str, Any]:
+    """Return `effect_table` with display strings added, since templates cannot format."""
+    table = ensemble_stats.effect_table(ensemble, metric_key, members=members)
+
+    def fmt(cells: list[dict[str, Any]]) -> None:
+        for cell in cells:
+            cell["display"] = ensemble_stats.format_metric(metric, cell["metric"])
+
+    if table["kind"] == "series":
+        fmt(table["rows"])
+    elif table["kind"] == "pivot":
+        for row in table["rows"]:
+            fmt(row["cells"])
+    elif table["kind"] == "main_effects":
+        for effect in table["axes"]:
+            fmt(effect["rows"])
+    return table
+
+
+def _replace_url(request: HttpRequest, response: HttpResponse, ensemble: Ensemble) -> HttpResponse:
+    """Point the address bar at the detail page with the state just chosen.
+
+    So a browser refresh keeps the delta toggle, the extra columns, and the
+    effect metric. Polls are left alone (see `_POLLING_TRIGGERS`).
+    """
+    if request.headers.get("HX-Request") and request.headers.get("HX-Trigger") not in (
+        _POLLING_TRIGGERS
+    ):
+        url = reverse("ensemble-detail", kwargs={"ensemble_id": ensemble.pk})
+        query = request.GET.urlencode()
+        response["HX-Replace-Url"] = f"{url}?{query}" if query else url
+    return response
+
+
 def ensemble_detail(request: HttpRequest, ensemble_id: int) -> HttpResponse:
-    """Render one ensemble: its base settings, its sweep, and its members."""
+    """Render one ensemble: its base settings, its sweep, its members, and their results."""
     ensemble = get_object_or_404(Ensemble, pk=ensemble_id)
-    context = _members_context(ensemble)
+    context = _results_context(request, ensemble)
     base = ensemble.base_params or {}
     topology_name = base.get("topology_name", "")
     try:
@@ -643,9 +894,87 @@ def ensemble_detail(request: HttpRequest, ensemble_id: int) -> HttpResponse:
 
 
 def ensemble_members(request: HttpRequest, ensemble_id: int) -> HttpResponse:
-    """Return just the member table, which the detail page polls while members run."""
+    """Return the member table and its tiles, which the detail page polls while members run.
+
+    The response also carries the header's status badge as an out-of-band swap, so
+    the roll-up follows the members without a request of its own.
+    """
     ensemble = get_object_or_404(Ensemble, pk=ensemble_id)
-    return render(request, "net_maestro/partials/ensemble_members.html", _members_context(ensemble))
+    response = render(
+        request,
+        "net_maestro/partials/ensemble_members.html",
+        {**_results_context(request, ensemble), "oob": True},
+    )
+    return _replace_url(request, response, ensemble)
+
+
+def ensemble_effects(request: HttpRequest, ensemble_id: int) -> HttpResponse:
+    """Return the "Effect of each parameter" card, for a metric change or a poll."""
+    ensemble = get_object_or_404(Ensemble, pk=ensemble_id)
+    response = render(
+        request,
+        "net_maestro/partials/ensemble_effects.html",
+        _results_context(request, ensemble),
+    )
+    return _replace_url(request, response, ensemble)
+
+
+def _csv_cell(value: object) -> object:
+    """Write missing values as empty cells, which spreadsheets read as blanks."""
+    return "" if value is None else value
+
+
+def ensemble_export(_request: HttpRequest, ensemble_id: int) -> HttpResponse:
+    """Download one row per member: its parameters, every metric, and how it ran.
+
+    Values are written as stored (fractions as 0-1, not percent) so the file
+    feeds straight into analysis without undoing the page's formatting.
+    """
+    ensemble = get_object_or_404(Ensemble, pk=ensemble_id)
+    members = ensemble_stats.load_members(ensemble)
+    axes = ensemble_stats.axis_infos(ensemble)
+    metrics = metrics_for(ensemble.simulation_type, with_engine=True)
+    summaries = {run.pk: ensemble_stats.summary_of(run) for run in members}
+    detail_keys = sorted(
+        {key for summary in summaries.values() if summary for key in (summary.details or {})}
+    )
+
+    filename = slugify(ensemble.name) or f"ensemble-{ensemble.pk}"
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="{filename}.csv"'
+    writer = csv.writer(response)
+    writer.writerow(
+        [
+            "member_index",
+            *(axis.key for axis in axes),
+            *(metric.key for metric in metrics),
+            *detail_keys,
+            "health_ok",
+            "status",
+            # Timed by the task around the whole run; not the engine's own
+            # `wall_time_s` metric, which only runs with engine stats carry.
+            "run_wall_time_s",
+            "topology_name",
+        ]
+    )
+    for run in members:
+        summary = summaries[run.pk]
+        params = run.member_params or {}
+        details = (summary.details or {}) if summary else {}
+        health = (summary.health or {}) if summary else {}
+        writer.writerow(
+            [
+                run.member_index,
+                *(_csv_cell(params.get(axis.key)) for axis in axes),
+                *(_csv_cell(ensemble_stats.metric_value(run, m.key)) for m in metrics),
+                *(_csv_cell(details.get(key)) for key in detail_keys),
+                _csv_cell(health.get("ok")) if summary else "",
+                run.status,
+                _csv_cell(ensemble_stats.wall_time(run)),
+                _csv_cell(ensemble_stats.topology_name_of(run)),
+            ]
+        )
+    return response
 
 
 @require_POST

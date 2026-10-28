@@ -1,0 +1,114 @@
+{# What each swept parameter did to one metric. Swapped whole when the metric #}
+{# changes, and polled like the member table so cells fill in as members finish. #}
+{# Cells are shaded by rank (green best, red worst) when the metric has a better #}
+{# direction; tables only, no charts. #}
+<div
+  id="ensemble-effects"
+  class="card bg-base-100 shadow-sm"
+  {% if polling %}
+  hx-get="{% url 'ensemble-effects' ensemble.pk %}{% if query %}?{{ query }}{% endif %}"
+  hx-trigger="every 5s"
+  hx-swap="outerHTML"
+  {% endif %}
+>
+  <div class="card-body">
+    <div class="flex flex-row flex-wrap items-center justify-between gap-4 mb-2">
+      <div class="flex flex-row items-center gap-3">
+        <i class="ri-equalizer-line text-2xl text-secondary" aria-hidden="true"></i>
+        <h2 class="card-title">Effect of each parameter</h2>
+      </div>
+      <form
+        id="ensemble-effects-form"
+        hx-get="{% url 'ensemble-effects' ensemble.pk %}"
+        hx-target="#ensemble-effects"
+        hx-swap="outerHTML"
+        hx-trigger="change"
+        hx-include="#ensemble-members-toolbar"
+      >
+        <select name="metric" class="select select-sm w-auto" aria-label="Metric">
+          {% for option in metric_registry %}
+          <option value="{{ option.key }}" {% if option.key == headline %}selected{% endif %}>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+
+    {% with table=effects metric=headline_metric %}
+    {% if table.kind == "series" %}
+    <div class="overflow-x-auto">
+      <table class="table table-sm w-auto">
+        <thead>
+          <tr>
+            <th>{{ table.axis.label }}{% if table.axis.unit %} ({{ table.axis.unit }}){% endif %}</th>
+            <th class="text-right">{{ metric.label|default:table.metric_key }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in table.rows %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td class="text-right tabular-nums {{ row.class }}">{{ row.display }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif table.kind == "pivot" %}
+    <div class="overflow-x-auto">
+      <table class="table table-sm w-auto">
+        <thead>
+          <tr>
+            <th class="text-base-content/60 font-normal">
+              {{ table.row_axis.label }} ↓ · {{ table.col_axis.label }}
+              {% if table.col_axis.link %}{{ table.col_axis.link.source }} → {{ table.col_axis.link.target }}{% endif %} →
+            </th>
+            {% for col in table.col_values %}
+            <th class="text-right">{{ col.label }}{% if table.col_axis.unit %} {{ table.col_axis.unit }}{% endif %}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in table.rows %}
+          <tr>
+            <th>{{ row.label }}{% if table.row_axis.unit %} {{ table.row_axis.unit }}{% endif %}</th>
+            {% for cell in row.cells %}
+            <td class="text-right tabular-nums {{ cell.class }}" {% if cell.member_index %}title="Member #{{ cell.member_index }}"{% endif %}>{{ cell.display }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif table.kind == "main_effects" %}
+    <p class="text-sm text-base-content/60 mb-2">
+      With three or more parameters, each table shows the mean of {{ metric.label|default:table.metric_key|lower }} over every member with that value.
+    </p>
+    <div class="flex flex-row flex-wrap gap-6">
+      {% for effect in table.axes %}
+      <table class="table table-sm w-auto">
+        <thead>
+          <tr>
+            <th>{{ effect.axis.label }}{% if effect.axis.unit %} ({{ effect.axis.unit }}){% endif %}</th>
+            <th class="text-right">Mean</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in effect.rows %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td class="text-right tabular-nums {{ row.class }}" title="{{ row.n }} member{{ row.n|pluralize }}">{{ row.display }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm opacity-60">This ensemble does not sweep any parameters.</p>
+    {% endif %}
+    {% if table.averaged and table.kind != "main_effects" %}
+    <p class="text-xs text-base-content/60 mt-2">Some cells cover several members and show their mean.</p>
+    {% endif %}
+    {% endwith %}
+  </div>
+</div>

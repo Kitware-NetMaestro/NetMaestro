@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 from django.core.exceptions import ValidationError
@@ -11,7 +13,7 @@ from django.urls import reverse
 import pytest
 
 from net_maestro.core.constants import FFWTrafficMode, RunStatus, SimulationType, SynchProtocol
-from net_maestro.core.models import Ensemble, FFWSimulationConfig, Run
+from net_maestro.core.models import Ensemble, FFWSimulationConfig, Run, RunSummary
 from net_maestro.core.services.ensembles import create_ensemble
 
 if TYPE_CHECKING:
@@ -158,7 +160,7 @@ def test_detail_renders_member_rows(client: Client, preset: str) -> None:
     assert [row["values"] for row in rows] == [[1], [2]]
     # Saved members have nothing running, so the table does not poll.
     assert response.context["polling"] is False
-    assert "hx-trigger" not in response.content.decode()
+    assert 'hx-trigger="every' not in response.content.decode()
 
 
 def test_detail_polls_while_members_are_pending(client: Client, preset: str) -> None:
@@ -181,6 +183,21 @@ def test_members_partial_returns_the_table(client: Client, preset: str) -> None:
     first = ensemble.members.first()
     assert first is not None
     assert f"?run={first.pk}" in content
+
+
+def test_members_partial_refreshes_the_header_badge_out_of_band(
+    client: Client, preset: str
+) -> None:
+    """Each poll carries the roll-up badge, so the header follows the members' progress."""
+    ensemble = _ensemble(preset, RunStatus.PENDING)
+    partial = client.get(reverse("ensemble-members", kwargs={"ensemble_id": ensemble.pk}))
+    page = client.get(reverse("ensemble-detail", kwargs={"ensemble_id": ensemble.pk}))
+
+    assert 'id="ensemble-header-status" hx-swap-oob="true"' in partial.content.decode()
+    # The full page renders the span once, in the header, without the swap marker.
+    content = page.content.decode()
+    assert content.count('id="ensemble-header-status"') == 1
+    assert "hx-swap-oob" not in content
 
 
 def test_unknown_ensemble_is_404(client: Client) -> None:
@@ -244,3 +261,172 @@ def test_saved_simulations_leaves_out_ensemble_members(client: Client, preset: s
     response = client.get(reverse("simulation-config"))
 
     assert [config.run for config in response.context["configs"]] == [standalone]
+
+
+# Results: tiles, deltas, extra columns, effects, export
+
+
+def _with_results(preset: str) -> Ensemble:
+    """Return the NP sweep with both members finished and summarized.
+
+    Member 1 runs the base np of 1, so it is the baseline.
+    """
+    ensemble = _ensemble(preset, RunStatus.COMPLETED)
+    first, second = ensemble.members
+    RunSummary.objects.create(
+        run=first,
+        metrics={"dropped_mbit": 10.0, "peak_buffer_occupancy_frac": 0.5, "pause_time_s": 1.5},
+        details={"peak_buffer_switch": "A"},
+        health={"ok": True, "checks": []},
+    )
+    RunSummary.objects.create(
+        run=second,
+        metrics={"dropped_mbit": 15.0, "peak_buffer_occupancy_frac": 0.25},
+        health={
+            "ok": False,
+            "checks": [{"key": "drained", "label": "Drained", "ok": False, "detail": "backlog 5%"}],
+        },
+    )
+    return ensemble
+
+
+def _detail(client: Client, ensemble: Ensemble, **params: str) -> Any:
+    return client.get(reverse("ensemble-detail", kwargs={"ensemble_id": ensemble.pk}), params)
+
+
+def test_detail_renders_tiles_and_effect_card(client: Client, preset: str) -> None:
+    ensemble = _with_results(preset)
+    response = _detail(client, ensemble)
+
+    content = response.content.decode()
+    stats = response.context["stats"]
+    assert (stats["completed"], stats["failed"], stats["pending"]) == (2, 0, 0)
+    dropped = stats["metrics"][0]
+    assert dropped["value"] == "#1: 10.0 Mbit"
+    assert dropped["desc"] == "range 10.0 \N{EN DASH} 15.0 Mbit"
+    assert "Effect of each parameter" in content
+    assert 'id="ensemble-effects"' in content
+    assert response.context["headline"] == "dropped_mbit"
+    assert response.context["effects"]["kind"] == "series"
+    assert "Export CSV" in content
+    # Health: member 2 failed a check, and its tooltip says which.
+    assert "Drained: backlog 5%" in content
+
+
+def test_detail_honours_the_effect_metric(client: Client, preset: str) -> None:
+    ensemble = _with_results(preset)
+
+    chosen = _detail(client, ensemble, metric="peak_buffer_occupancy_frac")
+    unknown = _detail(client, ensemble, metric="no_such_metric")
+
+    assert chosen.context["headline"] == "peak_buffer_occupancy_frac"
+    displays = [row["display"] for row in chosen.context["effects"]["rows"]]
+    assert displays == ["50.0%", "25.0%"]
+    assert unknown.context["headline"] == "dropped_mbit"
+
+
+def test_delta_mode_marks_the_baseline(client: Client, preset: str) -> None:
+    ensemble = _with_results(preset)
+    response = _detail(client, ensemble, delta="1")
+
+    rows = response.context["member_rows"]
+    content = response.content.decode()
+    assert response.context["delta"] is True
+    assert [row["is_baseline"] for row in rows] == [True, False]
+    # The baseline keeps its own value; the other row shows the signed difference.
+    assert rows[0]["metrics"][0]["display"] == "10.0 Mbit"
+    assert rows[1]["metrics"][0]["display"] == "+5.0 Mbit"
+    assert ">baseline</span>" in content
+
+
+def test_without_delta_no_row_is_badged(client: Client, preset: str) -> None:
+    response = _detail(client, _with_results(preset))
+
+    assert response.context["delta"] is False
+    assert ">baseline</span>" not in response.content.decode()
+
+
+def test_extra_metrics_ignore_unknown_and_headline_keys(client: Client, preset: str) -> None:
+    ensemble = _with_results(preset)
+    response = _detail(client, ensemble, metrics="pause_time_s,bogus,dropped_mbit,pause_time_s")
+
+    assert response.context["extra_metrics"] == ["pause_time_s"]
+    keys = [metric.key for metric in response.context["metric_columns"]]
+    assert keys == [
+        "dropped_mbit",
+        "peak_buffer_occupancy_frac",
+        "bottleneck_peak_utilization",
+        "pause_time_s",
+    ]
+    assert response.context["member_rows"][0]["metrics"][3]["display"] == "1.500 s"
+    options = {option["key"] for option in response.context["add_metric_options"]}
+    assert "pause_time_s" not in options
+    assert "dropped_mbit" not in options
+
+
+def test_members_partial_carries_the_query_in_its_poll(client: Client, preset: str) -> None:
+    ensemble = _ensemble(preset, RunStatus.PENDING)
+    url = reverse("ensemble-members", kwargs={"ensemble_id": ensemble.pk})
+    response = client.get(url, {"delta": "1", "metrics": "pause_time_s"})
+
+    content = response.content.decode()
+    assert f'hx-get="{url}?delta=1&amp;metrics=pause_time_s"' in content
+    assert 'id="ensemble-members-toolbar"' in content
+
+
+def test_a_toolbar_change_rewrites_the_address_bar_but_a_poll_does_not(
+    client: Client, preset: str
+) -> None:
+    ensemble = _ensemble(preset, RunStatus.PENDING)
+    url = reverse("ensemble-members", kwargs={"ensemble_id": ensemble.pk})
+    detail = reverse("ensemble-detail", kwargs={"ensemble_id": ensemble.pk})
+
+    changed = client.get(
+        url,
+        {"delta": "1"},
+        headers={"HX-Request": "true", "HX-Trigger": "ensemble-members-toolbar"},
+    )
+    polled = client.get(
+        url, {"delta": "1"}, headers={"HX-Request": "true", "HX-Trigger": "ensemble-members"}
+    )
+
+    assert changed["HX-Replace-Url"] == f"{detail}?delta=1"
+    assert "HX-Replace-Url" not in polled
+
+
+def test_effects_partial_returns_the_card(client: Client, preset: str) -> None:
+    ensemble = _with_results(preset)
+    response = client.get(
+        reverse("ensemble-effects", kwargs={"ensemble_id": ensemble.pk}),
+        {"metric": "peak_buffer_occupancy_frac"},
+    )
+
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert 'id="ensemble-effects"' in content
+    assert "<html" not in content
+    assert "50.0%" in content
+    assert '<option value="peak_buffer_occupancy_frac" selected>' in content
+
+
+def test_export_writes_one_row_per_member(client: Client, preset: str) -> None:
+    ensemble = _with_results(preset)
+    response = client.get(reverse("ensemble-export", kwargs={"ensemble_id": ensemble.pk}))
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/csv")
+    assert response["Content-Disposition"] == 'attachment; filename="np-sweep.csv"'
+    rows = list(csv.DictReader(io.StringIO(response.content.decode())))
+    assert len(rows) == 2
+    header = list(rows[0])
+    assert header[:2] == ["member_index", "np"]
+    assert header[-4:] == ["health_ok", "status", "run_wall_time_s", "topology_name"]
+    assert len(header) == len(set(header))
+    assert "dropped_mbit" in header
+    assert "peak_buffer_switch" in header
+    assert [row["dropped_mbit"] for row in rows] == ["10.0", "15.0"]
+    assert [row["health_ok"] for row in rows] == ["True", "False"]
+    assert rows[0]["peak_buffer_switch"] == "A"
+    assert rows[1]["pause_time_s"] == ""
+    assert rows[0]["topology_name"] == preset
+    assert rows[0]["status"] == RunStatus.COMPLETED

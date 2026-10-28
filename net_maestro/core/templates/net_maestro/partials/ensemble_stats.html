@@ -1,0 +1,43 @@
+{# Tiles above the member table: how far the sweep has got and, per headline #}
+{# metric, the best member and the spread across members. Lives inside the #}
+{# members partial so it refreshes with each poll. #}
+<div class="flex flex-col gap-4">
+  <div class="stats stats-vertical lg:stats-horizontal shadow-sm bg-base-100 w-full">
+    <div class="stat">
+      <div class="stat-figure text-success"><i class="ri-check-line text-3xl" aria-hidden="true"></i></div>
+      <div class="stat-title">Completed</div>
+      <div class="stat-value text-success">{{ stats.completed }}<span class="text-base font-normal text-base-content/60"> / {{ stats.total }}</span></div>
+      <div class="stat-desc">{% if stats.saved %}{{ stats.saved }} not run yet{% else %}members{% endif %}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-figure text-error"><i class="ri-error-warning-line text-3xl" aria-hidden="true"></i></div>
+      <div class="stat-title">Failed</div>
+      <div class="stat-value {% if stats.failed %}text-error{% endif %}">{{ stats.failed }}</div>
+      <div class="stat-desc">members</div>
+    </div>
+    <div class="stat">
+      <div class="stat-figure text-info"><i class="ri-timer-line text-3xl" aria-hidden="true"></i></div>
+      <div class="stat-title">Pending</div>
+      <div class="stat-value {% if stats.pending %}text-info{% endif %}">{{ stats.pending }}</div>
+      <div class="stat-desc">{% if stats.running %}{{ stats.running }} running{% else %}queued{% endif %}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-figure text-accent"><i class="ri-time-line text-3xl" aria-hidden="true"></i></div>
+      <div class="stat-title">Total wall time</div>
+      <div class="stat-value">{{ stats.wall_time }}</div>
+      <div class="stat-desc">{% if stats.eta %}About {{ stats.eta }} to go{% else %}across finished members{% endif %}</div>
+    </div>
+  </div>
+
+  {% if stats.metrics %}
+  <div class="stats stats-vertical lg:stats-horizontal shadow-sm bg-base-100 w-full">
+    {% for tile in stats.metrics %}
+    <div class="stat">
+      <div class="stat-title">{{ tile.metric.label }}</div>
+      <div class="stat-value text-2xl" {% if tile.title %}title="{{ tile.title }}"{% endif %}>{{ tile.value }}</div>
+      <div class="stat-desc">{{ tile.desc }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>

@@ -1,73 +1,163 @@
 {# Swapped whole, so each response decides whether polling continues: it runs only #}
-{# while a member is pending or running, and a settled ensemble stops asking. #}
+{# while a member is pending or running, and a settled ensemble stops asking. The #}
+{# poll URL carries the current query (delta mode, extra columns) so a refresh #}
+{# keeps what the user chose. #}
 <div
   id="ensemble-members"
-  class="overflow-x-auto"
+  class="flex flex-col gap-6"
   {% if polling %}
-  hx-get="{% url 'ensemble-members' ensemble.pk %}"
+  hx-get="{% url 'ensemble-members' ensemble.pk %}{% if query %}?{{ query }}{% endif %}"
   hx-trigger="every 2s"
   hx-swap="outerHTML"
   {% endif %}
 >
-  <table class="table table-sm">
-    <thead>
-      <tr>
-        <th>#</th>
-        {% for axis in axes %}
-        <th>
-          {{ axis.label }}{% if axis.unit %} ({{ axis.unit }}){% endif %}
-          {% if axis.link %}<span class="font-normal text-base-content/60">{{ axis.link.source }} → {{ axis.link.target }}</span>{% endif %}
-        </th>
-        {% endfor %}
-        <th>Status</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in member_rows %}
-      <tr>
-        <td>{{ row.run.member_index }}</td>
-        {% for value in row.values %}
-        <td>{{ value }}</td>
-        {% endfor %}
-        <td>
-          <span class="inline-flex items-center gap-1" title="{{ row.run.get_status_display }}">
-            {% if row.run.status == 'completed' %}
-              <i class="ri-check-line text-success text-lg" aria-hidden="true"></i>
-            {% elif row.run.status == 'running' %}
-              <i class="ri-run-line text-info text-lg" aria-hidden="true"></i>
-            {% elif row.run.status == 'failed' %}
-              <i class="ri-error-warning-line text-error text-lg" aria-hidden="true"></i>
-            {% elif row.run.status == 'cancelled' %}
-              <i class="ri-forbid-line text-warning text-lg" aria-hidden="true"></i>
-            {% else %}
-              <i class="ri-timer-line text-accent text-lg" aria-hidden="true"></i>
-            {% endif %}
-            <span class="text-sm">{{ row.run.get_status_display }}</span>
-          </span>
-        </td>
-        <td class="text-right">
-          {% if row.run.status != 'saved' %}
-          <a
-            href="{% url 'analysis-partial' %}?run={{ row.run.pk }}"
-            hx-get="{% url 'analysis-partial' %}?run={{ row.run.pk }}"
-            hx-target="#main-content"
-            hx-swap="innerHTML"
-            hx-push-url="true"
-            @click="activeItem = 'results'"
-            class="btn btn-xs btn-ghost"
-          >
-            <i class="ri-bar-chart-grouped-line" aria-hidden="true"></i>
-            <span class="ml-1">Analyze</span>
-          </a>
+  {% include "net_maestro/partials/ensemble_stats.html" %}
+
+  <div class="card bg-base-100 shadow-sm">
+    <div class="card-body">
+      <div class="flex flex-row flex-wrap items-center justify-between gap-4 mb-2">
+        <h2 class="card-title">Members</h2>
+        {# Changing either control re-requests this partial with the effect card's #}
+        {# metric included, so the address bar can carry all of the page's state. #}
+        <form
+          id="ensemble-members-toolbar"
+          class="flex flex-row flex-wrap items-center gap-4"
+          hx-get="{% url 'ensemble-members' ensemble.pk %}"
+          hx-target="#ensemble-members"
+          hx-swap="outerHTML"
+          hx-trigger="change"
+          hx-include="#ensemble-effects-form"
+        >
+          <label class="label cursor-pointer gap-2 text-sm">
+            <input type="checkbox" name="delta" value="1" class="toggle toggle-sm toggle-primary" {% if delta %}checked{% endif %}>
+            Δ vs baseline
+          </label>
+          {% if add_metric_options %}
+          <select name="metrics" class="select select-sm w-auto" aria-label="Add a metric column">
+            <option value="{{ extra_metrics_param }}" selected>Add metric…</option>
+            {% for option in add_metric_options %}
+            <option value="{{ option.value }}">{{ option.label }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <input type="hidden" name="metrics" value="{{ extra_metrics_param }}">
           {% endif %}
-        </td>
-      </tr>
-      {% empty %}
-      <tr>
-        <td colspan="{{ axes|length|add:3 }}" class="text-center opacity-60">No members</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+        </form>
+      </div>
+
+      {% if extra_columns %}
+      <div class="flex flex-row flex-wrap gap-2 mb-2">
+        {% for column in extra_columns %}
+        <span class="badge badge-outline gap-1">
+          {{ column.metric.label }}
+          <button
+            type="button"
+            class="cursor-pointer opacity-60 hover:opacity-100"
+            hx-get="{% url 'ensemble-members' ensemble.pk %}?{{ column.remove_query }}"
+            hx-target="#ensemble-members"
+            hx-swap="outerHTML"
+            aria-label="Remove {{ column.metric.label }}"
+          >
+            <i class="ri-close-line" aria-hidden="true"></i>
+          </button>
+        </span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="overflow-x-auto">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>#</th>
+              {% for axis in axes %}
+              <th>
+                {{ axis.label }}{% if axis.unit %} ({{ axis.unit }}){% endif %}
+                {% if axis.link %}<span class="font-normal text-base-content/60">{{ axis.link.source }} → {{ axis.link.target }}</span>{% endif %}
+              </th>
+              {% endfor %}
+              <th><span class="sr-only">Health</span></th>
+              {% for metric in metric_columns %}
+              <th class="text-right">{% if delta %}Δ {% endif %}{{ metric.label }}{% if metric.unit %} ({{ metric.unit }}){% endif %}</th>
+              {% endfor %}
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in member_rows %}
+            <tr>
+              <td>
+                {{ row.run.member_index }}
+                {% if delta and row.is_baseline %}<span class="badge badge-sm badge-primary ml-1">baseline</span>{% endif %}
+              </td>
+              {% for value in row.values %}
+              <td>{{ value }}</td>
+              {% endfor %}
+              <td>
+                {% if row.health.icon == "ok" %}
+                <span class="text-success" title="{{ row.health.title }}" aria-label="{{ row.health.title }}">✓</span>
+                {% elif row.health.icon == "warn" %}
+                <span class="text-warning" title="{{ row.health.title }}" aria-label="{{ row.health.title }}">⚠</span>
+                {% elif row.health.icon == "failed" %}
+                <span class="text-error" title="{{ row.health.title }}" aria-label="{{ row.health.title }}">✗</span>
+                {% endif %}
+              </td>
+              {% for cell in row.metrics %}
+              <td class="text-right tabular-nums{% if delta and row.is_baseline %} font-medium{% endif %}" {% if cell.title %}title="{{ cell.title }}"{% endif %}>{{ cell.display }}</td>
+              {% endfor %}
+              <td>
+                <span class="inline-flex items-center gap-1" title="{{ row.run.get_status_display }}">
+                  {% if row.run.status == 'completed' %}
+                    <i class="ri-check-line text-success text-lg" aria-hidden="true"></i>
+                  {% elif row.run.status == 'running' %}
+                    <i class="ri-run-line text-info text-lg" aria-hidden="true"></i>
+                  {% elif row.run.status == 'failed' %}
+                    <i class="ri-error-warning-line text-error text-lg" aria-hidden="true"></i>
+                  {% elif row.run.status == 'cancelled' %}
+                    <i class="ri-forbid-line text-warning text-lg" aria-hidden="true"></i>
+                  {% else %}
+                    <i class="ri-timer-line text-accent text-lg" aria-hidden="true"></i>
+                  {% endif %}
+                  <span class="text-sm">{{ row.run.get_status_display }}</span>
+                </span>
+              </td>
+              <td class="text-right">
+                {% if row.run.status != 'saved' %}
+                <a
+                  href="{% url 'analysis-partial' %}?run={{ row.run.pk }}"
+                  hx-get="{% url 'analysis-partial' %}?run={{ row.run.pk }}"
+                  hx-target="#main-content"
+                  hx-swap="innerHTML"
+                  hx-push-url="true"
+                  @click="activeItem = 'results'"
+                  class="btn btn-xs btn-ghost"
+                >
+                  <i class="ri-bar-chart-grouped-line" aria-hidden="true"></i>
+                  <span class="ml-1">Analyze</span>
+                </a>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="{{ column_count }}" class="text-center opacity-60">No members</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if delta and baseline %}
+      <p class="text-xs text-base-content/60 mt-2">
+        Differences from member #{{ baseline.member_index }}, the baseline, which shows its own values.
+      </p>
+      {% endif %}
+    </div>
+  </div>
 </div>
+{% if oob %}
+{# Only on a partial response: the full page already renders this span in its header. #}
+<span id="ensemble-header-status" hx-swap-oob="true">
+  {% include "net_maestro/partials/ensemble_status_badge.html" with status=ensemble.status %}
+</span>
+{% endif %}

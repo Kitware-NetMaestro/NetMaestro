@@ -182,6 +182,17 @@ urlpatterns = [
         views.ensemble_members,
         name="ensemble-members",
     ),
+    # The "Effect of each parameter" card alone, swapped when its metric changes
+    path(
+        "ensembles/<int:ensemble_id>/effects",
+        views.ensemble_effects,
+        name="ensemble-effects",
+    ),
+    path(
+        "ensembles/<int:ensemble_id>/export.csv",
+        views.ensemble_export,
+        name="ensemble-export",
+    ),
     path("ensembles/<int:ensemble_id>/run", views.run_saved_ensemble, name="run-ensemble"),
     path(
         "simulation/edit-config/<int:run_id>",
