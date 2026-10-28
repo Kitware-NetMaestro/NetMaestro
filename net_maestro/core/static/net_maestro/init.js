@@ -1,6 +1,7 @@
 import Alpine from 'alpinejs';
 import { dataStore, plotSyncStore } from './dataStore.js';
 import { dataFileSelector } from './partials/dataFileSelector.js';
+import { ensembleSweep } from './partials/ensembleSweep.js';
 import { heatmapPlot } from './plots/heatmap.js';
 import { linkHeatmap } from './plots/linkHeatmap.js';
 import { networkTimePlot } from './plots/networkTimePlot.js';
@@ -19,6 +20,7 @@ Alpine.store('selectionStore', selectionStore);
 Alpine.store('timeWindowStore', timeWindowStore);
 Alpine.store('uiStateStore', uiStateStore);
 Alpine.data('dataFileSelector', dataFileSelector);
+Alpine.data('ensembleSweep', ensembleSweep);
 Alpine.data('heatmapPlot', heatmapPlot);
 Alpine.data('linkHeatmap', linkHeatmap);
 Alpine.data('networkTimePlot', networkTimePlot);

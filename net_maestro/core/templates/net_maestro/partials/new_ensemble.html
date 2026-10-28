@@ -1,0 +1,311 @@
+<div class="bg-base-300 overflow-y-auto" style="height: calc(100vh - 64px);">
+  {{ sweep_axes|json_script:"sweep-axes" }}
+  {{ form.sweep_spec.value|default:"[]"|json_script:"sweep-initial" }}
+  <div
+    class="p-8 max-w-5xl mx-auto"
+    x-data="ensembleSweep"
+    data-max-members="{{ max_members }}"
+  >
+    <div class="flex flex-row items-start justify-between gap-4">
+      <div>
+        <div class="flex flex-row items-center gap-2 text-sm text-base-content/60">
+          <a
+            href="{% url 'ensemble-list' %}"
+            hx-get="{% url 'ensemble-list' %}"
+            hx-target="#main-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="link link-hover"
+          >
+            Ensembles
+          </a>
+          <i class="ri-arrow-right-s-line" aria-hidden="true"></i>
+          <span>New Ensemble</span>
+        </div>
+        <h1 class="text-3xl font-semibold mt-2">New Ensemble</h1>
+      </div>
+      <div class="flex flex-row gap-2">
+        <a
+          href="{% url 'ensemble-list' %}"
+          hx-get="{% url 'ensemble-list' %}"
+          hx-target="#main-content"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+          class="btn btn-ghost"
+        >
+          Cancel
+        </a>
+        <button
+          type="submit"
+          form="ensemble-form"
+          name="action"
+          value="save"
+          class="btn btn-outline btn-primary"
+          :disabled="!canSubmit"
+        >
+          Save
+        </button>
+        <button
+          type="submit"
+          form="ensemble-form"
+          name="action"
+          value="save_and_run"
+          class="btn btn-primary"
+          :disabled="!canSubmit"
+        >
+          Save and Run
+        </button>
+      </div>
+    </div>
+
+    <form id="ensemble-form" method="post" action="{{ form_action|default:request.path }}">
+      {% csrf_token %}
+      <input type="hidden" name="sweep_spec" :value="specJson">
+      {% if form.non_field_errors or form.sweep_spec.errors %}
+      <div class="alert alert-error mt-8">
+        <ul>
+          {% for error in form.non_field_errors %}
+          <li>{{ error }}</li>
+          {% endfor %}
+          {% for error in form.sweep_spec.errors %}
+          <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      <div class="grid grid-cols-1 gap-6 mt-8">
+        <div class="card bg-base-100 shadow-sm">
+          <div class="card-body">
+            <h2 class="card-title mb-4">Ensemble</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label class="form-control w-full">
+                <div class="label">
+                  <span class="label-text">Model Type</span>
+                </div>
+                <input type="text" value="Fluid Flow WAN" class="input input-bordered w-full" readonly>
+              </label>
+              <label class="form-control w-full">
+                <div class="label">
+                  <span class="label-text">{{ form.name.label }}</span>
+                </div>
+                {{ form.name }}
+                {% for error in form.name.errors %}
+                <p class="text-error text-sm mt-1">{{ error }}</p>
+                {% endfor %}
+              </label>
+              <label class="form-control w-full md:col-span-2">
+                <div class="label">
+                  <span class="label-text">{{ form.description.label }}</span>
+                </div>
+                {{ form.description }}
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="card bg-base-100 shadow-sm">
+          <div class="card-body">
+            <div class="flex flex-row items-center gap-3 mb-1">
+              <i class="ri-share-line text-2xl text-accent" aria-hidden="true"></i>
+              <h2 class="card-title">Base Configuration</h2>
+            </div>
+            <p class="text-sm text-base-content/60 mb-4">
+              Every member starts from these settings; the sweep below changes the rest.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label class="form-control w-full">
+                <div class="label">
+                  <span class="label-text">{{ form.topology_name.label }}</span>
+                </div>
+                {{ form.topology_name }}
+                {% for error in form.topology_name.errors %}
+                <p class="text-error text-sm mt-1">{{ error }}</p>
+                {% endfor %}
+              </label>
+              <label class="form-control w-full">
+                <div class="label">
+                  <span class="label-text">{{ form.traffic.label }}</span>
+                </div>
+                {{ form.traffic }}
+                {% for error in form.traffic.errors %}
+                <p class="text-error text-sm mt-1">{{ error }}</p>
+                {% endfor %}
+              </label>
+              <label class="form-control w-full">
+                <div class="label">
+                  <span class="label-text">{{ form.sync.label }}</span>
+                </div>
+                {{ form.sync }}
+                {% for error in form.sync.errors %}
+                <p class="text-error text-sm mt-1">{{ error }}</p>
+                {% endfor %}
+              </label>
+              <label class="form-control w-full">
+                <div class="label">
+                  <span class="label-text">{{ form.np.label }}</span>
+                </div>
+                {{ form.np }}
+                {% for error in form.np.errors %}
+                <p class="text-error text-sm mt-1">{{ error }}</p>
+                {% endfor %}
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="card bg-base-100 shadow-sm">
+          <div class="card-body">
+            <div class="flex flex-row items-center justify-between gap-3 mb-4">
+              <div class="flex flex-row items-center gap-3">
+                <i class="ri-layout-grid-line text-2xl text-primary" aria-hidden="true"></i>
+                <h2 class="card-title">Sweep</h2>
+              </div>
+              <div class="join" x-show="available.length">
+                <select
+                  class="select select-bordered select-sm join-item"
+                  x-model="pendingKey"
+                  aria-label="Parameter to sweep"
+                >
+                  <option value="">Add parameter…</option>
+                  <template x-for="axis in available" :key="axis.key">
+                    <option :value="axis.key" x-text="axis.label"></option>
+                  </template>
+                </select>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-primary join-item"
+                  :disabled="!pendingKey"
+                  @click="addAxis()"
+                >
+                  <i class="ri-add-line" aria-hidden="true"></i>
+                  Add
+                </button>
+              </div>
+            </div>
+
+            <p class="text-sm text-base-content/60" x-show="axes.length === 0">
+              Add a parameter to vary. Each member runs one combination of the values given.
+            </p>
+
+            <div class="flex flex-col gap-4">
+              <template x-for="(axis, index) in axes" :key="axis.key">
+                <div class="rounded-box bg-base-200 p-4">
+                  <div class="flex flex-row items-center justify-between gap-2 mb-2">
+                    <div class="font-medium">
+                      <span x-text="meta(axis.key).label"></span>
+                      <span
+                        class="text-base-content/60 text-sm"
+                        x-show="meta(axis.key).unit"
+                        x-text="'(' + meta(axis.key).unit + ')'"
+                      ></span>
+                    </div>
+                    <div class="flex flex-row items-center gap-2">
+                      <span
+                        class="badge badge-sm"
+                        :class="axisProblem(axis) ? 'badge-error' : 'badge-outline'"
+                        x-text="values(axis).length + (values(axis).length === 1 ? ' value' : ' values')"
+                      ></span>
+                      <button
+                        type="button"
+                        class="btn btn-xs btn-ghost"
+                        @click="removeAxis(index)"
+                        :aria-label="'Remove ' + meta(axis.key).label"
+                      >
+                        <i class="ri-close-line" aria-hidden="true"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <template x-if="meta(axis.key).needs_link">
+                    <label class="form-control w-full mb-2">
+                      <div class="label">
+                        <span class="label-text">Link</span>
+                      </div>
+                      <select class="select select-bordered select-sm w-full" x-model="axis.link">
+                        <option value="" x-text="linksLoading ? 'Loading links…' : 'Choose a link'"></option>
+                        <template x-for="link in links" :key="link.value">
+                          <option
+                            :value="link.value"
+                            :selected="link.value === axis.link"
+                            x-text="link.label"
+                          ></option>
+                        </template>
+                      </select>
+                      <p class="text-error text-sm mt-1" x-show="linksError" x-text="linksError"></p>
+                    </label>
+                  </template>
+
+                  <template x-if="meta(axis.key).kind === 'choice'">
+                    <div class="flex flex-row flex-wrap gap-x-4 gap-y-1">
+                      <template x-for="(choice, choiceIndex) in meta(axis.key).choices" :key="choice.value">
+                        <label class="label cursor-pointer gap-2">
+                          <input
+                            type="checkbox"
+                            class="checkbox checkbox-sm"
+                            :checked="axis.selected.includes(choiceIndex)"
+                            @change="toggleChoice(axis, choiceIndex)"
+                          >
+                          <span class="label-text" x-text="choice.label"></span>
+                        </label>
+                      </template>
+                    </div>
+                  </template>
+
+                  <template x-if="meta(axis.key).kind !== 'choice'">
+                    <input
+                      type="text"
+                      class="input input-bordered input-sm w-full"
+                      :class="parseNumbers(axis).invalid.length ? 'input-error' : ''"
+                      placeholder="Comma-separated values, e.g. 2, 8"
+                      x-model="axis.raw"
+                      :aria-label="meta(axis.key).label + ' values'"
+                    >
+                  </template>
+
+                  <p class="text-error text-sm mt-1" x-show="axisProblem(axis)" x-text="axisProblem(axis)"></p>
+                </div>
+              </template>
+            </div>
+
+            <div class="mt-4" x-show="axes.length">
+              <p
+                class="font-medium"
+                :class="memberCount === 0 || memberCount > maxMembers ? 'text-error' : ''"
+              >
+                <span x-text="memberCount"></span>
+                <span x-text="memberCount === 1 ? 'member' : 'members'"></span>
+                <span
+                  class="text-sm font-normal"
+                  x-show="memberCount > maxMembers"
+                  x-text="'(at most ' + maxMembers + ' per ensemble)'"
+                ></span>
+              </p>
+              <div class="overflow-x-auto mt-2" x-show="previewRows.length">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <template x-for="axis in axes" :key="axis.key">
+                        <th x-text="axisHeading(axis)"></th>
+                      </template>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="(row, rowIndex) in previewRows" :key="rowIndex">
+                      <tr>
+                        <td x-text="rowIndex + 1"></td>
+                        <template x-for="(cell, cellIndex) in row" :key="cellIndex">
+                          <td x-text="cell"></td>
+                        </template>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

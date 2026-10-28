@@ -188,3 +188,41 @@ class PHOLDSimulationForm(forms.ModelForm):
         # but the widget's choices are keyed by 0/1.
         if "stagger" in self.initial:
             self.initial["stagger"] = int(bool(self.initial["stagger"]))
+
+
+class EnsembleForm(FFWSimulationForm):
+    """Form for an ensemble: a base FFW configuration plus the sweep run over it.
+
+    Reuses the FFW form's topology, traffic, np and sync fields so the base settings
+    validate exactly as a single run's do. The form is never saved: the view hands its
+    cleaned data to `create_ensemble`, which writes one Run and config per member.
+    """
+
+    # An ensemble has a name of its own; members derive theirs from it.
+    run_identifier = None  # type: ignore[assignment]
+    name = forms.CharField(
+        label="Ensemble Name",
+        max_length=200,
+        widget=forms.TextInput(attrs={"class": "input input-bordered w-full"}),
+    )
+    # Built client-side by the sweep editor and posted as one JSON document; the
+    # registry in `sweeps.py` checks keys and values when the ensemble is created.
+    sweep_spec = forms.CharField(widget=forms.HiddenInput(), initial="[]")
+
+    field_order = ["name", "description", "topology_name", "traffic", "np", "sync"]
+
+    def clean_sweep_spec(self) -> list[dict[str, Any]]:
+        raw = self.cleaned_data.get("sweep_spec", "")
+        try:
+            parsed = json.loads(raw)
+        except (json.JSONDecodeError, TypeError) as exc:
+            raise forms.ValidationError("The sweep could not be read.") from exc
+        if not isinstance(parsed, list) or not all(isinstance(axis, dict) for axis in parsed):
+            raise forms.ValidationError("The sweep must be a list of parameters.")
+        if not parsed:
+            raise forms.ValidationError("Add at least one parameter to sweep.")
+        return parsed
+
+    def base_params(self) -> dict[str, Any]:
+        """Return the base FFW settings every member starts from."""
+        return {key: self.cleaned_data[key] for key in ("topology_name", "traffic", "np", "sync")}

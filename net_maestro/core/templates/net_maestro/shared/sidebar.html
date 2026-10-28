@@ -64,6 +64,22 @@
       </a>
     </li>
 
+    <!-- Ensembles (parameter sweeps) section -->
+    <li>
+      <a
+        href="{% url 'ensemble-list' %}"
+        hx-get="{% url 'ensemble-list' %}"
+        hx-target="#main-content"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        class="flex items-center justify-center"
+        :class="{ 'menu-active': activeItem === 'ensembles' }"
+        @click="activeItem = 'ensembles'"
+      >
+        <i class="ri-layout-grid-line" aria-hidden="true"></i>
+      </a>
+    </li>
+
     <!-- Results (data visualization) section -->
     <li>
       <a

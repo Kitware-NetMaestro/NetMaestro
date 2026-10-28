@@ -1,4 +1,7 @@
-<div class="flex flex-row grid grid-cols-6">
+<div class="flex flex-row grid grid-cols-6"
+     {# Deferred a tick so the plots finish initializing first: a run selected before #}
+     {# they exist makes them load once without the dataset manifest and once with it. #}
+     {% if preselect_run %}x-init="$nextTick(() => $store.dataStore.selectRun({{ preselect_run.pk }}, '{{ preselect_run.simulation_type }}'))"{% endif %}>
   <!-- Available Runs -->
   <div class="col-span-1 overflow-y-auto" style="height: calc(100vh - 64px);">
     <!-- Search and filter controls -->

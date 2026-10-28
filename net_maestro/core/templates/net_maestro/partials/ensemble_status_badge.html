@@ -1,0 +1,10 @@
+{# One word for an ensemble's members taken together; see Ensemble.status. #}
+{% if status == "completed" %}
+<span class="badge badge-success">{{ status|capfirst }}</span>
+{% elif status == "running" or status == "pending" %}
+<span class="badge badge-info">{{ status|capfirst }}</span>
+{% elif status == "failed" %}
+<span class="badge badge-error">{{ status|capfirst }}</span>
+{% else %}
+<span class="badge badge-ghost">{{ status|capfirst }}</span>
+{% endif %}

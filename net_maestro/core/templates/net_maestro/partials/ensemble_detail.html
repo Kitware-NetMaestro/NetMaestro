@@ -1,0 +1,92 @@
+<div class="bg-base-300 overflow-y-auto" style="height: calc(100vh - 64px);">
+  <div class="p-8 max-w-6xl mx-auto">
+    <div class="flex flex-row items-start justify-between gap-4">
+      <div>
+        <div class="flex flex-row items-center gap-2 text-sm text-base-content/60">
+          <a
+            href="{% url 'ensemble-list' %}"
+            hx-get="{% url 'ensemble-list' %}"
+            hx-target="#main-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            class="link link-hover"
+          >
+            Ensembles
+          </a>
+          <i class="ri-arrow-right-s-line" aria-hidden="true"></i>
+          <span>{{ ensemble.name }}</span>
+        </div>
+        <div class="flex flex-row items-center gap-3 mt-2">
+          <h1 class="text-3xl font-semibold">{{ ensemble.name }}</h1>
+          {% include "net_maestro/partials/ensemble_status_badge.html" with status=ensemble.status %}
+        </div>
+        {% if ensemble.description %}
+        <p class="text-base-content/70 mt-2">{{ ensemble.description }}</p>
+        {% endif %}
+      </div>
+      <form method="post" action="{% url 'run-ensemble' ensemble.pk %}" class="inline-flex">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary">
+          <i class="ri-play-line" aria-hidden="true"></i>
+          Run
+        </button>
+      </form>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+      <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+          <div class="flex flex-row items-center gap-3 mb-2">
+            <i class="ri-share-line text-2xl text-accent" aria-hidden="true"></i>
+            <h2 class="card-title">Base Configuration</h2>
+          </div>
+          <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div class="text-base-content/60">Topology</div>
+              <div class="font-medium">{{ base.topology }}</div>
+            </div>
+            <div>
+              <div class="text-base-content/60">Traffic</div>
+              <div class="font-medium">{{ base.traffic }}</div>
+            </div>
+            <div>
+              <div class="text-base-content/60">Synchronization Protocol</div>
+              <div class="font-medium">{{ base.sync }}</div>
+            </div>
+            <div>
+              <div class="text-base-content/60">MPI Processes</div>
+              <div class="font-medium">{{ base.np }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+          <div class="flex flex-row items-center gap-3 mb-2">
+            <i class="ri-layout-grid-line text-2xl text-primary" aria-hidden="true"></i>
+            <h2 class="card-title">Sweep</h2>
+          </div>
+          <div class="flex flex-row flex-wrap gap-2">
+            {% for axis in axes %}
+            <div class="badge badge-lg badge-outline h-auto py-1">
+              <span class="font-medium">{{ axis.label }}</span>
+              {% if axis.link %}
+              <span class="text-base-content/60">{{ axis.link.source }} → {{ axis.link.target }}</span>
+              {% endif %}
+              <span>{{ axis.values|join:", " }}{% if axis.unit %} {{ axis.unit }}{% endif %}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card bg-base-100 shadow-sm mt-6">
+      <div class="card-body">
+        <h2 class="card-title mb-2">Members</h2>
+        {% include "net_maestro/partials/ensemble_members.html" %}
+      </div>
+    </div>
+  </div>
+</div>

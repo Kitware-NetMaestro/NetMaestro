@@ -173,6 +173,16 @@ urlpatterns = [
         views.run_saved_ffw_simulation,
         name="run-saved-ffw-simulation",
     ),
+    path("ensembles/", views.ensemble_list, name="ensemble-list"),
+    path("ensembles/new", views.ensemble_create, name="ensemble-create"),
+    path("ensembles/<int:ensemble_id>", views.ensemble_detail, name="ensemble-detail"),
+    # The member table alone, polled by the detail page while members run
+    path(
+        "ensembles/<int:ensemble_id>/members",
+        views.ensemble_members,
+        name="ensemble-members",
+    ),
+    path("ensembles/<int:ensemble_id>/run", views.run_saved_ensemble, name="run-ensemble"),
     path(
         "simulation/edit-config/<int:run_id>",
         views.edit_simulation_config,

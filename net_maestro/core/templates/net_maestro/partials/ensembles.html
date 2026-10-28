@@ -1,0 +1,91 @@
+<div class="bg-base-300 overflow-y-auto" style="height: calc(100vh - 64px);">
+  <div class="p-8 mx-auto">
+    <div class="flex flex-row items-start justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-semibold">Ensembles</h1>
+      </div>
+      <div class="flex flex-row gap-2">
+        <a
+          href="{% url 'ensemble-create' %}"
+          hx-get="{% url 'ensemble-create' %}"
+          hx-target="#main-content"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+          class="btn btn-primary"
+        >
+          <i class="ri-add-line" aria-hidden="true"></i>
+          New Ensemble
+        </a>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-8">
+      {% for ensemble in ensembles %}
+      {% url 'ensemble-detail' ensemble.pk as detail_url %}
+      <div class="card bg-base-100 shadow-sm">
+        <div class="card-body">
+          <div class="flex flex-row items-start justify-between gap-4">
+            <div class="flex flex-row items-center gap-3">
+              <i class="ri-layout-grid-line text-xl text-primary" aria-hidden="true"></i>
+              <div>
+                <h2 class="card-title">{{ ensemble.name }}</h2>
+                <p class="text-sm text-base-content/60">{{ ensemble.created }}</p>
+              </div>
+            </div>
+            <div class="flex flex-row gap-2 items-center">
+              <div class="badge badge-outline">{{ ensemble.get_simulation_type_display }}</div>
+              <form method="post" action="{% url 'run-ensemble' ensemble.pk %}" class="inline-flex">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-xs btn-primary">
+                  <i class="ri-play-line" aria-hidden="true"></i>
+                  <span class="ml-1">Run</span>
+                </button>
+              </form>
+              <a
+                href="{{ detail_url }}"
+                hx-get="{{ detail_url }}"
+                hx-target="#main-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                class="btn btn-xs btn-ghost"
+              >
+                <i class="ri-eye-line" aria-hidden="true"></i>
+                <span class="ml-1">View</span>
+              </a>
+            </div>
+          </div>
+          <div class="flex flex-row items-center gap-2 mt-4 text-sm">
+            {% include "net_maestro/partials/ensemble_status_badge.html" with status=ensemble.status %}
+            {% with member_count=ensemble.members.count %}
+            <span class="text-base-content/60">{{ member_count }} member{{ member_count|pluralize }}</span>
+            {% endwith %}
+          </div>
+          {% if ensemble.description %}
+          <p class="text-sm text-base-content/70 mt-2">{{ ensemble.description }}</p>
+          {% endif %}
+        </div>
+      </div>
+      {% empty %}
+        <div class="card bg-base-100 shadow-sm border border-dashed border-base-content/20 xl:col-span-3">
+          <div class="card-body items-center justify-center text-center min-h-72">
+            <i class="ri-layout-grid-line text-4xl text-base-content/50" aria-hidden="true"></i>
+            <h2 class="card-title mt-4">No ensembles yet</h2>
+            <p class="text-base-content/60 max-w-sm">
+              Sweep one or more parameters over a base configuration to run every combination.
+            </p>
+            <a
+              href="{% url 'ensemble-create' %}"
+              hx-get="{% url 'ensemble-create' %}"
+              hx-target="#main-content"
+              hx-swap="innerHTML"
+              hx-push-url="true"
+              class="btn btn-primary mt-2"
+            >
+              New Ensemble
+            </a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>

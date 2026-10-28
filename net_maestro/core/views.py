@@ -7,13 +7,13 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.http import Http404, HttpResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 if TYPE_CHECKING:
@@ -21,12 +21,14 @@ if TYPE_CHECKING:
     from django.http import HttpRequest
 
 from .base_models import BASE_MODEL_BY_NAME, BASE_MODEL_REGISTRY
-from .constants import RunStatus, SimulationType
-from .forms import ComponentModelForm, FFWSimulationForm, PHOLDSimulationForm
-from .models import ComponentModel, FFWSimulationConfig, PHOLDSimulationConfig, Run
+from .constants import FFWTrafficMode, RunStatus, SimulationType, SynchProtocol
+from .forms import ComponentModelForm, EnsembleForm, FFWSimulationForm, PHOLDSimulationForm
+from .models import ComponentModel, Ensemble, FFWSimulationConfig, PHOLDSimulationConfig, Run
+from .services.ensembles import create_ensemble, launch_ensemble
 from .simulation_models import SIMULATION_MODELS
+from .sweeps import MAX_ENSEMBLE_MEMBERS, SweepError, axes_as_json
 from .tasks import run_ffw_simulation, run_phold_simulation
-from .topology import family_label, list_topologies
+from .topology import TopologyError, family_label, get_topology, list_topologies
 
 logger = logging.getLogger(__name__)
 
@@ -493,8 +495,10 @@ def saved_simulations(request: HttpRequest) -> HttpResponse:
     # TODO: This list is unbounded and will likely grow over time. Consider pagination once
     # the number of saved configs makes this a real usability concern.
     configs: list[PHOLDSimulationConfig | FFWSimulationConfig] = [
-        *PHOLDSimulationConfig.objects.select_related("run"),
-        *FFWSimulationConfig.objects.select_related("run"),
+        # Ensemble members are listed on their ensemble's page instead, so a sweep
+        # does not bury standalone configs under one card per member.
+        *PHOLDSimulationConfig.objects.select_related("run").filter(run__ensemble__isnull=True),
+        *FFWSimulationConfig.objects.select_related("run").filter(run__ensemble__isnull=True),
     ]
     configs.sort(key=lambda config: config.run.created, reverse=True)
     context: dict[str, object] = {"configs": configs}
@@ -503,6 +507,163 @@ def saved_simulations(request: HttpRequest) -> HttpResponse:
         return render(request, partial_template, context)
     context.update({"active_page": "simulation", "partial_template": partial_template})
     return render(request, "net_maestro/index.html", context)
+
+
+# Statuses that mean a member still has work ahead of it; the detail page polls
+# its member table only while one of these remains.
+_ACTIVE_STATUSES = frozenset({RunStatus.PENDING, RunStatus.RUNNING})
+
+
+def _render_page(
+    request: HttpRequest, partial_template: str, context: dict[str, object], active_page: str
+) -> HttpResponse:
+    """Render a partial for HTMX, or the full layout around it for direct navigation."""
+    if request.headers.get("HX-Request"):
+        return render(request, partial_template, context)
+    context.update({"active_page": active_page, "partial_template": partial_template})
+    return render(request, "net_maestro/index.html", context)
+
+
+def ensemble_list(request: HttpRequest) -> HttpResponse:
+    """Render every ensemble, newest first."""
+    ensembles = Ensemble.objects.order_by("-created")
+    context: dict[str, object] = {"ensembles": ensembles}
+    return _render_page(request, "net_maestro/partials/ensembles.html", context, "ensembles")
+
+
+def ensemble_create(request: HttpRequest) -> HttpResponse:
+    """Render the ensemble form and create the ensemble and its members on submit.
+
+    As with a single run, "Save" stores every member without running it and
+    "Save and Run" queues them all. The sweep is checked against the registry
+    when the members are expanded, so a bad axis or link surfaces here as a
+    form error rather than as a half-created ensemble.
+    """
+    if request.method == "POST":
+        form = EnsembleForm(request.POST)
+        if form.is_valid():
+            should_run = request.POST.get("action") == "save_and_run"
+            ensemble: Ensemble | None = None
+            try:
+                ensemble = create_ensemble(
+                    name=form.cleaned_data["name"],
+                    description=form.cleaned_data.get("description", ""),
+                    simulation_type=SimulationType.FFW,
+                    base_params=form.base_params(),
+                    sweep_spec=form.cleaned_data["sweep_spec"],
+                    run_status=RunStatus.PENDING if should_run else RunStatus.SAVED,
+                )
+            except (SweepError, TopologyError) as exc:
+                form.add_error(None, str(exc))
+            if ensemble is not None:
+                if should_run:
+                    launch_ensemble(ensemble)
+                return redirect("ensemble-detail", ensemble_id=ensemble.pk)
+    else:
+        topology_name = request.GET.get("topology", "").strip()
+        form = EnsembleForm(initial={"topology_name": topology_name} if topology_name else {})
+
+    context: dict[str, object] = {
+        "form": form,
+        "form_action": request.path,
+        # The template serialises this once with json_script; the sweep editor reads it.
+        "sweep_axes": axes_as_json(SimulationType.FFW),
+        "max_members": MAX_ENSEMBLE_MEMBERS,
+    }
+    return _render_page(request, "net_maestro/partials/new_ensemble.html", context, "ensembles")
+
+
+def _axis_summaries(ensemble: Ensemble) -> list[dict[str, object]]:
+    """Describe each swept axis for the chips and column headers.
+
+    Choice values are shown by their labels (a sync protocol's name, not its
+    number); `labels` maps each stored value to that label for the member rows.
+    """
+    registry = {axis["key"]: axis for axis in axes_as_json(ensemble.simulation_type)}
+    summaries: list[dict[str, object]] = []
+    for axis in ensemble.sweep_spec:
+        meta = registry.get(axis["key"], {})
+        labels = {str(choice["value"]): choice["label"] for choice in meta.get("choices") or []}
+        summaries.append(
+            {
+                "key": axis["key"],
+                "label": meta.get("label", axis["key"]),
+                "unit": meta.get("unit", ""),
+                "values": [labels.get(str(value), value) for value in axis.get("values", [])],
+                "link": axis.get("link"),
+                "labels": labels,
+            }
+        )
+    return summaries
+
+
+def _members_context(ensemble: Ensemble) -> dict[str, object]:
+    """Return the member rows and whether the table should keep polling.
+
+    The rows carry each member's values in axis order because a template cannot
+    index `member_params` by a key held in a variable.
+    """
+    axes = _axis_summaries(ensemble)
+    members = list(ensemble.members)
+    rows = []
+    for run in members:
+        params = run.member_params or {}
+        values = []
+        for axis in axes:
+            value = params.get(str(axis["key"]))
+            labels = cast("dict[str, object]", axis["labels"])
+            values.append(labels.get(str(value), value))
+        rows.append({"run": run, "values": values})
+    return {
+        "ensemble": ensemble,
+        "axes": axes,
+        "member_rows": rows,
+        "polling": any(run.status in _ACTIVE_STATUSES for run in members),
+    }
+
+
+def ensemble_detail(request: HttpRequest, ensemble_id: int) -> HttpResponse:
+    """Render one ensemble: its base settings, its sweep, and its members."""
+    ensemble = get_object_or_404(Ensemble, pk=ensemble_id)
+    context = _members_context(ensemble)
+    base = ensemble.base_params or {}
+    topology_name = base.get("topology_name", "")
+    try:
+        topology_label = get_topology(topology_name).label
+    except TopologyError:
+        # The preset may have been removed since; the stored name still says what ran.
+        topology_label = topology_name
+    context["base"] = {
+        "topology": topology_label,
+        "traffic": FFWTrafficMode(base["traffic"]).label if "traffic" in base else "",
+        "np": base.get("np", ""),
+        "sync": SynchProtocol(base["sync"]).label if "sync" in base else "",
+    }
+    return _render_page(request, "net_maestro/partials/ensemble_detail.html", context, "ensembles")
+
+
+def ensemble_members(request: HttpRequest, ensemble_id: int) -> HttpResponse:
+    """Return just the member table, which the detail page polls while members run."""
+    ensemble = get_object_or_404(Ensemble, pk=ensemble_id)
+    return render(request, "net_maestro/partials/ensemble_members.html", _members_context(ensemble))
+
+
+@require_POST
+def run_saved_ensemble(request: HttpRequest, ensemble_id: int) -> HttpResponse:
+    """Queue every member of an ensemble.
+
+    `launch_ensemble` re-validates each member's config first and launches
+    nothing when one no longer validates, e.g. because its topology was removed.
+    """
+    ensemble = get_object_or_404(Ensemble, pk=ensemble_id)
+    try:
+        launch_ensemble(ensemble)
+    except ValidationError as exc:
+        logger.warning("Ensemble %s could not be run: %s", ensemble_id, exc.messages)
+        messages.error(
+            request, f'Unable to run "{ensemble.name}": a member configuration is invalid.'
+        )
+    return redirect("ensemble-detail", ensemble_id=ensemble.pk)
 
 
 def models_list(request: HttpRequest) -> HttpResponse:
@@ -598,6 +759,12 @@ def page_view(
     context: dict[str, object] = {}
     if partial == "analysis":
         context.update(_filtered_runs(request))
+        # `?run=<id>` opens the page with that run selected, which is how an
+        # ensemble's member table links into the plots.
+        run_id = request.GET.get("run", "")
+        context["preselect_run"] = (
+            Run.objects.filter(pk=int(run_id)).first() if run_id.isdigit() else None
+        )
     if partial == "configuration":
         db_components = [
             _component_to_card(c) for c in ComponentModel.objects.order_by("-created_at")
