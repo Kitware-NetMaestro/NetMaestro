@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 import subprocess
 import tempfile
+from typing import Any
 from uuid import uuid4
 
 from celery import shared_task
@@ -28,8 +29,8 @@ from net_maestro.core.services.ffw import (
     FFW_TRAFFIC_DEFAULTS,
     _tail,
     execute_ffw_model,
-    point_traffic_config_at_topology,
     vt_sampling_for,
+    write_run_inputs,
 )
 from net_maestro.core.summaries import compute_run_summary
 from net_maestro.core.tasks.ingest_ffw import run_ffw_ingest_task
@@ -299,28 +300,43 @@ def run_ffw_simulation(  # noqa: PLR0913
     lp_data: int = 1,
     binary_path: str = "",
     config_path: str = "",
+    overrides: dict[str, Any] | None = None,
 ) -> None:
     """Execute FFW simulation on a topology and update run status.
 
-    The traffic config (`config_path`, or the stock one for `traffic`) is
-    rewritten in place to point at the topology, and the model runs from the
-    config's directory.
+    Each run gets a directory of its own under `FFW_OUTPUT_DIR`, recorded on
+    `Run.work_dir`: `inputs/` holds the traffic config generated from the
+    template (`config_path`, or the stock one for `traffic`), the topology YAML
+    and the model's logs, and the model runs from there; `stats/` is where ROSS
+    writes its stats. `overrides` are `fluid_flow_wan` settings merged over the
+    traffic mode's own (see `FFW_TRAFFIC_DEFAULTS`), and both win over the
+    template's.
 
-    Virtual-time sampling (`vt_interval`, `vt_samp_end`) is derived from that
-    config's run length unless given, so the samples cover the whole run and the
-    summaries built from them are whole-run numbers. Passing either value keeps
-    it, for callers that know better.
+    Virtual-time sampling (`vt_interval`, `vt_samp_end`) is derived from the
+    generated config's run length unless given, so the samples cover the whole
+    run and the summaries built from them are whole-run numbers. Passing either
+    value keeps it, for callers that know better.
     """
     run = Run.objects.get(pk=run_id)
     _start_run(run)
 
     defaults = FFW_TRAFFIC_DEFAULTS[traffic]
     ffw_binary_path = binary_path or getattr(settings, defaults["binary"], "")
-    ffw_config_path = Path(config_path or getattr(settings, defaults["config"], ""))
+    template_path = Path(config_path or getattr(settings, defaults["config"], ""))
+    run_overrides = {**defaults.get("overrides", {}), **(overrides or {})}
+
+    # Recorded before anything is written, so a failed run still says where its
+    # inputs and the model's logs are.
+    run_dir = Path(settings.FFW_OUTPUT_DIR) / f"run-{run.id}-{uuid4().hex[:8]}"
+    run.work_dir = str(run_dir)
+    run.save(update_fields=["work_dir"])
 
     try:
-        point_traffic_config_at_topology(
-            topology=get_topology(topology_name), config_path=ffw_config_path
+        ffw_config_path = write_run_inputs(
+            run_dir=run_dir,
+            template_path=template_path,
+            topology=get_topology(topology_name),
+            overrides=run_overrides,
         )
         if vt_interval is None or vt_samp_end is None:
             sampling = vt_sampling_for(ffw_config_path)
@@ -339,9 +355,9 @@ def run_ffw_simulation(  # noqa: PLR0913
             kp_data=kp_data,
             lp_data=lp_data,
             config_path=str(ffw_config_path),
-            working_dir=str(ffw_config_path.parent),
+            working_dir=str(run_dir / "inputs"),
             binary_path=ffw_binary_path,
-            stats_dir=Path(settings.FFW_OUTPUT_DIR) / f"run-{run.id}-{uuid4().hex[:8]}",
+            stats_dir=run_dir / "stats",
         )
         with transaction.atomic():
             # A re-run replaces the run's previous results rather than adding to them.

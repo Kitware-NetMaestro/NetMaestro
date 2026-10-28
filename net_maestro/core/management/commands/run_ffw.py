@@ -120,7 +120,10 @@ def _create_or_update_run(
     "--config-path",
     "config_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help="Path to FFW configuration file.",
+    help=(
+        "Template traffic config (default: the stock one for --traffic). It is only "
+        "read; each run gets a generated copy pointed at the topology."
+    ),
 )
 @click.option(
     "--topology",

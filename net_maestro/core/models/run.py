@@ -32,6 +32,10 @@ class Run(models.Model):
     # Why a FAILED run failed (the tail of the simulator's stderr, or the exception),
     # so the UI can say more than "failed".
     failure_reason = models.TextField(blank=True, default="")
+    # The directory a simulation task gave this run: where its generated inputs and
+    # the model's own logs live, kept on failure so they can be read. Empty for runs
+    # that predate it or were ingested from files.
+    work_dir = models.CharField(max_length=500, blank=True, default="")
 
     def __str__(self):
         return f"Run {self.id}: {self.name} ({self.status})"

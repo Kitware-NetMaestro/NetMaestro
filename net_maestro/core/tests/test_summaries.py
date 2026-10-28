@@ -454,7 +454,7 @@ class TestTaskHooks:
         "net_maestro.core.tasks.simulation.vt_sampling_for",
         mock.Mock(return_value=mock.Mock(interval_ns=100_000_000, end_ns=42_000_000_000)),
     )
-    @mock.patch("net_maestro.core.tasks.simulation.point_traffic_config_at_topology", mock.Mock())
+    @mock.patch("net_maestro.core.tasks.simulation.write_run_inputs", mock.Mock())
     @mock.patch("net_maestro.core.tasks.simulation.execute_ffw_model")
     def test_ffw_failure_keeps_the_stderr_tail(self, execute: mock.Mock, preset: str) -> None:
         stderr = "\n".join(f"line {i}" for i in range(30))
@@ -477,7 +477,7 @@ class TestTaskHooks:
         "net_maestro.core.tasks.simulation.vt_sampling_for",
         mock.Mock(return_value=mock.Mock(interval_ns=100_000_000, end_ns=42_000_000_000)),
     )
-    @mock.patch("net_maestro.core.tasks.simulation.point_traffic_config_at_topology", mock.Mock())
+    @mock.patch("net_maestro.core.tasks.simulation.write_run_inputs", mock.Mock())
     @mock.patch("net_maestro.core.tasks.simulation.execute_ffw_model")
     def test_ffw_other_errors_keep_the_repr(self, execute: mock.Mock, preset: str) -> None:
         execute.side_effect = FileNotFoundError("no ross-stats-model.bin")
@@ -495,7 +495,7 @@ class TestTaskHooks:
         "net_maestro.core.tasks.simulation.vt_sampling_for",
         mock.Mock(return_value=mock.Mock(interval_ns=100_000_000, end_ns=42_000_000_000)),
     )
-    @mock.patch("net_maestro.core.tasks.simulation.point_traffic_config_at_topology", mock.Mock())
+    @mock.patch("net_maestro.core.tasks.simulation.write_run_inputs", mock.Mock())
     @mock.patch("net_maestro.core.tasks.simulation.execute_ffw_model")
     def test_ffw_success_summarizes_and_survives_a_summary_error(
         self,

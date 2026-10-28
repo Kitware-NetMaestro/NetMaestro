@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass
 import logging
+import shutil
 import subprocess
 from typing import TYPE_CHECKING, Any
 
@@ -12,6 +13,7 @@ from net_maestro.core.constants import FFWTrafficMode
 from net_maestro.core.topology import SWITCH_LP_NAME
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
     from net_maestro.core.topology import Topology
@@ -27,10 +29,25 @@ NS_PER_S = 1_000_000_000
 FFW_ENGINE_STATS_FILE = "ross-stats-gvt.bin"
 
 
-# The settings naming the stock binary and template traffic config for each traffic mode.
-FFW_TRAFFIC_DEFAULTS: dict[str, dict[str, str]] = {
-    FFWTrafficMode.RANDOM: {"binary": "FFW_BINARY_PATH", "config": "FFW_CONFIG_PATH"},
-    FFWTrafficMode.TRACE: {"binary": "FFW_TRACE_BINARY_PATH", "config": "FFW_TRACE_CONFIG_PATH"},
+# For each traffic mode: the settings naming the stock binary and the template traffic
+# config, and the `fluid_flow_wan` settings NetMaestro owns, which win over the
+# template's (see write_run_inputs).
+FFW_TRAFFIC_DEFAULTS: dict[str, dict[str, Any]] = {
+    FFWTrafficMode.RANDOM: {
+        "binary": "FFW_BINARY_PATH",
+        "config": "FFW_CONFIG_PATH",
+        # The template's 30 drain intervals are too few for the slow links a sweep
+        # visits: at 40 Gbps the STAR-MICH members need about 85 to empty the network,
+        # so they ended with traffic still in flight. Intervals after the drain are
+        # idle and cost little, so the margin is generous.
+        "overrides": {"num_drain_intervals": 100},
+    },
+    FFWTrafficMode.TRACE: {
+        "binary": "FFW_TRACE_BINARY_PATH",
+        "config": "FFW_TRACE_CONFIG_PATH",
+        # The validation ladder's 5 x 10 s drain is part of its design; keep it.
+        "overrides": {},
+    },
 }
 
 
@@ -86,31 +103,59 @@ def _check_trace(path: Path, terminal_count: int) -> None:
                     )
 
 
-def point_traffic_config_at_topology(*, topology: Topology, config_path: Path) -> None:
-    """Rewrite a traffic config in place to run on `topology`.
+def write_run_inputs(
+    *,
+    run_dir: Path,
+    template_path: Path,
+    topology: Topology,
+    overrides: Mapping[str, Any],
+) -> Path:
+    """Write the inputs for one run on `topology` into `run_dir/inputs`, and return the config.
 
-    Replaces the config's LP counts and `topology_yaml_file`, and writes the
-    topology YAML beside it, since the model resolves that file, the trace, and
-    the log paths relative to the traffic config.
+    The traffic config is generated from `template_path`, which is only read: each
+    run gets its own config, topology file and logs, so runs do not overwrite one
+    another's inputs and the stock example stays as it shipped. The generated config
+    keeps every template field NetMaestro does not own, so a new model setting passes
+    through untouched; it takes the topology's LP counts and `topology_yaml_file`, and
+    then `overrides` is applied to `sections.fluid_flow_wan` last, so a NetMaestro-owned
+    value wins over the template's. The file is written by PyYAML, so the template's
+    comments do not carry over; nobody edits the generated copy.
+
+    The model resolves the topology file, the trace and the log paths relative to the
+    traffic config, so all of them go under `inputs/` beside it: the topology YAML,
+    each `*_log_path` directory, and for trace traffic a copy of the template's trace
+    at the same relative path, checked against the topology's terminals first.
+    Nothing is written outside `run_dir`.
     """
     inputs = topology.simulation_inputs()
-    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config = yaml.safe_load(template_path.read_text(encoding="utf-8"))
     section = config["sections"]["fluid_flow_wan"]
-    config_dir = config_path.parent
+    inputs_dir = run_dir / "inputs"
 
-    if trace := section.get("traffic_trace_file"):
-        _check_trace(config_dir / trace, inputs["terminal_count"])
     _ffw_group(config)["lps"].update(inputs["lps"])
     section["topology_yaml_file"] = inputs["topology_yaml_file"]
+    section.update(overrides)
 
+    trace_source: Path | None = None
+    if trace := section.get("traffic_trace_file"):
+        trace_source = template_path.parent / trace
+        _check_trace(trace_source, inputs["terminal_count"])
+
+    inputs_dir.mkdir(parents=True, exist_ok=True)
+    if trace_source is not None:
+        trace_copy = inputs_dir / section["traffic_trace_file"]
+        trace_copy.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(trace_source, trace_copy)
     for key, value in section.items():
         if key.endswith("_log_path"):
-            (config_dir / value).parent.mkdir(parents=True, exist_ok=True)
+            (inputs_dir / value).parent.mkdir(parents=True, exist_ok=True)
 
-    (config_dir / inputs["topology_yaml_file"]).write_text(
+    (inputs_dir / inputs["topology_yaml_file"]).write_text(
         yaml.safe_dump(_topology_document(topology), sort_keys=False), encoding="utf-8"
     )
+    config_path = inputs_dir / template_path.name
     config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+    return config_path
 
 
 # VT samples per fluid interval when NetMaestro picks the cadence. One per interval
