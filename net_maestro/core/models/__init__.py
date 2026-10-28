@@ -16,6 +16,7 @@ from .model_file import ModelFile
 from .model_record import ModelRecord
 from .phold_simulation_config import PHOLDSimulationConfig
 from .run import Run
+from .run_summary import RunSummary
 from .simulation_base_record import SimulationBaseRecord
 from .simulation_file import SimulationFile
 from .simulation_kp_record import SimulationKpRecord
@@ -38,6 +39,7 @@ __all__ = [
     "PHOLDSimulationConfig",
     "PHOLDSimulationLpRecord",
     "Run",
+    "RunSummary",
     "SimulationBaseRecord",
     "SimulationFile",
     "SimulationKpRecord",

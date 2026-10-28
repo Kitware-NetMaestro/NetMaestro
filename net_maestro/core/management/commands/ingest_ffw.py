@@ -61,9 +61,10 @@ def ingest_ffw(
     if immediate:
         try:
             run_ffw_ingest_task(ffw_result_files=file_pks)
-        except Exception:
-            fail_run(run.id, "FFW ingestion failed")
+        except Exception as exc:
+            fail_run(run.id, f"FFW ingestion failed: {exc!r}")
             raise
+        # Also computes the run's summary, as it does at the end of the queued chain.
         mark_run_completed(run.id)
     else:
         workflow = [

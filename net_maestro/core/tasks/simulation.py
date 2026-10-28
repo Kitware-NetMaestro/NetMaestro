@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 import logging
 from pathlib import Path
+import subprocess
 import tempfile
 from uuid import uuid4
 
@@ -11,6 +12,7 @@ from django.conf import settings
 from django.core.files import File
 from django.core.management import call_command
 from django.db import transaction
+from django.utils import timezone
 
 from net_maestro.core.constants import RunStatus
 from net_maestro.core.models import FFWResultFile, Run
@@ -24,13 +26,62 @@ from net_maestro.core.services.ffw import (
     FFW_ENGINE_STATS_FILE,
     FFW_STATS_FILES,
     FFW_TRAFFIC_DEFAULTS,
+    _tail,
     execute_ffw_model,
     point_traffic_config_at_topology,
+    vt_sampling_for,
 )
+from net_maestro.core.summaries import compute_run_summary
 from net_maestro.core.tasks.ingest_ffw import run_ffw_ingest_task
 from net_maestro.core.topology import get_topology
 
 logger = logging.getLogger(__name__)
+
+# Enough of an exception's text to say what went wrong without storing a whole log.
+_MAX_REASON_CHARS = 2000
+
+
+def failure_reason(exc: BaseException) -> str:
+    """Return what to show for a run that failed with `exc`.
+
+    A simulator that exits non-zero explains itself at the end of its output, so
+    that tail is kept (stderr, or stdout when stderr is empty); anything else is
+    the exception's repr.
+    """
+    if isinstance(exc, subprocess.CalledProcessError):
+        tail = _tail(exc.stderr) or _tail(exc.stdout)
+        reason = f"Exited with code {exc.returncode}" + (f":\n{tail}" if tail else "")
+    else:
+        reason = repr(exc)
+    return reason[-_MAX_REASON_CHARS:] if len(reason) > _MAX_REASON_CHARS else reason
+
+
+def _start_run(run: Run) -> None:
+    """Flip the run to RUNNING and start its clock, clearing any earlier attempt's end."""
+    run.status = RunStatus.RUNNING
+    run.started_at = timezone.now()
+    run.finished_at = None
+    run.failure_reason = ""
+    run.save(update_fields=["status", "started_at", "finished_at", "failure_reason"])
+
+
+def _finish_run(run: Run, status: str, reason: str = "") -> None:
+    run.status = status
+    run.finished_at = timezone.now()
+    run.failure_reason = reason
+    run.save(update_fields=["status", "finished_at", "failure_reason"])
+
+
+def summarize_run(run: Run) -> None:
+    """Compute the run's summary, logging rather than raising if that fails.
+
+    The summary is a convenience on top of the ingested data, so a bug in it must
+    not turn a run that simulated and ingested fine into a failed one.
+    """
+    try:
+        compute_run_summary(run)
+    except Exception:
+        logger.exception("Could not summarize run %s", run.pk)
 
 
 @shared_task
@@ -42,11 +93,14 @@ def mark_run_completed(run_id: int) -> None:
     """
     try:
         run = Run.objects.get(pk=run_id)
-        run.status = RunStatus.COMPLETED
-        run.save()
-        logger.info("Marked run %s as completed", run_id)
     except Run.DoesNotExist:
         logger.exception("Run %s not found when trying to mark as completed", run_id)
+        return
+    _finish_run(run, RunStatus.COMPLETED)
+    logger.info("Marked run %s as completed", run_id)
+    # After the status flips, so the summary's health sees a completed run with a
+    # wall time; ensembles poll, so a member shows its numbers moments later.
+    summarize_run(run)
 
 
 def fail_run(run_id: int, reason: str) -> None:
@@ -59,10 +113,10 @@ def fail_run(run_id: int, reason: str) -> None:
     logger.error("Run %s failed: %s", run_id, reason)
     try:
         run = Run.objects.get(pk=run_id)
-        run.status = RunStatus.FAILED
-        run.save()
     except Run.DoesNotExist:
         logger.exception("Run %s not found when trying to mark as failed", run_id)
+        return
+    _finish_run(run, RunStatus.FAILED, reason[-_MAX_REASON_CHARS:])
 
 
 @shared_task
@@ -155,9 +209,7 @@ def run_phold_simulation(  # noqa: PLR0913
     """Execute PHOLD simulation with given parameters and update run status."""
     run = Run.objects.get(pk=run_id)
 
-    # Update status to RUNNING
-    run.status = RunStatus.RUNNING
-    run.save()
+    _start_run(run)
 
     # Get configuration values (these should be set in Django settings)
     phold_path = getattr(settings, "PHOLD_BINARY_PATH", "")
@@ -167,8 +219,7 @@ def run_phold_simulation(  # noqa: PLR0913
 
     if not phold_path:
         logger.error("PHOLD_BINARY_PATH not configured in settings")
-        run.status = RunStatus.FAILED
-        run.save()
+        _finish_run(run, RunStatus.FAILED, "PHOLD_BINARY_PATH is not configured")
         return
 
     # Ensure output directory exists
@@ -221,15 +272,12 @@ def run_phold_simulation(  # noqa: PLR0913
         # tasks ending in mark_run_completed, which sets COMPLETED once the data is
         # actually available in the database.
 
-    except Exception:
+    except Exception as exc:
         logger.exception(
             "PHOLD failed for run %s",
             run_id,
         )
-
-        # Update status to FAILED
-        run.status = RunStatus.FAILED
-        run.save()
+        _finish_run(run, RunStatus.FAILED, failure_reason(exc))
 
 
 @shared_task
@@ -243,8 +291,8 @@ def run_ffw_simulation(  # noqa: PLR0913
     model_stats: int = 4,
     num_gvt: int = 1,
     rt_interval: int = 1,
-    vt_interval: int = 1e8,
-    vt_samp_end: int = 1.7e10,
+    vt_interval: int | None = None,
+    vt_samp_end: int | None = None,
     engine_stats: int = 1,
     pe_data: int = 1,
     kp_data: int = 1,
@@ -257,10 +305,14 @@ def run_ffw_simulation(  # noqa: PLR0913
     The traffic config (`config_path`, or the stock one for `traffic`) is
     rewritten in place to point at the topology, and the model runs from the
     config's directory.
+
+    Virtual-time sampling (`vt_interval`, `vt_samp_end`) is derived from that
+    config's run length unless given, so the samples cover the whole run and the
+    summaries built from them are whole-run numbers. Passing either value keeps
+    it, for callers that know better.
     """
     run = Run.objects.get(pk=run_id)
-    run.status = RunStatus.RUNNING
-    run.save()
+    _start_run(run)
 
     defaults = FFW_TRAFFIC_DEFAULTS[traffic]
     ffw_binary_path = binary_path or getattr(settings, defaults["binary"], "")
@@ -270,6 +322,10 @@ def run_ffw_simulation(  # noqa: PLR0913
         point_traffic_config_at_topology(
             topology=get_topology(topology_name), config_path=ffw_config_path
         )
+        if vt_interval is None or vt_samp_end is None:
+            sampling = vt_sampling_for(ffw_config_path)
+            vt_interval = sampling.interval_ns if vt_interval is None else vt_interval
+            vt_samp_end = sampling.end_ns if vt_samp_end is None else vt_samp_end
         stats_dir = execute_ffw_model(
             np=np,
             sync=sync,
@@ -312,11 +368,13 @@ def run_ffw_simulation(  # noqa: PLR0913
         else:
             logger.warning("FFW run %s wrote no %s", run_id, FFW_ENGINE_STATS_FILE)
 
-        run.status = RunStatus.COMPLETED
-        run.save()
-        logger.info("FFW simulation finished for run %s", run_id)
-
-    except Exception:
-        run.status = RunStatus.FAILED
-        run.save()
+    except Exception as exc:
+        _finish_run(run, RunStatus.FAILED, failure_reason(exc))
         logger.exception("FFW simulation failed for run %s", run_id)
+        return
+
+    _finish_run(run, RunStatus.COMPLETED)
+    logger.info("FFW simulation finished for run %s", run_id)
+    # Outside the try: a summary bug is logged by summarize_run and leaves the run
+    # COMPLETED. Computed after the flip so its health sees the final status.
+    summarize_run(run)

@@ -24,6 +24,21 @@ class Run(models.Model):
     )
     member_index = models.IntegerField(null=True, blank=True)
     member_params = models.JSONField(null=True, blank=True)
+    # Set by the simulation tasks: started when the run flips to RUNNING, finished
+    # when it lands in COMPLETED or FAILED. Null for runs that predate them or were
+    # ingested from files, which is why `wall_time_s` may be None.
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    # Why a FAILED run failed (the tail of the simulator's stderr, or the exception),
+    # so the UI can say more than "failed".
+    failure_reason = models.TextField(blank=True, default="")
 
     def __str__(self):
         return f"Run {self.id}: {self.name} ({self.status})"
+
+    @property
+    def wall_time_s(self) -> float | None:
+        """Seconds from start to finish, or None when either end wasn't recorded."""
+        if self.started_at is None or self.finished_at is None:
+            return None
+        return (self.finished_at - self.started_at).total_seconds()

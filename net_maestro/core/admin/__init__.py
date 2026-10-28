@@ -15,6 +15,7 @@ from .model_record import ModelRecordAdmin
 from .phold_simulation_config import PHOLDSimulationConfigAdmin
 from .phold_simulation_lp_record import PHOLDSimulationLpRecordAdmin
 from .run import RunAdmin
+from .run_summary import RunSummaryAdmin
 from .simulation_file import SimulationFileAdmin
 from .simulation_kp_record import SimulationKpRecordAdmin
 from .simulation_lp_record import SimulationLpRecordAdmin
@@ -34,6 +35,7 @@ __all__ = [
     "PHOLDSimulationConfigAdmin",
     "PHOLDSimulationLpRecordAdmin",
     "RunAdmin",
+    "RunSummaryAdmin",
     "SimulationFileAdmin",
     "SimulationKpRecordAdmin",
     "SimulationLpRecordAdmin",
