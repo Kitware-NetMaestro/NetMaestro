@@ -151,6 +151,22 @@ def test_list_shows_ensembles(client: Client, preset: str) -> None:
     assert "NP sweep" in response.content.decode()
 
 
+def test_list_folds_the_description_into_a_collapse(client: Client, preset: str) -> None:
+    """The study's purpose is there to reread, but folded so the card stays short."""
+    ensemble = _ensemble(preset)
+    ensemble.description = "Does np change anything?\nIt should not."
+    ensemble.save(update_fields=["description"])
+    content = client.get(reverse("ensemble-list")).content.decode()
+
+    assert "About this study" in content
+    assert "Does np change anything?<br>It should not." in content
+    assert content.count("collapse-title") == 1
+
+    ensemble.description = ""
+    ensemble.save(update_fields=["description"])
+    assert "About this study" not in client.get(reverse("ensemble-list")).content.decode()
+
+
 def test_detail_renders_member_rows(client: Client, preset: str) -> None:
     ensemble = _ensemble(preset)
     response = client.get(reverse("ensemble-detail", kwargs={"ensemble_id": ensemble.pk}))

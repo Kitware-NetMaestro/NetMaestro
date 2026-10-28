@@ -60,8 +60,16 @@
             <span class="text-base-content/60">{{ member_count }} member{{ member_count|pluralize }}</span>
             {% endwith %}
           </div>
+          {# Folded like the simulations page's details, so a card stays one line of #}
+          {# status but the study's purpose is a click away when memory needs it. #}
           {% if ensemble.description %}
-          <p class="text-sm text-base-content/70 mt-2">{{ ensemble.description }}</p>
+          <div class="collapse collapse-arrow bg-base-200 mt-4">
+            <input type="checkbox" aria-label="Toggle {{ ensemble.name }} description">
+            <div class="collapse-title text-sm font-medium">About this study</div>
+            <div class="collapse-content">
+              <p class="text-sm text-base-content/80">{{ ensemble.description|linebreaksbr }}</p>
+            </div>
+          </div>
           {% endif %}
         </div>
       </div>
