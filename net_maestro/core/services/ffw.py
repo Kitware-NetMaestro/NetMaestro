@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+from dataclasses import dataclass
 import logging
 import subprocess
 from typing import TYPE_CHECKING, Any
@@ -19,6 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 FFW_STATS_FILES = ("ross-stats-model.bin", "ross-stats-analysis-lps.bin")
+
+NS_PER_S = 1_000_000_000
 
 # GVT-sampled simulation engine stats (PE/KP/LP), written when --engine-stats is on.
 FFW_ENGINE_STATS_FILE = "ross-stats-gvt.bin"
@@ -108,6 +111,48 @@ def point_traffic_config_at_topology(*, topology: Topology, config_path: Path) -
         yaml.safe_dump(_topology_document(topology), sort_keys=False), encoding="utf-8"
     )
     config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+
+# VT samples per fluid interval when NetMaestro picks the cadence. One per interval
+# is too coarse to draw a curve; ten keeps a 42 s run at a few hundred samples per LP.
+VT_SAMPLES_PER_INTERVAL = 10
+
+
+@dataclass(frozen=True)
+class VTSampling:
+    """The model's virtual-time sampling settings, both in nanoseconds."""
+
+    interval_ns: int
+    end_ns: int
+
+
+def vt_sampling_for(config_path: Path) -> VTSampling:
+    """Return the VT sampling that covers the whole run described by a traffic config.
+
+    The model runs for `num_send_intervals + num_drain_intervals` fluid intervals of
+    `interval_seconds` each, so sampling ends there. A fixed end is wrong in both
+    directions: 1.7e10 ns cut the 42 s FABRIC random-traffic run short at 17 s, so
+    its summaries saw a network that had not drained yet, and it would waste samples
+    on a run shorter than that. The cadence follows the interval length too, so the
+    420 s trace ladder gets the same samples per interval as a 42 s run rather than
+    ten times as many rows.
+    """
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    section = (config.get("sections") or {}).get("fluid_flow_wan") or {}
+    try:
+        interval_s = float(section["interval_seconds"])
+        intervals = int(section["num_send_intervals"]) + int(section["num_drain_intervals"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise FFWInputError(
+            f"{config_path.name}: fluid_flow_wan needs numeric interval_seconds, "
+            "num_send_intervals and num_drain_intervals"
+        ) from exc
+    if interval_s <= 0 or intervals <= 0:
+        raise FFWInputError(f"{config_path.name}: the run length must be positive")
+    return VTSampling(
+        interval_ns=max(1, round(interval_s * NS_PER_S / VT_SAMPLES_PER_INTERVAL)),
+        end_ns=round(intervals * interval_s * NS_PER_S),
+    )
 
 
 def execute_ffw_model(  # noqa: PLR0913

@@ -100,8 +100,22 @@ def _create_or_update_run(
     type=int,
     default=1,
 )
-@click.option("--vt-interval", "vt_interval", type=int, default=1e8)
-@click.option("--vt-samp-end", "vt_samp_end", type=int, default=1.7e10)
+# Both default to what the traffic config's run length calls for; see
+# services.ffw.vt_sampling_for. Given explicitly, they are passed through as is.
+@click.option(
+    "--vt-interval",
+    "vt_interval",
+    type=int,
+    default=None,
+    help="VT sampling interval in ns (default: a tenth of the config's fluid interval).",
+)
+@click.option(
+    "--vt-samp-end",
+    "vt_samp_end",
+    type=int,
+    default=None,
+    help="VT sampling end in ns (default: the config's send plus drain intervals).",
+)
 @click.option(
     "--config-path",
     "config_path",
@@ -142,8 +156,8 @@ def run_ffw(  # noqa: PLR0913
     model_stats: int,
     num_gvt: int,
     rt_interval: int,
-    vt_interval: int,
-    vt_samp_end: int,
+    vt_interval: int | None,
+    vt_samp_end: int | None,
     config_path: Path,
     topology_name: str,
     traffic: str,
