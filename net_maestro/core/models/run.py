@@ -17,6 +17,13 @@ class Run(models.Model):
     simulation_type = models.CharField(
         max_length=32, choices=SimulationType, default=SimulationType.ESNET
     )
+    # Set only for runs created as members of a parameter sweep. `member_params`
+    # holds just the values this member varied, keyed by sweep axis.
+    ensemble = models.ForeignKey(
+        "core.Ensemble", null=True, blank=True, on_delete=models.CASCADE, related_name="runs"
+    )
+    member_index = models.IntegerField(null=True, blank=True)
+    member_params = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"Run {self.id}: {self.name} ({self.status})"

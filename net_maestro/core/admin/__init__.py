@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .component_model import ComponentModelAdmin
+from .ensemble import EnsembleAdmin
 from .event_file import EventFileAdmin
 from .event_record import EventRecordAdmin
 from .ffw_results import (
@@ -21,6 +22,7 @@ from .simulation_pe_record import SimulationPeRecordAdmin
 
 __all__ = [
     "ComponentModelAdmin",
+    "EnsembleAdmin",
     "EventFileAdmin",
     "EventRecordAdmin",
     "FFWPortRecordAdmin",

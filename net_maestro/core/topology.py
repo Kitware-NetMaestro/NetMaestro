@@ -264,7 +264,13 @@ def family_label(family: str) -> str:
     return _LABELS.get(family, family.capitalize())
 
 
-def list_topologies(family: str | None = None) -> tuple[Topology, ...]:
+# The word that marks a topology an ensemble generated for one of its members.
+GENERATED_WORD = "sweep"
+
+
+def list_topologies(
+    family: str | None = None, *, include_generated: bool = False
+) -> tuple[Topology, ...]:
     """Return every available topology, ordered by switch count then name.
 
     `family` narrows the result to the topologies carrying that word in their
@@ -276,13 +282,21 @@ def list_topologies(family: str | None = None) -> tuple[Topology, ...]:
     Reads the directory every time rather than caching: other processes (the
     ingest command, other containers) add files without this one knowing.
 
+    Topologies an ensemble wrote for its members (named with the word `sweep`)
+    are left out unless `include_generated` is set. A sweep writes one file per
+    varied member, which would bury the presets in every picker; only lookups
+    by name need to see them.
+
     YAML files that are not topologies are passed over quietly. Files that are
     topologies but cannot be read are logged and skipped.
     """
     wanted = family.strip().lower() if family else None
     topologies = []
     for path in sorted(topology_dir().glob("*.yaml")):
-        if wanted is not None and wanted not in path.stem.lower().split("-"):
+        words = path.stem.lower().split("-")
+        if wanted is not None and wanted not in words:
+            continue
+        if not include_generated and GENERATED_WORD in words:
             continue
         try:
             topologies.append(_parse(path.stem, path))
@@ -472,7 +486,7 @@ def get_topology(name: str) -> Topology:
     Looks the name up among the known topologies rather than building a path
     from it, so a caller cannot reach files outside the topology directory.
     """
-    for topology in list_topologies():
+    for topology in list_topologies(include_generated=True):
         if topology.name == name:
             return topology
     raise TopologyError(f"Unknown topology: {name}")

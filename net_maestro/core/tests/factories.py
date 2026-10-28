@@ -3,8 +3,9 @@ from __future__ import annotations
 from django.contrib.auth.models import User
 import factory.django
 
-from net_maestro.core.constants import RunStatus
+from net_maestro.core.constants import RunStatus, SimulationType
 from net_maestro.core.models import (
+    Ensemble,
     EventFile,
     EventRecord,
     ModelFile,
@@ -32,6 +33,18 @@ class RunFactory(factory.django.DjangoModelFactory):
     name = factory.Sequence(lambda n: f"TestRun-{n}")
     description = factory.Faker("text", max_nb_chars=200)
     status = RunStatus.RUNNING
+
+
+class EnsembleFactory(factory.django.DjangoModelFactory[Ensemble]):
+    class Meta:
+        model = Ensemble
+
+    name = factory.Sequence(lambda n: f"TestEnsemble-{n}")
+    simulation_type = SimulationType.FFW
+    base_params = factory.LazyFunction(
+        lambda: {"topology_name": "ffw-fabric-2-site", "traffic": "random", "np": 1, "sync": 1}
+    )
+    sweep_spec = factory.LazyFunction(lambda: [{"key": "np", "values": [1, 2]}])
 
 
 class EventFileFactory(factory.django.DjangoModelFactory):

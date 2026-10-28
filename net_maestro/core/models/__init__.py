@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .component_model import ComponentModel
+from .ensemble import Ensemble
 from .event_file import EventFile
 from .event_record import EventRecord
 from .ffw_results import (
@@ -23,6 +24,7 @@ from .simulation_pe_record import SimulationPeRecord
 
 __all__ = [
     "ComponentModel",
+    "Ensemble",
     "EventFile",
     "EventRecord",
     "FFWBaseRecord",
