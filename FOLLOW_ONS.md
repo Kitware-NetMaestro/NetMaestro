@@ -78,11 +78,14 @@ requirement asked for; the CSV export already carries the topology name.
 
 ### Ensemble page
 
-- **Cross-member plots.** Parallel coordinates (one line per member, swept parameters and
-  chosen metrics as axes, brushing filters the member table) is in progress. Next after it:
-  a parameter-vs-metric scatter with replicates once seed sweeps exist, and overlaid time
-  series per member (needs multi-run sample fetching; the run data endpoints are
-  unpaginated, see `KNOWN_ISSUES.md`).
+- **Cross-member plots.** Parallel coordinates landed ("Compare members" card; one line per
+  member, brushing dims the table, hovering a row lights its line). Known rough edges: the
+  Viridis low end is faint on the dark theme, so low-valued lines are hard to see unless
+  hovered; lower-is-better metrics are not reversed on the colour scale; members without a
+  value on every axis (running, failed) are left off the plot. Next: a parameter-vs-metric
+  scatter with replicates once seed sweeps exist, and overlaid time series per member
+  (needs multi-run sample fetching; the run data endpoints are unpaginated, see
+  `KNOWN_ISSUES.md`).
 - **Cancel.** No way to stop a running ensemble or member; `RunStatus.CANCELLED` exists
   but nothing sets it.
 - **Edit / clone an ensemble.** The form only creates; cloning a saved sweep with one axis
