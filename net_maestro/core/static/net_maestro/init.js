@@ -1,6 +1,8 @@
 import Alpine from 'alpinejs';
 import { dataStore, plotSyncStore } from './dataStore.js';
+import { ensembleSelectionStore } from './ensembleSelectionStore.js';
 import { dataFileSelector } from './partials/dataFileSelector.js';
+import { ensembleParcoords } from './partials/ensembleParcoords.js';
 import { ensembleSweep } from './partials/ensembleSweep.js';
 import { heatmapPlot } from './plots/heatmap.js';
 import { linkHeatmap } from './plots/linkHeatmap.js';
@@ -15,11 +17,13 @@ import { topologyCanvas } from './topology/topologyCanvas.js';
 import { uiStateStore } from './uiStateStore.js';
 
 Alpine.store('dataStore', dataStore);
+Alpine.store('ensembleSelectionStore', ensembleSelectionStore);
 Alpine.store('plotSyncStore', plotSyncStore);
 Alpine.store('selectionStore', selectionStore);
 Alpine.store('timeWindowStore', timeWindowStore);
 Alpine.store('uiStateStore', uiStateStore);
 Alpine.data('dataFileSelector', dataFileSelector);
+Alpine.data('ensembleParcoords', ensembleParcoords);
 Alpine.data('ensembleSweep', ensembleSweep);
 Alpine.data('heatmapPlot', heatmapPlot);
 Alpine.data('linkHeatmap', linkHeatmap);

@@ -182,6 +182,12 @@ urlpatterns = [
         views.ensemble_members,
         name="ensemble-members",
     ),
+    # Every member's swept values and metrics as numbers, for the comparison plot
+    path(
+        "ensembles/<int:ensemble_id>/members.json",
+        views.ensemble_members_json,
+        name="ensemble-members-json",
+    ),
     # The "Effect of each parameter" card alone, swapped when its metric changes
     path(
         "ensembles/<int:ensemble_id>/effects",

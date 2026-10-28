@@ -446,3 +446,116 @@ def test_export_writes_one_row_per_member(client: Client, preset: str) -> None:
     assert rows[1]["pause_time_s"] == ""
     assert rows[0]["topology_name"] == preset
     assert rows[0]["status"] == RunStatus.COMPLETED
+
+
+# The comparison plot: its JSON, its card, and the hooks the table gives it
+
+
+def _two_axis_ensemble(preset: str) -> Ensemble:
+    """Return a 2 x 2 sweep of MPI processes by sync protocol, three members summarized.
+
+    Member 4 has no summary yet, as if it were still running.
+    """
+    ensemble = create_ensemble(
+        name="NP by sync",
+        description="",
+        simulation_type=SimulationType.FFW,
+        base_params={
+            "topology_name": preset,
+            "traffic": FFWTrafficMode.RANDOM,
+            "np": 1,
+            "sync": SynchProtocol.SEQUENTIAL,
+        },
+        sweep_spec=[
+            {"key": "np", "values": ["2", "1"]},
+            {
+                "key": "sync",
+                "values": [str(SynchProtocol.SEQUENTIAL), str(SynchProtocol.CONSERVATIVE)],
+            },
+        ],
+        run_status=RunStatus.COMPLETED,
+    )
+    for run, dropped in zip(
+        ensemble.members.order_by("member_index")[:3], [4.0, 2.0, 1.0], strict=True
+    ):
+        RunSummary.objects.create(
+            run=run,
+            metrics={"dropped_mbit": dropped, "peak_buffer_occupancy_frac": 0.5},
+            health={"ok": dropped < 3, "checks": []},
+        )
+    return ensemble
+
+
+def test_members_json_describes_axes_metrics_and_members(client: Client, preset: str) -> None:
+    ensemble = _two_axis_ensemble(preset)
+    response = client.get(reverse("ensemble-members-json", kwargs={"ensemble_id": ensemble.pk}))
+
+    assert response.status_code == 200
+    data = response.json()
+    np_axis, sync_axis = data["axes"]
+    # Spec order, not sorted; number values as numbers, choices as text with their names.
+    assert (np_axis["key"], np_axis["kind"]) == ("np", "number")
+    assert np_axis["values"] == [2.0, 1.0]
+    assert np_axis["labels"] == ["2", "1"]
+    assert np_axis["link"] is None
+    assert (sync_axis["key"], sync_axis["kind"]) == ("sync", "choice")
+    assert sync_axis["values"] == [str(SynchProtocol.SEQUENTIAL), str(SynchProtocol.CONSERVATIVE)]
+    assert sync_axis["labels"] == [SynchProtocol.SEQUENTIAL.label, SynchProtocol.CONSERVATIVE.label]
+
+    assert data["headline"] == [
+        "dropped_mbit",
+        "peak_buffer_occupancy_frac",
+        "bottleneck_peak_utilization",
+    ]
+    metrics = {metric["key"]: metric for metric in data["metrics"]}
+    assert metrics["peak_buffer_occupancy_frac"]["is_fraction"] is True
+    assert metrics["dropped_mbit"]["lower_is_better"] is True
+    assert metrics["dropped_mbit"]["unit"] == "Mbit"
+    # No member has engine stats, so engine metrics are not offered.
+    assert "wall_time_s" not in metrics
+    assert "pause_time_s" in metrics
+
+    members = data["members"]
+    assert [member["index"] for member in members] == [1, 2, 3, 4]
+    first = members[0]
+    run = ensemble.members.get(member_index=1)
+    assert first["run_id"] == run.pk
+    assert first["status"] == RunStatus.COMPLETED
+    # Member params come back in the same form as the axis values they match.
+    assert first["params"]["np"] in np_axis["values"]
+    assert first["params"]["sync"] in sync_axis["values"]
+    assert first["metrics"]["dropped_mbit"] == 4.0
+    assert first["metrics"]["bottleneck_peak_utilization"] is None
+    assert [member["health_ok"] for member in members] == [False, True, True, None]
+    assert members[3]["metrics"]["dropped_mbit"] is None
+
+
+def test_members_json_for_an_unknown_ensemble_is_404(client: Client) -> None:
+    response = client.get(reverse("ensemble-members-json", kwargs={"ensemble_id": 999}))
+
+    assert response.status_code == 404
+
+
+def test_detail_includes_the_comparison_card_outside_the_polled_region(
+    client: Client, preset: str
+) -> None:
+    ensemble = _ensemble(preset, RunStatus.PENDING)
+    content = _detail(client, ensemble).content.decode()
+
+    url = reverse("ensemble-members-json", kwargs={"ensemble_id": ensemble.pk})
+    assert "Compare members" in content
+    assert f'data-url="{url}"' in content
+    assert 'id="ensembleParcoords"' in content
+    # The polled region replaces itself, so the plot must come before it, not inside it.
+    assert content.index('id="ensembleParcoords"') < content.index('id="ensemble-members"')
+
+
+def test_members_partial_rows_carry_their_member_index(client: Client, preset: str) -> None:
+    ensemble = _ensemble(preset)
+    response = client.get(reverse("ensemble-members", kwargs={"ensemble_id": ensemble.pk}))
+
+    content = response.content.decode()
+    assert 'data-member="1"' in content
+    assert 'data-member="2"' in content
+    assert "$store.ensembleSelectionStore.hovered = 2" in content
+    assert 'id="ensembleParcoords"' not in content

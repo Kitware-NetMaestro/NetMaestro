@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, cast
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.text import slugify
@@ -917,6 +917,87 @@ def ensemble_effects(request: HttpRequest, ensemble_id: int) -> HttpResponse:
         _results_context(request, ensemble),
     )
     return _replace_url(request, response, ensemble)
+
+
+def _plot_value(axis: ensemble_stats.AxisInfo, value: Any) -> float | str | None:
+    """Return a swept value as the comparison plot compares it.
+
+    The sweep spec keeps values as posted ("8") while member params hold them
+    parsed (8, or a sync protocol as 1), so both sides are put in one form: a
+    float on a number axis, text on a choice axis. The browser can then find a
+    member's value among the axis's values with a plain equality test.
+    """
+    if value is None:
+        return None
+    if axis.kind == "number":
+        try:
+            return float(str(value).strip())
+        except ValueError:
+            return None
+    return str(value)
+
+
+def ensemble_members_json(_request: HttpRequest, ensemble_id: int) -> JsonResponse:
+    """Return every member's swept values and metrics, for the comparison plot.
+
+    The plot needs raw numbers rather than the table's formatted text, and it
+    lives outside the polled member region, so it fetches this itself whenever
+    that region refreshes. Metrics are the ones the member table offers (engine
+    metrics only once some member has one), and values are stored values:
+    fractions stay 0-1 and the plot decides how to show them.
+    """
+    ensemble = get_object_or_404(Ensemble, pk=ensemble_id)
+    members = ensemble_stats.load_members(ensemble)
+    axes = ensemble_stats.axis_infos(ensemble)
+    metrics = _metric_registry(ensemble, members)
+    keys = {metric.key for metric in metrics}
+
+    member_rows = []
+    for run in sorted(members, key=lambda run: run.member_index or 0):
+        summary = ensemble_stats.summary_of(run)
+        health = (summary.health or {}) if summary else {}
+        params = run.member_params or {}
+        member_rows.append(
+            {
+                "index": run.member_index,
+                "run_id": run.pk,
+                "status": run.status,
+                "health_ok": bool(health["ok"]) if "ok" in health else None,
+                "params": {axis.key: _plot_value(axis, params.get(axis.key)) for axis in axes},
+                "metrics": {
+                    metric.key: ensemble_stats.metric_value(run, metric.key) for metric in metrics
+                },
+            }
+        )
+    return JsonResponse(
+        {
+            "axes": [
+                {
+                    "key": axis.key,
+                    "label": axis.label,
+                    "unit": axis.unit,
+                    "kind": axis.kind,
+                    "link": axis.link,
+                    "values": [_plot_value(axis, value) for value in axis.values],
+                    "labels": [axis.label_for(value) for value in axis.values],
+                }
+                for axis in axes
+            ],
+            "metrics": [
+                {
+                    "key": metric.key,
+                    "label": metric.label,
+                    "unit": metric.unit,
+                    "lower_is_better": metric.lower_is_better,
+                    "is_fraction": ensemble_stats.is_fraction(metric),
+                    "digits": metric.digits,
+                }
+                for metric in metrics
+            ],
+            "headline": [key for key in HEADLINE_METRICS if key in keys],
+            "members": member_rows,
+        }
+    )
 
 
 def _csv_cell(value: object) -> object:

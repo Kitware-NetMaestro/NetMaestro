@@ -1,0 +1,55 @@
+{# Outside #ensemble-members on purpose: that region replaces itself on every poll, #}
+{# which would wipe the plot and the user's brush. The component refetches its own #}
+{# numbers after each of those swaps instead. #}
+<div
+  class="card bg-base-100 shadow-sm"
+  x-data="ensembleParcoords"
+  data-url="{% url 'ensemble-members-json' ensemble.pk %}"
+>
+  <div class="card-body">
+    <div class="flex flex-row flex-wrap items-center justify-between gap-4 mb-2">
+      <div class="flex flex-row items-center gap-3">
+        <i class="ri-line-chart-line text-2xl text-secondary" aria-hidden="true"></i>
+        <h2 class="card-title">Compare members</h2>
+      </div>
+      <label class="flex flex-row items-center gap-2 text-sm">
+        Colour by
+        <select class="select select-sm w-auto" x-model="colourBy" aria-label="Colour lines by">
+          <template x-for="option in colourOptions" :key="option.key">
+            <option :value="option.key" x-text="option.label" :selected="option.key === colourBy"></option>
+          </template>
+        </select>
+      </label>
+    </div>
+
+    <div class="flex flex-row flex-wrap items-center gap-2 mb-2">
+      <span class="text-sm text-base-content/60">Metrics</span>
+      <template x-for="metric in metrics" :key="metric.key">
+        <button
+          type="button"
+          class="badge cursor-pointer"
+          :class="isChosen(metric.key) ? 'badge-primary' : 'badge-outline opacity-70 hover:opacity-100'"
+          :aria-pressed="isChosen(metric.key)"
+          @click="toggleMetric(metric.key)"
+          x-text="metric.label"
+        ></button>
+      </template>
+    </div>
+
+    <p class="text-xs text-base-content/60" x-show="payload" x-cloak>
+      <span x-text="`${plotted.length} of ${members.length} members plotted`"></span><span x-show="plotted.length < members.length"> — a member is drawn once it has a value on every axis</span><span x-show="running > 0">; members still running join as they finish</span>.
+      Drag along an axis to filter the member table; double-click an axis to clear it.
+    </p>
+    <p class="text-sm text-error" x-show="loadError" x-cloak>Could not load the members' results.</p>
+
+    <div
+      x-show="payload && tooFew"
+      x-cloak
+      class="flex items-center justify-center text-base-content/60 text-sm"
+      style="height: 120px;"
+    >
+      Need at least two members with results to compare.
+    </div>
+    <div id="ensembleParcoords" x-show="!tooFew" style="height: 420px;"></div>
+  </div>
+</div>

@@ -42,7 +42,9 @@ class AxisInfo:
 
     `values` keeps the order the user entered them in the sweep spec, which is
     the order rows and columns follow. `labels` maps a stored value to what to
-    show for it: a sync protocol's name rather than its number.
+    show for it: a sync protocol's name rather than its number. `kind` is the
+    registry's `number` or `choice`, which says whether values can be placed on
+    a numeric scale or only told apart.
     """
 
     key: str
@@ -51,6 +53,7 @@ class AxisInfo:
     values: list[Any]
     link: dict[str, str] | None = None
     labels: dict[str, str] = field(default_factory=dict)
+    kind: str = "number"
 
     def label_for(self, value: Any) -> str:
         return self.labels.get(str(value), str(value))
@@ -108,7 +111,8 @@ def _norm(value: Any) -> Any:
 def axis_infos(ensemble: Ensemble) -> list[AxisInfo]:
     """Return the ensemble's swept axes, in sweep order, labelled from the registry.
 
-    An axis the registry no longer knows still shows, under its key.
+    An axis the registry no longer knows still shows, under its key, and counts
+    as a number axis only when every value it swept reads as a number.
     """
     registry = {axis.key: axis for axis in axes_for(ensemble.simulation_type)}
     infos = []
@@ -124,9 +128,15 @@ def axis_infos(ensemble: Ensemble) -> list[AxisInfo]:
                 values=list(entry.get("values") or []),
                 link=entry.get("link"),
                 labels=labels,
+                kind=axis.kind if axis else _guess_kind(entry.get("values") or []),
             )
         )
     return infos
+
+
+def _guess_kind(values: Sequence[Any]) -> str:
+    numeric = all(isinstance(_norm(value), float) for value in values)
+    return "number" if values and numeric else "choice"
 
 
 def topology_name_of(run: Run) -> str | None:
