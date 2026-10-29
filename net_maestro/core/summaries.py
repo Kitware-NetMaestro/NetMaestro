@@ -40,7 +40,7 @@ from net_maestro.core.models import (
 from net_maestro.core.topology import TopologyError, get_topology
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Iterable, Iterator, Mapping, Sequence
 
     from django.db.models import QuerySet
 
@@ -388,6 +388,24 @@ def _traffic_checks(  # noqa: PLR0913
     ]
 
 
+def link_utilization(
+    samples: Sequence[tuple[float, float, float]], mbit_per_s: float
+) -> Iterator[tuple[float, float, float, float]]:
+    """Yield `(ts, utilization, sent, dt_s)` for each sample of one port after its first.
+
+    `samples` are `(ts, port_sent_mbit, port_capacity_mbit_per_interval)` in time
+    order. Utilization is what the port sent since the previous sample over what
+    the link could carry in that time, or over one fluid interval's capacity when
+    the sample is shorter than an interval (see `_bottleneck`). Samples with no
+    time since the previous one are skipped.
+    """
+    for (prev_ts, _, _), (ts, sent, per_interval) in pairwise(samples):
+        dt_s = (ts - prev_ts) / NS_PER_S
+        if dt_s <= 0:
+            continue
+        yield ts, sent / max(mbit_per_s * dt_s, per_interval), sent, dt_s
+
+
 def _bottleneck(
     ports: QuerySet[FFWPortRecord],
     topology: Topology,
@@ -438,11 +456,7 @@ def _bottleneck(
         peak = None
         sent_total = 0.0
         span_s = 0.0
-        for (prev_ts, _, _), (ts, sent, per_interval) in pairwise(samples):
-            dt_s = (ts - prev_ts) / NS_PER_S
-            if dt_s <= 0:
-                continue
-            utilization = sent / max(mbit_per_s * dt_s, per_interval)
+        for _ts, utilization, sent, dt_s in link_utilization(samples, mbit_per_s):
             peak = utilization if peak is None else max(peak, utilization)
             sent_total += sent
             span_s += dt_s
@@ -527,6 +541,7 @@ __all__ = [
     "METRICS",
     "Metric",
     "compute_run_summary",
+    "link_utilization",
     "metric_by_key",
     "metrics_as_json",
     "metrics_for",

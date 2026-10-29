@@ -9,6 +9,7 @@ from drf_yasg.views import get_schema_view
 from rest_framework import permissions, routers
 
 from net_maestro.core.rest.component_api import ComponentModelListView
+from net_maestro.core.rest.ensemble_api import EnsembleEntitiesView, EnsembleSeriesView
 from net_maestro.core.rest.run_api import (
     RunDatasetsView,
     RunEventDataView,
@@ -193,6 +194,17 @@ urlpatterns = [
         "ensembles/<int:ensemble_id>/effects",
         views.ensemble_effects,
         name="ensemble-effects",
+    ),
+    path(
+        "ensembles/<int:ensemble_id>/entities",
+        EnsembleEntitiesView.as_view(),
+        name="ensemble-entities",
+    ),
+    # One entity's metric over time for a few members, thinned, for the compare card
+    path(
+        "ensembles/<int:ensemble_id>/series",
+        EnsembleSeriesView.as_view(),
+        name="ensemble-series",
     ),
     path(
         "ensembles/<int:ensemble_id>/export.csv",
