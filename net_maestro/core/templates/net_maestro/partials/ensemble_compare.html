@@ -1,0 +1,60 @@
+{# Outside #ensemble-members on purpose, like the comparison plot: that region #}
+{# replaces itself on every poll. The component refetches after those swaps. #}
+<div
+  id="ensemble-compare"
+  class="card bg-base-100 shadow-sm"
+  x-data="ensembleCompare"
+  data-entities-url="{% url 'ensemble-entities' ensemble.pk %}"
+  data-series-url="{% url 'ensemble-series' ensemble.pk %}"
+  data-members-url="{% url 'ensemble-members-json' ensemble.pk %}"
+>
+  <div class="card-body">
+    <div class="flex flex-row flex-wrap items-center justify-between gap-4 mb-2">
+      <div class="flex flex-row items-center gap-3">
+        <i class="ri-stack-line text-2xl text-secondary" aria-hidden="true"></i>
+        <h2 class="card-title">Compare selected</h2>
+      </div>
+      <div class="flex flex-row flex-wrap items-center gap-4">
+        <select class="select select-sm w-auto" x-model="entity" aria-label="Switch, terminal, link or PE">
+          <template x-for="group in entityGroups" :key="group.key">
+            <optgroup :label="group.label">
+              <template x-for="option in group.entities" :key="option.id">
+                <option :value="option.id" x-text="option.label" :selected="option.id === entity"></option>
+              </template>
+            </optgroup>
+          </template>
+        </select>
+        <select class="select select-sm w-auto" x-model="metric" aria-label="Metric over time">
+          <template x-for="option in metricOptions" :key="option.key">
+            <option :value="option.key" x-text="option.label" :selected="option.key === metric"></option>
+          </template>
+        </select>
+        {# Only counts per interval add up; a level such as occupancy does not. #}
+        <label class="label cursor-pointer gap-2 text-sm" x-show="isDelta" x-cloak>
+          <input type="checkbox" class="toggle toggle-sm toggle-primary" x-model="cumulative">
+          Cumulative
+        </label>
+      </div>
+    </div>
+
+    <p class="text-xs text-base-content/60">
+      <span x-show="selectedCount === null">Showing the first members. Tick rows in the member table, or drag along an axis of the plot above, to choose which.</span>
+      <span x-show="selectedCount !== null && !overCap" x-cloak>Showing the selected members.</span>
+      <span x-show="overCap" x-cloak x-text="`Showing the first 8 of ${selectedCount} selected — narrow the selection.`"></span>
+      <span x-show="withoutResults.length > 0 && !isEmpty" x-cloak x-text="`No results yet for ${withoutResults.map((m) => '#' + m.index).join(', ')}.`"></span>
+    </p>
+    <p class="text-sm text-error" x-show="loadError" x-cloak>Could not load the series.</p>
+    <p class="text-sm text-error" x-show="error" x-cloak x-text="error"></p>
+
+    <div
+      x-show="!showPlot && !error"
+      x-cloak
+      class="flex items-center justify-center text-base-content/60 text-sm"
+      style="height: 120px;"
+    >
+      <span x-show="selectedCount === 0">No members in the selection.</span>
+      <span x-show="selectedCount !== 0 && isEmpty">No members with results yet</span>
+    </div>
+    <div id="ensembleComparePlot" x-show="showPlot" style="height: 460px;"></div>
+  </div>
+</div>

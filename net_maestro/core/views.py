@@ -809,8 +809,8 @@ def _results_context(request: HttpRequest, ensemble: Ensemble) -> dict[str, obje
         "delta": delta,
         "baseline": baseline,
         "metric_columns": columns,
-        # #, health, status, and Analyze, around one column per axis and metric.
-        "column_count": len(axes) + len(columns) + 4,
+        # Compare tick, #, health, status, and Analyze, around one column per axis and metric.
+        "column_count": len(axes) + len(columns) + 5,
         "extra_metrics": extra_metrics,
         "extra_metrics_param": extra_param,
         "extra_columns": [

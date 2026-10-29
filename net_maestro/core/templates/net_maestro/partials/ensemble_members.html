@@ -16,9 +16,10 @@
       <div class="flex flex-row flex-wrap items-center justify-between gap-4 mb-2">
         <div class="flex flex-row items-center gap-3">
           <h2 class="card-title">Members</h2>
-          {# The brush on the comparison plot; clearing it here clears the plot too. #}
-          <span class="text-sm text-base-content/60" x-show="$store.ensembleSelectionStore.selected !== null" x-cloak>
-            <span x-text="($store.ensembleSelectionStore.selected || []).length"></span> selected ·
+          {# The ticked rows, or else the brush on the comparison plot; clearing here #}
+          {# unticks the rows and clears the plot's brush too. #}
+          <span class="text-sm text-base-content/60" x-show="$store.ensembleSelectionStore.effective() !== null" x-cloak>
+            <span x-text="($store.ensembleSelectionStore.effective() || []).length"></span> selected ·
             <button type="button" class="link link-hover" @click="$store.ensembleSelectionStore.clear()">clear</button>
           </span>
         </div>
@@ -74,6 +75,7 @@
         <table class="table table-sm">
           <thead>
             <tr>
+              <th><span class="sr-only">Compare</span></th>
               <th>#</th>
               {% for axis in axes %}
               <th>
@@ -99,6 +101,17 @@
               @mouseenter="$store.ensembleSelectionStore.hovered = {{ row.run.member_index }}"
               @mouseleave="$store.ensembleSelectionStore.hovered = null"
             >
+              {# The tick lives in the store, not the DOM: this region is replaced on #}
+              {# every poll, and the boxes are re-ticked from the store each time. #}
+              <td>
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-xs"
+                  :checked="$store.ensembleSelectionStore.picked.includes({{ row.run.member_index }})"
+                  @change="$store.ensembleSelectionStore.togglePicked({{ row.run.member_index }})"
+                  aria-label="Compare member {{ row.run.member_index }}"
+                >
+              </td>
               <td>
                 {{ row.run.member_index }}
                 {% if delta and row.is_baseline %}<span class="badge badge-sm badge-primary ml-1">baseline</span>{% endif %}

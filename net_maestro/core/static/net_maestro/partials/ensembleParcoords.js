@@ -97,7 +97,8 @@ export const ensembleParcoords = () => ({
 
   init() {
     this.url = this.$el.dataset.url;
-    this.$store.ensembleSelectionStore.reset();
+    // Only the brush: ticked rows may already have been restored from the URL.
+    this.$store.ensembleSelectionStore.forgetBrush();
     // A poll can swap several elements at once, each firing afterSwap.
     this.refetch = _.debounce(() => this.load(), 250);
     this.onSwap = (event) => {
@@ -123,7 +124,7 @@ export const ensembleParcoords = () => ({
     document.body.removeEventListener('htmx:afterSwap', this.onSwap);
     this.refetch?.cancel();
     purgePlot(this, 'plotEl');
-    this.$store.ensembleSelectionStore.reset();
+    this.$store.ensembleSelectionStore.forgetBrush();
   },
 
   /** Fetch the members' numbers, and redraw only when they changed. */

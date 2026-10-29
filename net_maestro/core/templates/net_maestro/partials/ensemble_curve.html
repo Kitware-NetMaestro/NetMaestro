@@ -1,0 +1,58 @@
+{# Outside #ensemble-members on purpose, like the comparison plot: that region #}
+{# replaces itself on every poll. The component refetches after those swaps. #}
+<div
+  id="ensemble-curve"
+  class="card bg-base-100 shadow-sm"
+  x-data="ensembleCurve"
+  data-url="{% url 'ensemble-members-json' ensemble.pk %}"
+>
+  <div class="card-body">
+    <div class="flex flex-row flex-wrap items-center justify-between gap-4 mb-2">
+      <div class="flex flex-row items-center gap-3">
+        <i class="ri-line-chart-line text-2xl text-secondary" aria-hidden="true"></i>
+        <h2 class="card-title">Sweep curve</h2>
+      </div>
+      <div class="flex flex-row flex-wrap items-center gap-4" x-show="axes.length > 0">
+        <select class="select select-sm w-auto" x-model="metric" aria-label="Metric">
+          <template x-for="option in metrics" :key="option.key">
+            <option :value="option.key" x-text="option.label" :selected="option.key === metric"></option>
+          </template>
+        </select>
+        <label class="flex flex-row items-center gap-2 text-sm">
+          against
+          <select class="select select-sm w-auto" x-model="xAxis" aria-label="Parameter on the x axis">
+            <template x-for="axis in axes" :key="axis.key">
+              <option :value="axis.key" x-text="axis.label" :selected="axis.key === xAxis"></option>
+            </template>
+          </select>
+        </label>
+        <label class="flex flex-row items-center gap-2 text-sm">
+          one line per
+          <select class="select select-sm w-auto" x-model="seriesAxis" aria-label="Parameter for each line">
+            <option value="" :selected="seriesAxis === ''">none</option>
+            <template x-for="axis in seriesOptions" :key="axis.key">
+              <option :value="axis.key" x-text="axis.label" :selected="axis.key === seriesAxis"></option>
+            </template>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <p class="text-xs text-base-content/60" x-show="payload && axes.length > 0" x-cloak>
+      <span x-show="averagedOver.length > 0" x-text="`Each point is averaged over ${averagedOver.join(', ')}; hover for its members.`"></span>
+      <span x-show="$store.ensembleSelectionStore.effective() !== null">Members outside the selection are faded.</span>
+    </p>
+    <p class="text-sm text-error" x-show="loadError" x-cloak>Could not load the members' results.</p>
+
+    <div
+      x-show="payload && pointCount === 0"
+      x-cloak
+      class="flex items-center justify-center text-base-content/60 text-sm"
+      style="height: 120px;"
+    >
+      <span x-show="axes.length === 0">This ensemble does not sweep any parameters.</span>
+      <span x-show="axes.length > 0">No members with results yet</span>
+    </div>
+    <div id="ensembleCurvePlot" x-show="pointCount > 0" style="height: 420px;"></div>
+  </div>
+</div>

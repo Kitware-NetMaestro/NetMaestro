@@ -107,6 +107,15 @@
       {% include "net_maestro/partials/ensemble_members.html" %}
     </div>
 
+    {# Both plots sit outside the polled member table and refetch after its swaps. #}
+    <div class="mt-6">
+      {% include "net_maestro/partials/ensemble_compare.html" %}
+    </div>
+
+    <div class="mt-6">
+      {% include "net_maestro/partials/ensemble_curve.html" %}
+    </div>
+
     <div class="mt-6">
       {% include "net_maestro/partials/ensemble_effects.html" %}
     </div>

@@ -568,3 +568,44 @@ def test_members_partial_rows_carry_their_member_index(client: Client, preset: s
     assert 'data-member="2"' in content
     assert "$store.ensembleSelectionStore.hovered = 2" in content
     assert 'id="ensembleParcoords"' not in content
+
+
+def test_detail_orders_the_compare_and_curve_cards_between_members_and_effects(
+    client: Client, preset: str
+) -> None:
+    ensemble = _ensemble(preset, RunStatus.PENDING)
+    content = _detail(client, ensemble).content.decode()
+
+    kwargs = {"ensemble_id": ensemble.pk}
+    entities = reverse("ensemble-entities", kwargs=kwargs)
+    series = reverse("ensemble-series", kwargs=kwargs)
+    members_json = reverse("ensemble-members-json", kwargs=kwargs)
+    assert f'data-entities-url="{entities}"' in content
+    assert f'data-series-url="{series}"' in content
+    assert f'data-members-url="{members_json}"' in content
+    assert 'x-data="ensembleCompare"' in content
+    assert 'x-data="ensembleCurve"' in content
+    # Both cards sit outside the polled member region, which replaces itself.
+    members = content.index('id="ensemble-members"')
+    compare = content.index('id="ensemble-compare"')
+    curve = content.index('id="ensemble-curve"')
+    effects = content.index('id="ensemble-effects"')
+    assert members < compare < curve < effects
+    curve_card = content[curve : content.index("</div>", curve)]
+    assert f'data-url="{members_json}"' in curve_card
+
+
+def test_members_partial_rows_carry_a_compare_checkbox(client: Client, preset: str) -> None:
+    ensemble = _ensemble(preset)
+    response = client.get(reverse("ensemble-members", kwargs={"ensemble_id": ensemble.pk}))
+
+    content = response.content.decode()
+    assert 'aria-label="Compare member 1"' in content
+    assert 'aria-label="Compare member 2"' in content
+    # The tick is read from the store, which outlives each poll's swap.
+    assert "$store.ensembleSelectionStore.togglePicked(2)" in content
+    assert "$store.ensembleSelectionStore.picked.includes(2)" in content
+    row = content.index('data-member="2"')
+    assert row < content.index('aria-label="Compare member 2"')
+    assert 'id="ensemble-compare"' not in content
+    assert 'id="ensemble-curve"' not in content
