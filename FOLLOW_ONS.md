@@ -101,10 +101,17 @@ requirement asked for; the CSV export already carries the topology name.
   member, brushing dims the table, hovering a row lights its line). Known rough edges: the
   Viridis low end is faint on the dark theme, so low-valued lines are hard to see unless
   hovered; lower-is-better metrics are not reversed on the colour scale; members without a
-  value on every axis (running, failed) are left off the plot. Next: a parameter-vs-metric
-  scatter with replicates once seed sweeps exist, and overlaid time series per member
-  (needs multi-run sample fetching; the run data endpoints are unpaginated, see
-  `KNOWN_ISSUES.md`).
+  value on every axis (running, failed) are left off the plot. "Compare selected" (a metric
+  over time for up to eight ticked or brushed members, via `ensembles/<id>/series`) and
+  "Sweep curve" (metric vs one swept parameter, one line per value of another) landed too.
+  Next: replicates as error bars on the curve once seed sweeps exist; side-by-side network
+  views at a shared time for 2–4 members; a difference view against the baseline.
+- **Per-interval link utilization.** The per-sample utilization series is a comb at low
+  bandwidths: the fluid model moves a whole interval's volume in one step, so 0.1 s samples
+  alternate between saturated and idle. A `links` series metric that sums `port_sent_mbit`
+  over each fluid interval and divides by `port_capacity_mbit_per_interval` (the interval
+  length is `capacity / (bandwidth × 1000)`) would read as the utilization people expect.
+  Same for `port_sent_mbit` itself. Small change in `series.py`.
 - **Cancel.** No way to stop a running ensemble or member; `RunStatus.CANCELLED` exists
   but nothing sets it.
 - **Edit / clone an ensemble.** The form only creates; cloning a saved sweep with one axis
