@@ -78,6 +78,25 @@ requirement asked for; the CSV export already carries the topology name.
 
 ### Ensemble page
 
+- **Guard Run while members are active.** Run on a running ensemble queues a second chain
+  alongside the first: nothing corrupts (each run has its own directory) but statuses
+  interleave and every member runs twice. Disable the button while any member is pending
+  or running (the header badge already refreshes on each poll, so the button can ride
+  along). Run on a completed ensemble silently re-runs and replaces all results; a confirm
+  step would stop a stray click from wiping numbers mid-demo.
+- **Make low-valued lines visible on the comparison plot.** Viridis's low end is faint on
+  the dark theme, so the members with the fewest drops — the ones a sweep is usually
+  about — are the hardest lines to see. Reverse the scale for lower-is-better metrics
+  (`Metric.lower_is_better` is already in the JSON) so best is bright.
+- **Start an ensemble from the topology page.** The form already accepts `?topology=`
+  (`ensemble_create`); a "New ensemble" button beside "Run simulation" on the topology
+  page makes topology → sweep one click.
+- **Light mode.** The team agreed to a light/dark toggle before the November 2026 webinar.
+  Every plot, the new parcoords included, bakes in `DARK_LAYOUT` from `plots/plotUtils.js`;
+  the layout has to follow the theme or the ensemble page looks broken in light mode.
+- **Rehearse on a fresh database** before the demo: `migrate`, `ingest_topology`, create
+  the ensemble from the UI, Run, brush, open a member on the analysis page. Everything so
+  far was verified on a dev DB with history in it.
 - **Cross-member plots.** Parallel coordinates landed ("Compare members" card; one line per
   member, brushing dims the table, hovering a row lights its line). Known rough edges: the
   Viridis low end is faint on the dark theme, so low-valued lines are hard to see unless
