@@ -11,8 +11,6 @@
   hx-swap="outerHTML"
   {% endif %}
 >
-  {% include "net_maestro/partials/ensemble_stats.html" %}
-
   <div class="card bg-base-100 shadow-sm">
     <div class="card-body">
       <div class="flex flex-row flex-wrap items-center justify-between gap-4 mb-2">
@@ -170,8 +168,13 @@
   </div>
 </div>
 {% if oob %}
-{# Only on a partial response: the full page already renders this span in its header. #}
+{# Only on a partial response: the full page already renders these in place. The #}
+{# header badge and the tiles live outside this region, above the comparison plot, #}
+{# and ride along with each poll instead of polling on their own. #}
 <span id="ensemble-header-status" hx-swap-oob="true">
   {% include "net_maestro/partials/ensemble_status_badge.html" with status=ensemble.status %}
 </span>
+<div id="ensemble-stats" class="mt-6" hx-swap-oob="true">
+  {% include "net_maestro/partials/ensemble_stats.html" %}
+</div>
 {% endif %}

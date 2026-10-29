@@ -209,10 +209,15 @@ def test_members_partial_refreshes_the_header_badge_out_of_band(
     partial = client.get(reverse("ensemble-members", kwargs={"ensemble_id": ensemble.pk}))
     page = client.get(reverse("ensemble-detail", kwargs={"ensemble_id": ensemble.pk}))
 
-    assert 'id="ensemble-header-status" hx-swap-oob="true"' in partial.content.decode()
-    # The full page renders the span once, in the header, without the swap marker.
+    partial_content = partial.content.decode()
+    assert 'id="ensemble-header-status" hx-swap-oob="true"' in partial_content
+    # The tiles ride along too: they sit above the comparison plot, outside the
+    # region that swaps, so the poll is their only way to refresh.
+    assert 'id="ensemble-stats" class="mt-6" hx-swap-oob="true"' in partial_content
+    # The full page renders each once, in place, without the swap marker.
     content = page.content.decode()
     assert content.count('id="ensemble-header-status"') == 1
+    assert content.count('id="ensemble-stats"') == 1
     assert "hx-swap-oob" not in content
 
 
@@ -546,8 +551,12 @@ def test_detail_includes_the_comparison_card_outside_the_polled_region(
     assert "Compare members" in content
     assert f'data-url="{url}"' in content
     assert 'id="ensembleParcoords"' in content
-    # The polled region replaces itself, so the plot must come before it, not inside it.
-    assert content.index('id="ensembleParcoords"') < content.index('id="ensemble-members"')
+    # The polled region replaces itself, so the plot must come before it, not inside it,
+    # and right above it: the tiles go first.
+    tiles = content.index('id="ensemble-stats"')
+    plot = content.index('id="ensembleParcoords"')
+    members = content.index('id="ensemble-members"')
+    assert tiles < plot < members
 
 
 def test_members_partial_rows_carry_their_member_index(client: Client, preset: str) -> None:

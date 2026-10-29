@@ -93,6 +93,12 @@
       </div>
     </div>
 
+    {# The tiles are refreshed out of band by the member table's poll, so they can #}
+    {# sit above the comparison plot without being inside the region that swaps. #}
+    <div id="ensemble-stats" class="mt-6">
+      {% include "net_maestro/partials/ensemble_stats.html" %}
+    </div>
+
     <div class="mt-6">
       {% include "net_maestro/partials/ensemble_parcoords.html" %}
     </div>
