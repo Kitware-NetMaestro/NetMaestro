@@ -1,0 +1,48 @@
+# Finished FABRIC runs that `./manage.py load_demo` loads into a fresh database, so the
+# Results and Ensembles pages have something to show before anyone runs a simulation.
+#
+# Each `dir` holds what one FFW run left behind: the ROSS model stats (gzipped), the
+# traffic config the model ran with, and the model's switch and fluid-segment logs
+# (gzipped). All runs use random traffic with rng_seed 12345 and sequential sync, so
+# re-running any of them from the UI gives the same numbers.
+
+runs:
+  - name: FABRIC baseline
+    description: >-
+      The published five-site FABRIC configuration (2 Gb switch buffers, 100 Gbps
+      STAR-MICH link) under random traffic.
+    dir: baseline
+    wall_time_s: 3.35
+    config:
+      topology_name: fluid-flow-wan-fabric-5-site
+      traffic: random
+      np: 1
+      sync: 1
+
+ensembles:
+  - name: FABRIC buffer vs bottleneck
+    description: >-
+      Which does more to limit drops at the FABRIC MICH site under random traffic:
+      deeper switch buffers, or a faster STAR-MICH spoke? Sweeps the shared switch
+      buffer on every site (2 Gb, the modeling default, vs 8 Gb) against the bandwidth
+      of the single STAR-MICH link (40, 100 and 400 Gbps) on the five-site FABRIC core
+      cut. The baseline member is the published 2 Gb / 100 Gbps configuration.
+    base_params:
+      topology_name: fluid-flow-wan-fabric-5-site
+      traffic: random
+      np: 1
+      sync: 1
+    sweep_spec:
+      - key: switch_buffer_gb
+        values: [2, 8]
+      - key: link_bandwidth_gbps
+        link: {source: STAR, target: MICH}
+        values: [40, 100, 400]
+    # Keyed by member index, in the order the sweep expands.
+    members:
+      1: {dir: member-1, wall_time_s: 3.53}
+      2: {dir: member-2, wall_time_s: 2.32}
+      3: {dir: member-3, wall_time_s: 2.21}
+      4: {dir: member-4, wall_time_s: 2.34}
+      5: {dir: member-5, wall_time_s: 2.19}
+      6: {dir: member-6, wall_time_s: 2.14}

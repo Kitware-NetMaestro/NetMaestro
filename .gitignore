@@ -349,3 +349,7 @@ override.tf.json
 terraform.rc
 
 # End of https://www.toptal.com/developers/gitignore/api/django,terraform,node
+
+# Seed runs for the webinar demo, loaded by ./manage.py load_demo
+!data/webinar/
+!data/webinar/*/logs/

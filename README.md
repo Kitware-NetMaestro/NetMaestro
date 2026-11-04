@@ -4,6 +4,9 @@ Net Maestro is a web-based application for analyzing and visualizing network sim
 
 ## Quick Start
 
+> **Webinar attendees:** follow [webinar-demo.md](webinar-demo.md) to run the demo instance
+> with the FABRIC runs preloaded.
+
 ### Running the Application
 
 1. Clone the repository: `git clone https://github.com/NetMaestro/NetMaestro.git`
