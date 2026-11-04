@@ -4,6 +4,7 @@ from .component_model import ComponentModel
 from .ensemble import Ensemble
 from .event_file import EventFile
 from .event_record import EventRecord
+from .ffw_model_logs import FFWLinkStepRecord, FFWModelLog, FFWSwitchStepRecord
 from .ffw_results import (
     FFWBaseRecord,
     FFWPortRecord,
@@ -29,10 +30,13 @@ __all__ = [
     "EventFile",
     "EventRecord",
     "FFWBaseRecord",
+    "FFWLinkStepRecord",
+    "FFWModelLog",
     "FFWPortRecord",
     "FFWResultFile",
     "FFWSimulationConfig",
     "FFWSwitchRecord",
+    "FFWSwitchStepRecord",
     "FFWTerminalRecord",
     "ModelFile",
     "ModelRecord",

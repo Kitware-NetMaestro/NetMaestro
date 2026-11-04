@@ -112,6 +112,7 @@ requirement asked for; the CSV export already carries the topology name.
   over each fluid interval and divides by `port_capacity_mbit_per_interval` (the interval
   length is `capacity / (bandwidth × 1000)`) would read as the utilization people expect.
   Same for `port_sent_mbit` itself. Small change in `series.py`.
+- **Mean buffer occupancy from the model log.** `mean_buffer_occupancy_frac` is still the mean over VT samples, which land after the mid-step PAUSE drain, so it understates for the same reason the sampled peak did (Phase 5 moved the peak and link utilization to `FFWSwitchStepRecord` / `FFWLinkStepRecord`).
 - **Cancel.** No way to stop a running ensemble or member; `RunStatus.CANCELLED` exists
   but nothing sets it.
 - **Edit / clone an ensemble.** The form only creates; cloning a saved sweep with one axis

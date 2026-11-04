@@ -16,6 +16,16 @@ What the FFW sample fields mean (see codes-director-ml's
 - The GVT and RT modes share one accumulator and VT keeps its own, so summing across
   modes double-counts. One mode is chosen per run (VT, else GVT, else RT) and every
   query uses only that mode's rows.
+
+Peak buffer occupancy and link utilization are read from the model's own per-step
+logs instead when the run has them (`FFWSwitchStepRecord`, `FFWLinkStepRecord`; see
+`models/ffw_model_logs.py`). Samples come every tenth of a fluid step and miss what
+happens within milliseconds of each step boundary: a buffer that crosses the PAUSE
+watermark is drained back to the low watermark before the next sample, so sampled
+peaks read about half of what the buffer reached, and that drain is charged to the
+next step's capacity but sampled in the current one, so sampled utilization reads
+above 100%. `details.occupancy_source` and `details.utilization_source` say which a
+summary used. The mean occupancy is still sampled, and understates for the same reason.
 """
 
 from __future__ import annotations
@@ -31,8 +41,10 @@ from django.db.models.functions import Cast
 
 from net_maestro.core.constants import FFWStatsType, RunStatus, SimulationType
 from net_maestro.core.models import (
+    FFWLinkStepRecord,
     FFWPortRecord,
     FFWSwitchRecord,
+    FFWSwitchStepRecord,
     FFWTerminalRecord,
     RunSummary,
     SimulationPeRecord,
@@ -40,7 +52,7 @@ from net_maestro.core.models import (
 from net_maestro.core.topology import TopologyError, get_topology
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator, Mapping, Sequence
+    from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 
     from django.db.models import QuerySet
 
@@ -121,6 +133,10 @@ _STATS_TYPE_PREFERENCE = (FFWStatsType.VT, FFWStatsType.GVT, FFWStatsType.RT)
 _TOLERANCE = 0.01
 
 NS_PER_S = 1e9
+
+# What `details.occupancy_source` and `details.utilization_source` can say.
+SOURCE_MODEL_LOG = "model log"
+SOURCE_SAMPLES = "samples"
 
 
 def metrics_for(simulation_type: str, *, with_engine: bool) -> list[Metric]:
@@ -298,8 +314,15 @@ def _ffw_metrics(
         .first()
     )
     details["peak_buffer_switch"] = switch_name(peak_switch) if peak_switch is not None else None
+    details["occupancy_source"] = SOURCE_SAMPLES
+    _peak_occupancy_from_log(run, switch_name, metrics, details)
 
-    if topology is None:
+    link_steps = FFWLinkStepRecord.objects.filter(run=run, target_is_terminal=False)
+    from_log = link_steps.exists()
+    details["utilization_source"] = SOURCE_MODEL_LOG if from_log else SOURCE_SAMPLES
+    if from_log:
+        _bottleneck_from_log(run, link_steps, switch_name, metrics, details)
+    elif topology is None:
         metrics["bottleneck_peak_utilization"] = None
         metrics["bottleneck_mean_utilization"] = None
         details["bottleneck_link"] = None
@@ -473,6 +496,75 @@ def _bottleneck(
     details["bottleneck_link"] = best[1] if best else None
 
 
+def _peak_occupancy_from_log(
+    run: Run,
+    switch_name: Callable[[int], str],
+    metrics: dict[str, float | int | None],
+    details: dict[str, Any],
+) -> None:
+    """Replace the sampled peak buffer occupancy with the model log's, if the run has one.
+
+    Each step record holds the most the switch's shared buffer held at any egress in
+    that step, so the peak over them is what the buffer actually reached. Ties go to
+    the earliest step, then the lowest switch id.
+    """
+    steps = (
+        FFWSwitchStepRecord.objects.filter(run=run, buffer_mbit__gt=0)
+        .annotate(frac=F("peak_occupancy_mbit") / F("buffer_mbit"))
+        .order_by(F("frac").desc(), "step", "switch_id")
+    )
+    peak = steps.values_list("frac", "switch_id").first()
+    if peak is None:
+        return
+    metrics["peak_buffer_occupancy_frac"] = peak[0]
+    details["peak_buffer_switch"] = switch_name(peak[1])
+    details["occupancy_source"] = SOURCE_MODEL_LOG
+
+
+def _bottleneck_from_log(
+    run: Run,
+    link_steps: QuerySet[FFWLinkStepRecord],
+    switch_name: Callable[[int], str],
+    metrics: dict[str, float | int | None],
+    details: dict[str, Any],
+) -> None:
+    """Find the switch-to-switch link that came closest to capacity, from the model log.
+
+    A link's utilization in a step is what its port was charged that step over the
+    port's capacity per step: the model charges a PAUSE drain to the step after the
+    one it runs in, and refuses to charge a step more than its capacity, so this is
+    at most 1. The mean is total sent over capacity times the run's number of steps
+    (from the generated config, else up to the last step with traffic), so idle
+    steps count, as the sampled mean counts the whole sampled span. Same tie-break
+    as `_bottleneck`.
+    """
+    num_steps = run.ffw_model_logs.aggregate(n=Max("num_steps"))["n"]
+    if not num_steps:
+        num_steps = (link_steps.aggregate(last=Max("step"))["last"] or 0) + 1
+    links = (
+        link_steps.filter(capacity_mbit__gt=0)
+        .values("switch_id", "port", "target_index")
+        .annotate(
+            peak=Max(F("sent_mbit") / F("capacity_mbit")),
+            sent=Sum("sent_mbit"),
+            capacity=Max("capacity_mbit"),
+        )
+        .order_by("switch_id", "port")
+    )
+    best: tuple[float, str, float] | None = None  # (peak, link label, mean)
+    for link in links:
+        if link["peak"] is None:
+            continue
+        mean = link["sent"] / (link["capacity"] * num_steps)
+        if best is None or (round(link["peak"], 6), mean) > (round(best[0], 6), best[2]):
+            label = f"{switch_name(link['switch_id'])} → {switch_name(link['target_index'])}"
+            best = (link["peak"], label, mean)
+
+    metrics["bottleneck_peak_utilization"] = best[0] if best else None
+    metrics["bottleneck_mean_utilization"] = best[2] if best else None
+    details["bottleneck_link"] = best[1] if best else None
+
+
 def _topology_for(run: Run) -> Topology | None:
     """Return the run's topology, or None when it has no FFW config or the file is gone.
 
@@ -539,6 +631,8 @@ __all__ = [
     "FFW_METRICS",
     "HEADLINE_METRICS",
     "METRICS",
+    "SOURCE_MODEL_LOG",
+    "SOURCE_SAMPLES",
     "Metric",
     "compute_run_summary",
     "link_utilization",

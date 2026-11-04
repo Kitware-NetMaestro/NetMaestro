@@ -34,6 +34,7 @@ from net_maestro.core.services.ffw import (
 )
 from net_maestro.core.summaries import compute_run_summary
 from net_maestro.core.tasks.ingest_ffw import run_ffw_ingest_task
+from net_maestro.core.tasks.ingest_ffw_logs import ingest_ffw_logs
 from net_maestro.core.topology import get_topology
 
 logger = logging.getLogger(__name__)
@@ -83,6 +84,19 @@ def summarize_run(run: Run) -> None:
         compute_run_summary(run)
     except Exception:
         logger.exception("Could not summarize run %s", run.pk)
+
+
+def ingest_run_logs(run: Run, config_path: Path) -> None:
+    """Keep the run's model logs and build its step records, logging rather than raising.
+
+    The step records only sharpen numbers the samples already give (peak buffer
+    occupancy and link utilization), so a log the model did not write, or one this
+    version cannot read, leaves the run on its sampled numbers instead of failing it.
+    """
+    try:
+        ingest_ffw_logs(run, config_path)
+    except Exception:
+        logger.exception("Could not ingest the model logs of run %s", run.pk)
 
 
 @shared_task
@@ -308,9 +322,10 @@ def run_ffw_simulation(  # noqa: PLR0913
     `Run.work_dir`: `inputs/` holds the traffic config generated from the
     template (`config_path`, or the stock one for `traffic`), the topology YAML
     and the model's logs, and the model runs from there; `stats/` is where ROSS
-    writes its stats. `overrides` are `fluid_flow_wan` settings merged over the
-    traffic mode's own (see `FFW_TRAFFIC_DEFAULTS`), and both win over the
-    template's.
+    writes its stats. The switch and fluid-segment logs are copied to storage and
+    reduced to per-step records (`ingest_ffw_logs`). `overrides` are
+    `fluid_flow_wan` settings merged over the traffic mode's own (see
+    `FFW_TRAFFIC_DEFAULTS`), and both win over the template's.
 
     Virtual-time sampling (`vt_interval`, `vt_samp_end`) is derived from the
     generated config's run length unless given, so the samples cover the whole
@@ -383,6 +398,10 @@ def run_ffw_simulation(  # noqa: PLR0913
             run_simulation_task(engine_file.pk)
         else:
             logger.warning("FFW run %s wrote no %s", run_id, FFW_ENGINE_STATS_FILE)
+
+        # The logs live in the run directory, which a container recreate wipes, so
+        # they are copied to storage now; the summary below reads their step records.
+        ingest_run_logs(run, ffw_config_path)
 
     except Exception as exc:
         _finish_run(run, RunStatus.FAILED, failure_reason(exc))

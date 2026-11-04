@@ -4,18 +4,33 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from django.core.files.base import ContentFile
 from django.urls import reverse
 import pytest
 
-from net_maestro.core.constants import FFWStatsType, RunStatus, SimulationType
-from net_maestro.core.series import SERIES_METRICS, entities_for, member_series, thin
-from net_maestro.core.summaries import compute_run_summary
+from net_maestro.core.constants import (
+    FFWModelLogKind,
+    FFWStatsType,
+    RunStatus,
+    SimulationType,
+)
+from net_maestro.core.models import FFWModelLog
+from net_maestro.core.series import (
+    SERIES_METRICS,
+    UTILIZATION_PER_STEP_LABEL,
+    entities_for,
+    member_series,
+    thin,
+)
+from net_maestro.core.summaries import SOURCE_MODEL_LOG, SOURCE_SAMPLES, compute_run_summary
 from net_maestro.core.tests.factories import (
     EnsembleFactory,
+    FFWLinkStepRecordFactory,
     FFWPortRecordFactory,
     FFWResultFileFactory,
     FFWSimulationConfigFactory,
     FFWSwitchRecordFactory,
+    FFWSwitchStepRecordFactory,
     FFWTerminalRecordFactory,
     RunFactory,
     SimulationFileFactory,
@@ -279,6 +294,61 @@ class TestMemberSeries:
             [0.2, 150.0],
         ]
         assert _points(run, "pe:0", "efficiency", cumulative=True) == [[0.1, 0.9], [0.2, 0.5]]
+
+
+class TestFromModelLog:
+    """Per-step points from the model's step records, where a member has them."""
+
+    def test_link_utilization_per_step_with_idle_steps_filled(self, ensemble: Ensemble) -> None:
+        run = ensemble.members.get(member_index=0)
+        FFWLinkStepRecordFactory.create(run=run, step=1, sent_mbit=90000.0)
+        FFWLinkStepRecordFactory.create(run=run, step=3, sent_mbit=50000.0)
+        FFWModelLog.objects.create(
+            run=run,
+            kind=FFWModelLogKind.FLUID_SEGMENT,
+            file=ContentFile(b"", name="fluid-segment-events.csv"),
+            interval_seconds=1.0,
+            num_steps=4,
+        )
+
+        series = member_series(run, entity="link:0:1", metric="utilization", cumulative=False)
+
+        assert series["source"] == SOURCE_MODEL_LOG
+        assert series["points"] == [[0.0, 0.0], [1.0, 0.9], [2.0, 0.0], [3.0, 0.5]]
+
+    def test_without_the_step_grid_only_logged_steps(self, ensemble: Ensemble) -> None:
+        run = ensemble.members.get(member_index=0)
+        FFWLinkStepRecordFactory.create(run=run, step=2, sent_mbit=25000.0)
+
+        assert _points(run, "link:0:1", "utilization") == [[2.0, 0.25]]
+        # Other link metrics still come from the samples.
+        series = member_series(run, entity="link:0:1", metric="port_sent_mbit", cumulative=False)
+        assert series["source"] == SOURCE_SAMPLES
+
+    def test_peak_occupancy_per_step(self, ensemble: Ensemble) -> None:
+        run = ensemble.members.get(member_index=0)
+        for step, peak in ((2, 1000.0), (1, 600.0)):
+            FFWSwitchStepRecordFactory.create(run=run, step=step, peak_occupancy_mbit=peak)
+
+        assert _points(run, "switch:0", "peak_occupancy_frac") == [[1.0, 0.6], [2.0, 1.0]]
+        # A member without the log has no per-step peak.
+        other = ensemble.members.get(member_index=1)
+        assert _points(other, "switch:0", "peak_occupancy_frac") == []
+
+    def test_endpoint_labels_per_step_utilization(
+        self, client: APIClient, ensemble: Ensemble
+    ) -> None:
+        url = reverse("ensemble-series", args=[ensemble.pk])
+        FFWLinkStepRecordFactory.create(
+            run=ensemble.members.get(member_index=0), step=1, sent_mbit=1000.0
+        )
+
+        logged = client.get(url, {"entity": "link:0:1", "metric": "utilization", "members": "0,2"})
+        mixed = client.get(url, {"entity": "link:0:1", "metric": "utilization", "members": "0,1"})
+
+        assert logged.json()["metric"]["label"] == UTILIZATION_PER_STEP_LABEL
+        assert logged.json()["members"][0]["source"] == SOURCE_MODEL_LOG
+        assert mixed.json()["metric"]["label"] == "Utilization"
 
 
 def test_thinning_keeps_first_and_last() -> None:

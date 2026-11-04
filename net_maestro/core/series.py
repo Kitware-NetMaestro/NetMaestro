@@ -10,6 +10,13 @@ pause times) are per-sample increments and are only meaningful cumulated or as r
 gauges (occupancies, backlogs) are read as they are, and one sampling mode is used per
 run because GVT and RT share an accumulator.
 
+Link utilization and a switch's per-step peak buffer occupancy come from the model's
+per-step logs when a member has them (see `models/ffw_model_logs.py`): one point per
+fluid step, at the step's start, rather than per sample. The samples miss what happens
+within milliseconds of a step boundary, so a sampled utilization reads above 100% and
+a sampled occupancy misses the peaks. Members without the logs keep the sampled
+utilization and have no per-step peak.
+
 Entities are named from the ensemble's base topology. Members of a sweep that edits
 the topology run on derived files that keep the base's switches, so an entity is
 looked up in each member's own topology by its label: a member whose topology lacks
@@ -24,14 +31,20 @@ import logging
 from math import ceil, isfinite
 from typing import TYPE_CHECKING, Any, Literal
 
+from django.db.models import F, Max
+
 from net_maestro.core.models import (
+    FFWLinkStepRecord,
     FFWPortRecord,
     FFWSwitchRecord,
+    FFWSwitchStepRecord,
     FFWTerminalRecord,
 )
 from net_maestro.core.summaries import (
     _STATS_TYPE_PREFERENCE,
     NS_PER_S,
+    SOURCE_MODEL_LOG,
+    SOURCE_SAMPLES,
     _choose_stats_type,
     _engine_rows,
     _topology_for,
@@ -67,6 +80,8 @@ SERIES_METRICS: dict[str, list[SeriesMetric]] = {
         SeriesMetric("dropped_mbit", "Dropped", "Mbit", "delta"),
         SeriesMetric("pause_frames_sent", "PAUSE frames sent", "", "delta"),
         SeriesMetric("pause_frames_received", "PAUSE frames received", "", "delta"),
+        # From the model's per-step log only; members without one have no points.
+        SeriesMetric("peak_occupancy_frac", "Peak buffer occupancy (per step)", "", "gauge"),
     ],
     "terminals": [
         SeriesMetric("source_backlog_mbit", "Source backlog", "Mbit", "gauge"),
@@ -95,6 +110,9 @@ SERIES_METRICS: dict[str, list[SeriesMetric]] = {
 
 X_LABEL = "Virtual time (s)"
 
+# The utilization label when every member's points came from the model's step log.
+UTILIZATION_PER_STEP_LABEL = "Utilization (per step)"
+
 # Metrics reported in seconds whose rows hold nanoseconds, by the column they read.
 _NS_COLUMNS = {"pause_time_s": "pause_time_ns", "port_pause_time_s": "port_pause_time_ns"}
 
@@ -105,6 +123,18 @@ def series_metric(dataset: str, key: str) -> SeriesMetric | None:
         if metric.key == key:
             return metric
     return None
+
+
+def metric_as_json(metric: SeriesMetric, sources: set[str | None]) -> dict[str, Any]:
+    """Return `metric` as a dict, labelled for where the members' points came from.
+
+    Link utilization reads "per step" only when every member that has points got
+    them from the model's log; a mix is labelled as plain utilization, which both are.
+    """
+    row = asdict(metric)
+    if metric.key == "utilization" and sources == {SOURCE_MODEL_LOG}:
+        row["label"] = UTILIZATION_PER_STEP_LABEL
+    return row
 
 
 def series_metrics_as_json() -> dict[str, list[dict[str, Any]]]:
@@ -248,11 +278,14 @@ def member_series(  # noqa: C901, PLR0912, PLR0913
 
     x is the sample's virtual time in seconds: FFW rows carry `ts` in nanoseconds,
     and the engine's `virtual_time` is ROSS's virtual clock, which for the FFW model
-    is the same nanoseconds. Deltas are cumulated when `cumulative`; gauges ignore
-    it. `base` is the ensemble's base topology, passed in by callers that already
-    loaded it; otherwise it is read from the run's ensemble.
+    is the same nanoseconds. Per-step points (link utilization from the model log,
+    `peak_occupancy_frac`) sit at their step's start. Deltas are cumulated when
+    `cumulative`; gauges ignore it. `base` is the ensemble's base topology, passed in
+    by callers that already loaded it; otherwise it is read from the run's ensemble.
 
-    Points are `[]` when the run lacks the entity or has no rows for it.
+    `source` says whether the points came from the model log or the samples, None
+    when there are none. Points are `[]` when the run lacks the entity or has no
+    rows for it.
     """
     dataset, _, _ = entity.partition(":")
     dataset = {"switch": "switches", "terminal": "terminals", "link": "links", "pe": "engine"}.get(
@@ -260,7 +293,7 @@ def member_series(  # noqa: C901, PLR0912, PLR0913
     )
     spec = series_metric(dataset, metric)
     stats_type = _stats_type_for(run) if dataset != "engine" else None
-    empty: dict[str, Any] = {"stats_type": stats_type, "points": []}
+    empty: dict[str, Any] = {"stats_type": stats_type, "source": None, "points": []}
     if spec is None:
         return empty
 
@@ -280,7 +313,14 @@ def member_series(  # noqa: C901, PLR0912, PLR0913
     column = _NS_COLUMNS.get(metric, metric)
     scale = 1.0 / NS_PER_S if metric in _NS_COLUMNS else 1.0
     raw: list[tuple[float, Any]]
-    if dataset == "engine":
+    source = SOURCE_SAMPLES
+    if dataset == "switches" and metric == "peak_occupancy_frac":
+        raw = _switch_step_rows(run, ids[0])
+        source = SOURCE_MODEL_LOG
+    elif dataset == "links" and metric == "utilization" and _has_link_steps(run):
+        raw = _link_step_rows(run, ids[0], ids[1])
+        source = SOURCE_MODEL_LOG
+    elif dataset == "engine":
         rows = (
             _engine_rows(run)
             .filter(PE_ID=ids[0])
@@ -319,7 +359,58 @@ def member_series(  # noqa: C901, PLR0912, PLR0913
     if spec.kind == "delta" and cumulative:
         totals = accumulate(value or 0.0 for _, value in points)
         points = [[x, total] for (x, _), total in zip(points, totals, strict=True)]
-    return {"stats_type": stats_type, "points": thin(points, max_points)}
+    return {
+        "stats_type": stats_type,
+        "source": source if points else None,
+        "points": thin(points, max_points),
+    }
+
+
+def _switch_step_rows(run: Run, switch_id: int) -> list[tuple[float, Any]]:
+    """Return `(step start in ns, peak occupancy over buffer)` for each logged step."""
+    return [
+        (start_s * NS_PER_S, frac)
+        for start_s, frac in FFWSwitchStepRecord.objects.filter(
+            run=run, switch_id=switch_id, buffer_mbit__gt=0
+        )
+        .annotate(frac=F("peak_occupancy_mbit") / F("buffer_mbit"))
+        .order_by("step")
+        .values_list("step_start_s", "frac")
+    ]
+
+
+def _has_link_steps(run: Run) -> bool:
+    return FFWLinkStepRecord.objects.filter(run=run).exists()
+
+
+def _link_step_rows(run: Run, switch_id: int, target_index: int) -> list[tuple[float, Any]]:
+    """Return `(step start in ns, utilization)` for every step of the run on one link.
+
+    Steps are only logged when the port sent something, so the run's other steps are
+    filled in as idle (the step grid is the one stored with the logs); otherwise a
+    line would be drawn straight across them. As with the samples, the
+    lower-numbered port is used if a switch has two to one neighbour.
+    """
+    steps = FFWLinkStepRecord.objects.filter(
+        run=run, switch_id=switch_id, target_index=target_index, target_is_terminal=False
+    )
+    port = steps.order_by("port").values_list("port", flat=True).first()
+    if port is None:
+        return []
+    logged = {
+        step: (start_s, sent / capacity if capacity > 0 else None)
+        for step, start_s, sent, capacity in steps.filter(port=port).values_list(
+            "step", "step_start_s", "sent_mbit", "capacity_mbit"
+        )
+    }
+    grid = run.ffw_model_logs.aggregate(interval_s=Max("interval_seconds"), n=Max("num_steps"))
+    if not grid["interval_s"]:
+        return [(start_s * NS_PER_S, value) for _, (start_s, value) in sorted(logged.items())]
+    filled: dict[int, tuple[float, float | None]] = {
+        step: (step * grid["interval_s"], 0.0) for step in range(grid["n"] or 0)
+    }
+    filled.update(logged)
+    return [(start_s * NS_PER_S, value) for _, (start_s, value) in sorted(filled.items())]
 
 
 def _link_rows(  # noqa: PLR0913
@@ -378,11 +469,13 @@ def _link_rows(  # noqa: PLR0913
 
 __all__ = [
     "SERIES_METRICS",
+    "UTILIZATION_PER_STEP_LABEL",
     "X_LABEL",
     "SeriesMetric",
     "base_topology",
     "entities_for",
     "member_series",
+    "metric_as_json",
     "series_metric",
     "series_metrics_as_json",
     "thin",

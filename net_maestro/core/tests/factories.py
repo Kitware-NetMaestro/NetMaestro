@@ -8,10 +8,12 @@ from net_maestro.core.models import (
     Ensemble,
     EventFile,
     EventRecord,
+    FFWLinkStepRecord,
     FFWPortRecord,
     FFWResultFile,
     FFWSimulationConfig,
     FFWSwitchRecord,
+    FFWSwitchStepRecord,
     FFWTerminalRecord,
     ModelFile,
     ModelRecord,
@@ -214,3 +216,35 @@ class FFWTerminalRecordFactory(factory.django.DjangoModelFactory[FFWTerminalReco
     sent_to_switch_mbit = 0.0
     received_mbit = 0.0
     source_backlog_mbit = 0.0
+
+
+class FFWSwitchStepRecordFactory(factory.django.DjangoModelFactory[FFWSwitchStepRecord]):
+    """One switch's step from the model log, 1 s steps and an empty 1000 Mbit buffer."""
+
+    class Meta:
+        model = FFWSwitchStepRecord
+
+    run = factory.SubFactory(RunFactory, simulation_type=SimulationType.FFW)
+    switch_id = 0
+    step = 1
+    step_start_s = factory.LazyAttribute(lambda record: float(record.step))
+    peak_occupancy_mbit = 0.0
+    buffer_mbit = 1000.0
+    dropped_mbit = 0.0
+
+
+class FFWLinkStepRecordFactory(factory.django.DjangoModelFactory[FFWLinkStepRecord]):
+    """One switch-to-switch port's step from the model log, 1 s steps, nothing sent."""
+
+    class Meta:
+        model = FFWLinkStepRecord
+
+    run = factory.SubFactory(RunFactory, simulation_type=SimulationType.FFW)
+    switch_id = 0
+    port = 0
+    target_is_terminal = False
+    target_index = 1
+    step = 1
+    step_start_s = factory.LazyAttribute(lambda record: float(record.step))
+    sent_mbit = 0.0
+    capacity_mbit = 100000.0

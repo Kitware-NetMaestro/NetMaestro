@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
-from net_maestro.core.constants import FFWTrafficMode
+from net_maestro.core.constants import FFWModelLogKind, FFWTrafficMode
 from net_maestro.core.topology import SWITCH_LP_NAME
 
 if TYPE_CHECKING:
@@ -171,6 +171,26 @@ class VTSampling:
     end_ns: int
 
 
+def _ffw_section(config_path: Path) -> dict[str, Any]:
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    return (config.get("sections") or {}).get("fluid_flow_wan") or {}
+
+
+def _run_length(config_path: Path, section: Mapping[str, Any]) -> tuple[float, int]:
+    """Return the run's fluid-step length in seconds and its number of steps."""
+    try:
+        interval_s = float(section["interval_seconds"])
+        intervals = int(section["num_send_intervals"]) + int(section["num_drain_intervals"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise FFWInputError(
+            f"{config_path.name}: fluid_flow_wan needs numeric interval_seconds, "
+            "num_send_intervals and num_drain_intervals"
+        ) from exc
+    if interval_s <= 0 or intervals <= 0:
+        raise FFWInputError(f"{config_path.name}: the run length must be positive")
+    return interval_s, intervals
+
+
 def vt_sampling_for(config_path: Path) -> VTSampling:
     """Return the VT sampling that covers the whole run described by a traffic config.
 
@@ -182,22 +202,44 @@ def vt_sampling_for(config_path: Path) -> VTSampling:
     420 s trace ladder gets the same samples per interval as a 42 s run rather than
     ten times as many rows.
     """
-    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    section = (config.get("sections") or {}).get("fluid_flow_wan") or {}
-    try:
-        interval_s = float(section["interval_seconds"])
-        intervals = int(section["num_send_intervals"]) + int(section["num_drain_intervals"])
-    except (KeyError, TypeError, ValueError) as exc:
-        raise FFWInputError(
-            f"{config_path.name}: fluid_flow_wan needs numeric interval_seconds, "
-            "num_send_intervals and num_drain_intervals"
-        ) from exc
-    if interval_s <= 0 or intervals <= 0:
-        raise FFWInputError(f"{config_path.name}: the run length must be positive")
+    interval_s, intervals = _run_length(config_path, _ffw_section(config_path))
     return VTSampling(
         interval_ns=max(1, round(interval_s * NS_PER_S / VT_SAMPLES_PER_INTERVAL)),
         end_ns=round(intervals * interval_s * NS_PER_S),
     )
+
+
+# The model's logs NetMaestro reads, by kind, and the config setting naming each.
+FFW_MODEL_LOG_SETTINGS = {
+    FFWModelLogKind.SWITCH: "switch_log_path",
+    FFWModelLogKind.FLUID_SEGMENT: "fluid_segment_log_path",
+}
+
+
+@dataclass(frozen=True)
+class ModelLogs:
+    """Where a run's model logs are, and the fluid-step grid their `interval` counts."""
+
+    interval_seconds: float
+    num_steps: int
+    paths: dict[str, Path]
+
+
+def model_logs_for(config_path: Path) -> ModelLogs:
+    """Return the model logs a generated traffic config asks for, and its step grid.
+
+    The model resolves each `*_log_path` relative to the config (see
+    `write_run_inputs`), so the paths are too. A log the config does not name is
+    left out; whether the named ones exist is the caller's to check.
+    """
+    section = _ffw_section(config_path)
+    interval_s, intervals = _run_length(config_path, section)
+    paths = {
+        str(kind): config_path.parent / str(section[setting])
+        for kind, setting in FFW_MODEL_LOG_SETTINGS.items()
+        if section.get(setting)
+    }
+    return ModelLogs(interval_seconds=interval_s, num_steps=intervals, paths=paths)
 
 
 def execute_ffw_model(  # noqa: PLR0913

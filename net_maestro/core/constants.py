@@ -51,3 +51,10 @@ class SynchProtocol(models.IntegerChoices):
 class FFWTrafficMode(models.TextChoices):
     RANDOM = "random", "Random"
     TRACE = "trace", "Trace replay"
+
+
+class FFWModelLogKind(models.TextChoices):
+    """The FFW model's CSV logs NetMaestro keeps (see `models.FFWModelLog`)."""
+
+    SWITCH = "switch", "Switch events"
+    FLUID_SEGMENT = "fluid_segment", "Fluid-segment events"

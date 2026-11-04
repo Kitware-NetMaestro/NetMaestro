@@ -6,7 +6,6 @@ per-run endpoints return every row, which is too much to pull for several member
 
 from __future__ import annotations
 
-from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
 from django.shortcuts import get_object_or_404
@@ -19,6 +18,7 @@ from net_maestro.core.series import (
     base_topology,
     entities_for,
     member_series,
+    metric_as_json,
     series_metric,
     series_metrics_as_json,
 )
@@ -106,13 +106,17 @@ class EnsembleSeriesView(APIView):
                     "index": index,
                     "label": member_label(run.member_params or {}),
                     "stats_type": series["stats_type"],
+                    "source": series["source"],
                     "points": series["points"],
                 }
             )
         return Response(
             {
                 "entity": entity,
-                "metric": asdict(metric),
+                # The label says "per step" when the points came from the model log.
+                "metric": metric_as_json(
+                    metric, {member["source"] for member in members if member["points"]}
+                ),
                 "cumulative": cumulative,
                 "x_label": X_LABEL,
                 "members": members,

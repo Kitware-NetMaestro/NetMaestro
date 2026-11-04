@@ -11,23 +11,27 @@ from django.core.files.base import ContentFile
 from django.utils import timezone
 import pytest
 
-from net_maestro.core.constants import FFWStatsType, RunStatus, SimulationType
-from net_maestro.core.models import Run, RunSummary, SimulationFile
+from net_maestro.core.constants import FFWModelLogKind, FFWStatsType, RunStatus, SimulationType
+from net_maestro.core.models import FFWModelLog, Run, RunSummary, SimulationFile
 from net_maestro.core.services.ffw import FFW_STATS_FILES
 from net_maestro.core.summaries import (
     ENGINE_METRICS,
     FFW_METRICS,
     HEADLINE_METRICS,
+    SOURCE_MODEL_LOG,
+    SOURCE_SAMPLES,
     compute_run_summary,
     metrics_as_json,
     metrics_for,
 )
 from net_maestro.core.tasks.simulation import fail_run, mark_run_completed, run_ffw_simulation
 from net_maestro.core.tests.factories import (
+    FFWLinkStepRecordFactory,
     FFWPortRecordFactory,
     FFWResultFileFactory,
     FFWSimulationConfigFactory,
     FFWSwitchRecordFactory,
+    FFWSwitchStepRecordFactory,
     FFWTerminalRecordFactory,
     RunFactory,
     SimulationPeRecordFactory,
@@ -276,6 +280,88 @@ class TestFFWMetrics:
         assert topology_check["ok"]
         assert "not readable" in topology_check["detail"]
         assert summary.health["ok"]
+
+
+class TestFromModelLog:
+    """Peak occupancy and link utilization from the model's step records, when present."""
+
+    def test_samples_without_step_records(self, preset: str) -> None:
+        summary = compute_run_summary(_healthy_run(preset))
+
+        assert summary is not None
+        assert summary.details["occupancy_source"] == SOURCE_SAMPLES
+        assert summary.details["utilization_source"] == SOURCE_SAMPLES
+
+    def test_peak_occupancy_from_the_log(self, preset: str) -> None:
+        run = _healthy_run(preset)
+        # The samples peak at 0.5 (switch A); the log shows B full within a step.
+        FFWSwitchStepRecordFactory.create(run=run, switch_id=0, step=1, peak_occupancy_mbit=600)
+        FFWSwitchStepRecordFactory.create(run=run, switch_id=1, step=2, peak_occupancy_mbit=1000)
+
+        summary = compute_run_summary(run)
+
+        assert summary is not None
+        assert summary.metrics["peak_buffer_occupancy_frac"] == pytest.approx(1.0)
+        assert summary.details["peak_buffer_switch"] == "B"
+        assert summary.details["occupancy_source"] == SOURCE_MODEL_LOG
+        # The mean stays sampled.
+        assert summary.metrics["mean_buffer_occupancy_frac"] == pytest.approx(0.8 / 6)
+        assert summary.details["utilization_source"] == SOURCE_SAMPLES
+
+    def test_utilization_is_per_charged_step(self, preset: str) -> None:
+        run, result_file = _ffw_run(preset)
+        # Sampled, A → B sent 12 Gbit in 0.1 s: 1.2 of a 100 Gbps link.
+        _switch_samples(result_file, 0, port_sent=[0, 12000, 0])
+        _switch_samples(result_file, 1, port_sent=[0, 1000, 0])
+        sampled = compute_run_summary(run)
+        assert sampled is not None
+        assert sampled.metrics["bottleneck_peak_utilization"] == pytest.approx(1.2)
+        for step, sent in ((1, 90000.0), (2, 30000.0)):
+            FFWLinkStepRecordFactory.create(run=run, step=step, sent_mbit=sent)
+        FFWLinkStepRecordFactory.create(run=run, switch_id=1, target_index=0, sent_mbit=50000.0)
+        # A terminal port that was busier: not a switch-to-switch link.
+        FFWLinkStepRecordFactory.create(
+            run=run, port=1, target_is_terminal=True, target_index=0, sent_mbit=100000.0
+        )
+
+        summary = compute_run_summary(run)
+
+        assert summary is not None
+        assert summary.metrics["bottleneck_peak_utilization"] == pytest.approx(0.9)
+        # 120 Gbit over steps 0-2 of 100 Gbit each, without the run's length on record.
+        assert summary.metrics["bottleneck_mean_utilization"] == pytest.approx(0.4)
+        assert summary.details["bottleneck_link"] == "A → B"
+        assert summary.details["utilization_source"] == SOURCE_MODEL_LOG
+
+    def test_mean_counts_the_runs_idle_steps(self, preset: str) -> None:
+        run = _healthy_run(preset)
+        FFWLinkStepRecordFactory.create(run=run, step=1, sent_mbit=100000.0)
+        FFWModelLog.objects.create(
+            run=run,
+            kind=FFWModelLogKind.FLUID_SEGMENT,
+            file=ContentFile(b"", name="fluid-segment-events.csv"),
+            interval_seconds=1.0,
+            num_steps=10,
+        )
+
+        summary = compute_run_summary(run)
+
+        assert summary is not None
+        assert summary.metrics["bottleneck_peak_utilization"] == pytest.approx(1.0)
+        assert summary.metrics["bottleneck_mean_utilization"] == pytest.approx(0.1)
+
+    def test_ties_go_to_the_busier_link(self, preset: str) -> None:
+        run = _healthy_run(preset)
+        FFWLinkStepRecordFactory.create(run=run, step=1, sent_mbit=100000.0)
+        for step in (1, 2):
+            FFWLinkStepRecordFactory.create(
+                run=run, switch_id=1, target_index=0, step=step, sent_mbit=100000.0
+            )
+
+        summary = compute_run_summary(run)
+
+        assert summary is not None
+        assert summary.details["bottleneck_link"] == "B → A"
 
 
 class TestHealth:
