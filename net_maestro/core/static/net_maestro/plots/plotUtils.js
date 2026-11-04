@@ -80,10 +80,42 @@ export function setupPlot({ component, elementId, elementProp, data, layout, eve
   const config = { responsive: true };
   Plotly.newPlot(el, data, layout, config);
   component.isPlotInitialized = true;
+  followContainerSize(el);
 
   for (const { event, handler } of eventHandlers) {
     el.on(event, handler);
   }
+}
+
+/**
+ * Resize a plot whenever its own element changes size, not only the window.
+ *
+ * Plotly's `responsive` option listens for window resizes only, so a plot drawn
+ * while its element was hidden (a tab not yet opened) or narrower than its final
+ * width (styles still settling at page load, a panel opening beside it) keeps the
+ * size it was drawn at and leaves the rest of its box empty. A hidden element
+ * measures zero, so those changes are skipped and the resize happens on showing.
+ *
+ * @param {HTMLElement} el - The plot's element
+ */
+function followContainerSize(el) {
+  if (el._resizeObserver || typeof ResizeObserver === 'undefined') {
+    return;
+  }
+  let frame = null;
+  el._resizeObserver = new ResizeObserver(([entry]) => {
+    const { width, height } = entry.contentRect;
+    const layout = el._fullLayout;
+    if (!layout || width === 0 || height === 0) {
+      return;
+    }
+    if (Math.round(width) === layout.width && Math.round(height) === layout.height) {
+      return;
+    }
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => Plotly.Plots.resize(el));
+  });
+  el._resizeObserver.observe(el);
 }
 
 /**
@@ -94,6 +126,8 @@ export function setupPlot({ component, elementId, elementProp, data, layout, eve
 export function purgePlot(component, elementProp) {
   const el = component[elementProp];
   if (el) {
+    el._resizeObserver?.disconnect();
+    el._resizeObserver = null;
     Plotly.purge(el);
     component.isPlotInitialized = false;
   }
