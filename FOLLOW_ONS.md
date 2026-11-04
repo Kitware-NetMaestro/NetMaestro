@@ -88,6 +88,12 @@ requirement asked for; the CSV export already carries the topology name.
   the dark theme, so the members with the fewest drops — the ones a sweep is usually
   about — are the hardest lines to see. Reverse the scale for lower-is-better metrics
   (`Metric.lower_is_better` is already in the JSON) so best is bright.
+- **Choose the baseline.** `ensemble_stats.baseline_member` picks the member that ran the
+  base configuration unchanged, and falls back to member #1 when no member does (e.g. a
+  sweep that skips the preset's own values). Add a "compare against" select to the members
+  toolbar (a `baseline=` query param like `delta=`), and have the Δ footnote say when the
+  automatic choice was a fallback rather than a true baseline. Promised in the November 2026
+  webinar.
 - **Start an ensemble from the topology page.** The form already accepts `?topology=`
   (`ensemble_create`); a "New ensemble" button beside "Run simulation" on the topology
   page makes topology → sweep one click.
