@@ -47,8 +47,14 @@ CORS_ALLOWED_ORIGIN_REGEXES = env.list(
 STORAGES["default"] = {
     "BACKEND": "minio_storage.storage.MinioMediaStorage",
 }
+# SeaweedFS rejects the empty "NONE" policy; new buckets are already private.
+MINIO_STORAGE_AUTO_CREATE_MEDIA_POLICY = False  # type: ignore[assignment]
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+MAILERS: dict[str, dict[str, Any]] = {
+    "default": {
+        "BACKEND": "django.core.mail.backends.console.EmailBackend",
+    },
+}
 
 OAUTH2_PROVIDER["ALLOWED_REDIRECT_URI_SCHEMES"] = ["http", "https"]
 # In development, always present the approval dialog

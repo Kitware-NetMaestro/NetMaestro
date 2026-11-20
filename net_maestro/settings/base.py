@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+import datetime as dt
 from pathlib import Path
 from typing import Any
 
@@ -80,7 +80,7 @@ TIME_ZONE = "UTC"
 DATABASES = {
     "default": {
         **env.db_url("DJANGO_DATABASE_URL", engine="django.db.backends.postgresql"),
-        "CONN_MAX_AGE": timedelta(minutes=10).total_seconds(),
+        "CONN_MAX_AGE": dt.timedelta(minutes=10).total_seconds(),
     },
 }
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

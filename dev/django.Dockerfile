@@ -55,7 +55,7 @@ RUN cmake -S /opt/codes -B /opt/codes/build \
     && cmake --build opt/codes/build \
     && cmake --install opt/codes/build/
 
-FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
+FROM mcr.microsoft.com/devcontainers/base:3-ubuntu26.04
 
 # Declared (empty by default) so the LD_LIBRARY_PATH append below references a
 # variable defined in this stage, rather than an inherited/unset one.
@@ -77,9 +77,6 @@ COPY --from=ross-builder --chown=vscode:vscode /ross/build/models/phold/phold /o
 COPY --from=ross-builder --chown=vscode:vscode /opt/codes /opt/codes
 # Ensure Python output appears immediately in container logs.
 ENV PYTHONUNBUFFERED=1
-
-# Override Node's default of attempting to bind to IPv6 interfaces over IPv4
-ENV NODE_OPTIONS=--dns-result-order=ipv4first
 
 # Put the uv and npm caches in a separate location,
 # where they can persist and be shared across containers.

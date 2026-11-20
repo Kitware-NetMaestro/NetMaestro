@@ -16,5 +16,13 @@ STORAGES["default"] = {
     "BACKEND": "minio_storage.storage.MinioMediaStorage",
 }
 MINIO_STORAGE_MEDIA_BUCKET_NAME = f"test-django-storage-{randbelow(1_000_000):06d}"
+# SeaweedFS rejects the empty "NONE" policy; new buckets are already private.
+MINIO_STORAGE_AUTO_CREATE_MEDIA_POLICY = False  # type: ignore[assignment]
 
-# Testing will set EMAIL_BACKEND to use the memory backend
+# Django's test runner will override every mailer here with the memory backend, but a "default"
+# mailer must exist for outgoing email to be captured instead of failing.
+MAILERS: dict[str, dict[str, Any]] = {
+    "default": {
+        "BACKEND": "django.core.mail.backends.locmem.EmailBackend",
+    },
+}
