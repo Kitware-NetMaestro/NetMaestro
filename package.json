@@ -10,7 +10,7 @@
     "@resonant/biome-config": "0.3.2"
   },
   "dependencies": {
-    "alpinejs": "3.17.1",
+    "alpinejs": "3.17.5",
     "lodash": "4.18.1",
     "plotly": "npm:plotly.js-dist-min@3.7.0"
   }
